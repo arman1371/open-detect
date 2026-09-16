@@ -15,6 +15,7 @@
     "cicd-automation@claude-code-workflows": true,
     "document-skills@anthropic-agent-skills": true,
     "ponytail@ponytail": true,
-    "agent-skills@addy-agent-skills": true
+    "agent-skills@addy-agent-skills": true,
+    "ecc@ecc": true
   }
 }
