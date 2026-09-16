@@ -23,24 +23,30 @@ def _write_table(spark, fqn: str, rows: list[dict], columns: list[str]) -> None:
 
 
 @pytest.fixture
-def corpus_and_target_tables(spark, uc_location):
-    """Builds a small but statistically meaningful synthetic corpus.
+def corpus_tables_by_category(spark, uc_location):
+    """Builds a small but statistically meaningful synthetic corpus, grouped by category.
 
-    The corpus contains many "boring" columns (common names/dates with
-    occasional coincidental duplicates, chemical-formula-like short-distance
-    string columns, multi-candidate vote columns with a dominant winner) so
-    that the *background* statistics correctly treat the paper's
-    false-positive examples as unsurprising, while still containing enough
-    genuine near-constraints (ID-like unique columns, tight numeric
-    columns, near-duplicate name pairs, near-FDs) that the true-positive
-    examples stand out as surprising.
+    Each error-type test below builds corpus statistics from *only* the
+    category (or categories) relevant to it, rather than the full mixed
+    corpus. This matters at this test corpus's tiny scale (tens of tables,
+    not the paper's 100M+): an unrelated category's columns can otherwise
+    land in the same coarse feature bucket (e.g. two STRING columns of
+    similar row-count) and dilute the very statistics a test is trying to
+    isolate. A real deployment's corpus is large and diverse enough that
+    featurization separates categories on its own; this grouping exists
+    purely to keep *this* small test corpus's signal clean per assertion.
     """
     catalog, schema = uc_location.catalog, uc_location.schema
-    tables: list[str] = []
 
     import random
 
     rnd = random.Random(42)
+    categories: dict[str, list[str]] = {
+        "uniqueness": [],
+        "outlier": [],
+        "spelling": [],
+        "fd": [],
+    }
 
     # --- "boring" corpus tables: common names with coincidental duplicates ---
     common_names = [
@@ -60,7 +66,7 @@ def corpus_and_target_tables(spark, uc_location):
         values = [rnd.choice(common_names) for _ in range(n)]  # lots of natural collisions
         fqn = f"{catalog}.{schema}.corpus_names_{t}"
         _write_table(spark, fqn, [{"name": v} for v in values], ["name"])
-        tables.append(fqn)
+        categories["uniqueness"].append(fqn)
 
     # --- "boring" corpus tables: ID-like unique mixed-alphanumeric columns ---
     for t in range(10):
@@ -68,7 +74,16 @@ def corpus_and_target_tables(spark, uc_location):
         values = [f"ICAO{rnd.randint(100000, 999999)}X{t}{i}" for i in range(n)]
         fqn = f"{catalog}.{schema}.corpus_ids_{t}"
         _write_table(spark, fqn, [{"code": v} for v in values], ["code"])
-        tables.append(fqn)
+        categories["uniqueness"].append(fqn)
+
+    # --- genuine near-constraints, also placed in the corpus so the model has positives ---
+    for t in range(5):
+        n = rnd.randint(80, 150)
+        values = [f"CODE{rnd.randint(0, 999999)}Z{t}{i}" for i in range(n)]
+        values[1] = values[0]  # inject one true duplicate into an ID-like column
+        fqn = f"{catalog}.{schema}.corpus_true_unique_violation_{t}"
+        _write_table(spark, fqn, [{"code": v} for v in values], ["code"])
+        categories["uniqueness"].append(fqn)
 
     # --- "boring" corpus tables: many small-vote-share candidates (outlier baseline) ---
     for t in range(10):
@@ -77,7 +92,7 @@ def corpus_and_target_tables(spark, uc_location):
         values[0] = round(rnd.uniform(20, 45), 2)  # one legitimately larger "winner"
         fqn = f"{catalog}.{schema}.corpus_votes_{t}"
         _write_table(spark, fqn, [{"pct": v} for v in values], ["pct"])
-        tables.append(fqn)
+        categories["outlier"].append(fqn)
 
     # --- "boring" corpus tables: roman-numeral-suffixed strings (spelling baseline) ---
     for t in range(10):
@@ -86,7 +101,7 @@ def corpus_and_target_tables(spark, uc_location):
         values = [f"Super Bowl {rnd.choice(romans)}" for _ in range(n)]
         fqn = f"{catalog}.{schema}.corpus_spelling_{t}"
         _write_table(spark, fqn, [{"event": v} for v in values], ["event"])
-        tables.append(fqn)
+        categories["spelling"].append(fqn)
 
     # --- "boring" corpus tables: near-FD with no real relationship (large domain) ---
     for t in range(10):
@@ -97,18 +112,9 @@ def corpus_and_target_tables(spark, uc_location):
         _write_table(
             spark, fqn, [{"a": a, "b": b} for a, b in zip(lhs, rhs, strict=True)], ["a", "b"]
         )
-        tables.append(fqn)
+        categories["fd"].append(fqn)
 
-    # --- genuine near-constraints, also placed in the corpus so the model has positives ---
-    for t in range(5):
-        n = rnd.randint(80, 150)
-        values = [f"CODE{rnd.randint(0, 999999)}Z{t}{i}" for i in range(n)]
-        values[1] = values[0]  # inject one true duplicate into an ID-like column
-        fqn = f"{catalog}.{schema}.corpus_true_unique_violation_{t}"
-        _write_table(spark, fqn, [{"code": v} for v in values], ["code"])
-        tables.append(fqn)
-
-    return {"catalog": catalog, "schema": schema, "corpus_tables": tables, "rnd": rnd}
+    return {"catalog": catalog, "schema": schema, "categories": categories, "rnd": rnd}
 
 
 @pytest.fixture
@@ -134,10 +140,10 @@ def config(uc_location):
 
 class TestCorpusBuilderAndDetectors:
     def test_uniqueness_true_positive_and_false_positive(
-        self, spark, corpus_and_target_tables, config
+        self, spark, corpus_tables_by_category, config
     ):
-        catalog, schema = corpus_and_target_tables["catalog"], corpus_and_target_tables["schema"]
-        corpus_tables = corpus_and_target_tables["corpus_tables"]
+        catalog, schema = corpus_tables_by_category["catalog"], corpus_tables_by_category["schema"]
+        corpus_tables = corpus_tables_by_category["categories"]["uniqueness"]
 
         ud = UniDetect(config, spark=spark)
         ud.build_corpus_statistics(
@@ -176,10 +182,10 @@ class TestCorpusBuilderAndDetectors:
         assert tp_row["lr_ratio"].iloc[0] < fp_row["lr_ratio"].iloc[0]
 
     def test_numeric_outlier_true_positive_and_false_positive(
-        self, spark, corpus_and_target_tables, config
+        self, spark, corpus_tables_by_category, config
     ):
-        catalog, schema = corpus_and_target_tables["catalog"], corpus_and_target_tables["schema"]
-        corpus_tables = corpus_and_target_tables["corpus_tables"]
+        catalog, schema = corpus_tables_by_category["catalog"], corpus_tables_by_category["schema"]
+        corpus_tables = corpus_tables_by_category["categories"]["outlier"]
 
         ud = UniDetect(config, spark=spark)
         ud.build_corpus_statistics(
@@ -204,10 +210,10 @@ class TestCorpusBuilderAndDetectors:
         assert tp_row["lr_ratio"].iloc[0] < fp_row["lr_ratio"].iloc[0]
 
     def test_spelling_true_positive_and_false_positive(
-        self, spark, corpus_and_target_tables, config
+        self, spark, corpus_tables_by_category, config
     ):
-        catalog, schema = corpus_and_target_tables["catalog"], corpus_and_target_tables["schema"]
-        corpus_tables = corpus_and_target_tables["corpus_tables"]
+        catalog, schema = corpus_tables_by_category["catalog"], corpus_tables_by_category["schema"]
+        corpus_tables = corpus_tables_by_category["categories"]["spelling"]
 
         ud = UniDetect(config, spark=spark)
         ud.build_corpus_statistics(
@@ -240,10 +246,10 @@ class TestCorpusBuilderAndDetectors:
         assert tp_row["lr_ratio"].iloc[0] < fp_row["lr_ratio"].iloc[0]
 
     def test_functional_dependency_true_positive_and_false_positive(
-        self, spark, corpus_and_target_tables, config
+        self, spark, corpus_tables_by_category, config
     ):
-        catalog, schema = corpus_and_target_tables["catalog"], corpus_and_target_tables["schema"]
-        corpus_tables = corpus_and_target_tables["corpus_tables"]
+        catalog, schema = corpus_tables_by_category["catalog"], corpus_tables_by_category["schema"]
+        corpus_tables = corpus_tables_by_category["categories"]["fd"]
 
         ud = UniDetect(config, spark=spark)
         ud.build_corpus_statistics(
@@ -251,7 +257,7 @@ class TestCorpusBuilderAndDetectors:
         )
 
         # False positive: large, unrelated random domains (paper's "population -> statistical area" case)
-        rnd = corpus_and_target_tables["rnd"]
+        rnd = corpus_tables_by_category["rnd"]
         n = 150
         fp_a = [str(rnd.randint(0, 100_000)) for _ in range(n)]
         fp_b = [str(rnd.randint(0, 100_000)) for _ in range(n)]
@@ -278,9 +284,12 @@ class TestCorpusBuilderAndDetectors:
         assert not tp_row.empty
         assert tp_row["lr_ratio"].iloc[0] < fp_row["lr_ratio"].iloc[0]
 
-    def test_detect_unions_multiple_error_types(self, spark, corpus_and_target_tables, config):
-        catalog, schema = corpus_and_target_tables["catalog"], corpus_and_target_tables["schema"]
-        corpus_tables = corpus_and_target_tables["corpus_tables"]
+    def test_detect_unions_multiple_error_types(self, spark, corpus_tables_by_category, config):
+        catalog, schema = corpus_tables_by_category["catalog"], corpus_tables_by_category["schema"]
+        corpus_tables = (
+            corpus_tables_by_category["categories"]["uniqueness"]
+            + corpus_tables_by_category["categories"]["outlier"]
+        )
 
         ud = UniDetect(config, spark=spark)
         ud.build_corpus_statistics(
@@ -302,10 +311,10 @@ class TestCorpusBuilderAndDetectors:
         assert list(result["lr_ratio"]) == sorted(result["lr_ratio"])
 
     def test_write_detections_round_trips_through_delta(
-        self, spark, corpus_and_target_tables, config
+        self, spark, corpus_tables_by_category, config
     ):
-        catalog, schema = corpus_and_target_tables["catalog"], corpus_and_target_tables["schema"]
-        corpus_tables = corpus_and_target_tables["corpus_tables"]
+        catalog, schema = corpus_tables_by_category["catalog"], corpus_tables_by_category["schema"]
+        corpus_tables = corpus_tables_by_category["categories"]["uniqueness"]
 
         ud = UniDetect(config, spark=spark)
         ud.build_corpus_statistics(
