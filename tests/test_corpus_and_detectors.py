@@ -119,6 +119,16 @@ def config(uc_location):
         alpha=0.2,
         max_mpd_block_size=200,
         max_fd_column_pairs_per_table=10,
+        # The default prevalence edges (50, 100, 1000, ...) are tuned for a
+        # web-scale corpus (paper: ~100M tables). This test's synthetic
+        # corpus only has a few dozen tables, so a common token like "james"
+        # (document frequency ~10, appearing in every "boring names" table)
+        # and a random ID token (document frequency ~1, essentially unique)
+        # would otherwise both fall into the same "(-inf,50]" bucket and
+        # become statistically indistinguishable. Scaling the edges down to
+        # match this corpus's size restores the intended separation -- a
+        # real deployment tunes this the same way for its own corpus scale.
+        prevalence_edges=(2, 5, 20, 100, 1000),
     )
 
 
