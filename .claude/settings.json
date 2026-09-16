@@ -1,0 +1,20 @@
+{
+  "enabledPlugins": {
+    "python-development@claude-code-workflows": true,
+    "code-documentation@claude-code-workflows": true,
+    "git-pr-workflows@claude-code-workflows": true,
+    "backend-development@claude-code-workflows": true,
+    "unit-testing@claude-code-workflows": true,
+    "agent-teams@claude-code-workflows": true,
+    "dependency-management@claude-code-workflows": true,
+    "agent-orchestration@claude-code-workflows": true,
+    "data-engineering@claude-code-workflows": true,
+    "data-validation-suite@claude-code-workflows": true,
+    "application-performance@claude-code-workflows": true,
+    "database-cloud-optimization@claude-code-workflows": true,
+    "cicd-automation@claude-code-workflows": true,
+    "document-skills@anthropic-agent-skills": true,
+    "ponytail@ponytail": true,
+    "agent-skills@addy-agent-skills": true
+  }
+}
