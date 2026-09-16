@@ -203,17 +203,24 @@ class CorpusStatsBuilder:
         fqn = self.config.corpus_stats_fqn
         table_already_exists = self.spark.catalog.tableExists(fqn)
 
-        writer = (
-            stats.write.format("delta")
-            .mode(mode)
-            .partitionBy("error_type")
-            .option("overwriteSchema", "true" if mode == "overwrite" else "false")
-        )
-        if mode == "overwrite" and table_already_exists:
-            error_types = [r["error_type"] for r in stats.select("error_type").distinct().collect()]
-            if error_types:
-                predicate = " OR ".join(f"error_type = '{et}'" for et in error_types)
-                writer = writer.option("replaceWhere", predicate)
+        writer = stats.write.format("delta").mode(mode)
+        if table_already_exists:
+            # Re-declaring `.partitionBy(...)` (and `overwriteSchema`) against
+            # an already-partitioned table is unnecessary -- Delta keeps the
+            # table's existing partitioning -- and on some catalogs (notably
+            # Spark's built-in in-memory session catalog used in local
+            # testing) repeating it alongside `replaceWhere` trips an
+            # internal catalog-sync assertion. Unity Catalog is unaffected,
+            # but omitting the redundant options is correct everywhere.
+            if mode == "overwrite":
+                error_types = [
+                    r["error_type"] for r in stats.select("error_type").distinct().collect()
+                ]
+                if error_types:
+                    predicate = " OR ".join(f"error_type = '{et}'" for et in error_types)
+                    writer = writer.option("replaceWhere", predicate)
+        else:
+            writer = writer.partitionBy("error_type").option("overwriteSchema", "true")
         writer.saveAsTable(fqn)
         logger.info("Wrote corpus statistics to %s", fqn)
 

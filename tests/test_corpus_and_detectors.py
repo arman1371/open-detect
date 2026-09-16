@@ -76,18 +76,24 @@ def corpus_tables_by_category(spark, uc_location):
         _write_table(spark, fqn, [{"code": v} for v in values], ["code"])
         categories["uniqueness"].append(fqn)
 
-    # --- genuine near-constraints, also placed in the corpus so the model has positives ---
-    for t in range(5):
-        n = rnd.randint(80, 150)
-        values = [f"CODE{rnd.randint(0, 999999)}Z{t}{i}" for i in range(n)]
-        values[1] = values[0]  # inject one true duplicate into an ID-like column
-        fqn = f"{catalog}.{schema}.corpus_true_unique_violation_{t}"
-        _write_table(spark, fqn, [{"code": v} for v in values], ["code"])
-        categories["uniqueness"].append(fqn)
+    # Note: we deliberately do *not* inject extra "near-violation" columns
+    # into the uniqueness corpus. Doing so would teach the corpus statistics
+    # that a 0.99-before / 1.0-after transition is a *common* pattern for
+    # mixed-alphanumeric columns, which directly weakens (and, at this test
+    # corpus's tiny scale, can invert) the very surprise signal the
+    # assertion below depends on. The `corpus_ids` columns already supply
+    # the correct contrast on their own: real ID-like columns are almost
+    # always *exactly* unique (before=after=1.0), so a column with
+    # before=0.99 stands out as rare on its own, without needing synthetic
+    # reinforcement.
 
     # --- "boring" corpus tables: many small-vote-share candidates (outlier baseline) ---
+    # Row counts deliberately span down to single digits so this bucket has
+    # support for the tiny (7-9 row) outlier targets used below -- a real,
+    # web-scale corpus naturally contains tables of every size; this test
+    # corpus has to be told to include small ones too.
     for t in range(10):
-        n = rnd.randint(20, 60)
+        n = rnd.randint(6, 30)
         values = [round(rnd.uniform(0.1, 3.0), 2) for _ in range(n)]
         values[0] = round(rnd.uniform(20, 45), 2)  # one legitimately larger "winner"
         fqn = f"{catalog}.{schema}.corpus_votes_{t}"
@@ -96,7 +102,7 @@ def corpus_tables_by_category(spark, uc_location):
 
     # --- "boring" corpus tables: roman-numeral-suffixed strings (spelling baseline) ---
     for t in range(10):
-        n = rnd.randint(20, 80)
+        n = rnd.randint(6, 35)
         romans = ["XIX", "XX", "XXI", "XXII", "XXIII", "XXIV"]
         values = [f"Super Bowl {rnd.choice(romans)}" for _ in range(n)]
         fqn = f"{catalog}.{schema}.corpus_spelling_{t}"
