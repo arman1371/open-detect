@@ -31,9 +31,14 @@ dependencies = [
 [project.optional-dependencies]
 spark = [
   "pyspark>=3.5,<4.0",
+  # PySpark 3.5's Arrow serialization (pandas_udf/mapInPandas) is only
+  # tested against pyarrow up to ~14.x; pyarrow 15+ has been observed to
+  # raise "Expected Array, got ChunkedArray" for array-typed columns.
+  "pyarrow>=11,<15",
 ]
 dev = [
   "pyspark>=3.5,<4.0",
+  "pyarrow>=11,<15",
   "delta-spark>=3.1,<4.0",
   "pytest>=8.0",
   "pytest-cov>=5.0",
