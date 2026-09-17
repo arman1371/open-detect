@@ -31,8 +31,11 @@ onto the code.
 
 ## Install
 
+This project uses [uv](https://docs.astral.sh/uv/) for package and
+dependency management.
+
 ```bash
-pip install -e ".[dev]"       # local development, including pyspark + delta-spark for tests
+uv sync       # local development, including pyspark + delta-spark for tests
 # or, on a Databricks cluster / job (Spark and Delta are already provided):
 pip install unidetect
 ```
