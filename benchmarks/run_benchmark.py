@@ -48,6 +48,16 @@ ERROR_TYPES = [
 ]
 
 
+class SparkUnavailable(Exception):
+    """Raised only when a local Delta-enabled Spark session cannot be started at all.
+
+    Kept narrow and distinct from any other exception so that a real failure
+    *during* the benchmark (a bad detector result, an OOM, a bug) fails the
+    script loudly instead of being swallowed as if the environment simply
+    lacked Spark/Delta -- see ``main()``.
+    """
+
+
 def _git_commit() -> str:
     try:
         return subprocess.check_output(
@@ -72,16 +82,30 @@ def _spark_session() -> Iterator[Any]:
         .config("spark.sql.warehouse.dir", warehouse_dir)
         .config("spark.sql.shuffle.partitions", "2")
         .config("spark.ui.enabled", "false")
+        # Default driver heap is too small for this benchmark's run:
+        # unidetect.corpus.store.CorpusStatsStore.load_token_stats_map()
+        # calls `.orderBy(...).limit(max_tokens)` with a default
+        # max_tokens of 5,000,000, and Spark's TakeOrderedAndProjectExec
+        # pre-sizes an ordering buffer proportional to that limit
+        # regardless of the token table's actual (tiny) size -- an
+        # OutOfMemoryError on the default heap, not a sign of anything
+        # wrong with this benchmark's data or config.
+        .config("spark.driver.memory", "3g")
         .config("spark.sql.extensions", "io.delta.sql.DeltaSparkSessionExtension")
         .config(
             "spark.sql.catalog.spark_catalog",
             "org.apache.spark.sql.delta.catalog.DeltaCatalog",
         )
     )
-    session = configure_spark_with_delta_pip(builder).getOrCreate()
     try:
+        session = configure_spark_with_delta_pip(builder).getOrCreate()
         session.sparkContext.setLogLevel("ERROR")
         session.sql(f"CREATE NAMESPACE IF NOT EXISTS {TEST_CATALOG}.{TEST_SCHEMA}")
+    except Exception as exc:  # noqa: BLE001
+        shutil.rmtree(warehouse_dir, ignore_errors=True)
+        raise SparkUnavailable(str(exc)) from exc
+
+    try:
         yield session
     finally:
         session.stop()
@@ -308,8 +332,8 @@ def main() -> None:
 
     try:
         results = run()
-    except Exception as exc:  # noqa: BLE001
-        print(f"Could not run benchmark (no local Delta-enabled Spark session?): {exc}")
+    except SparkUnavailable as exc:
+        print(f"Could not start a local Delta-enabled Spark session; skipping: {exc}")
         sys.exit(0)
 
     LATEST_FILE.write_text(json.dumps(results, indent=2) + "\n")
