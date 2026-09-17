@@ -117,12 +117,14 @@ def corpus_tables_by_category(spark, uc_location):
     # reinforcement.
 
     # --- "boring" corpus tables: many small-vote-share candidates (outlier baseline) ---
-    # Row counts deliberately span down to single digits so this bucket has
-    # support for the tiny (7-9 row) outlier targets used below -- a real,
-    # web-scale corpus naturally contains tables of every size; this test
-    # corpus has to be told to include small ones too.
-    for t in range(10):
-        n = rnd.randint(6, 30)
+    # Row counts span from single digits up through the false-positive target's
+    # own 44-candidate scale, and a wider table count keeps each row-count
+    # sub-bucket adequately populated -- with too few samples per bucket, the
+    # ratio becomes highly sensitive to which handful of tables happen to be
+    # drawn (the same sparsity issue diagnosed for the "figures" category
+    # below, just for this shape of column instead).
+    for t in range(30):
+        n = rnd.randint(6, 60)
         values = [round(rnd.uniform(0.1, 3.0), 2) for _ in range(n)]
         values[0] = round(rnd.uniform(20, 45), 2)  # one legitimately larger "winner"
         fqn = f"{catalog}.{schema}.corpus_votes_{t}"
