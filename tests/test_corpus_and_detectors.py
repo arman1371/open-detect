@@ -160,6 +160,42 @@ def corpus_tables_by_category(spark, uc_location):
         _write_table(spark, fqn, [{"event": v} for v in values], ["event"])
         categories["spelling"].append(fqn)
 
+    # --- "boring" corpus tables: distinct long names, no natural close pairs ---
+    # The paper's true-positive spelling target (Fig. 4g) has long ("Doeling"/
+    # "Dowling"-length) tokens, a different token_length sub-cube than the short
+    # roman-numeral tokens above. Without a background category at that token
+    # length, that sub-cube would have zero corpus support and any target
+    # landing there would be scored as trivially "unsurprising", regardless of
+    # how large its own MPD jump is.
+    long_names_pool = [
+        "Alexander Kingsley",
+        "Bartholomew Winters",
+        "Cassandra Ashford",
+        "Dominic Fairweather",
+        "Evangeline Whitmore",
+        "Frederick Lancaster",
+        "Gwendolyn Pemberton",
+        "Harrison Blackwood",
+        "Isabella Thorne",
+        "Jonathan Sinclair",
+        "Katherine Wellesley",
+        "Lysander Montgomery",
+        "Marguerite Fitzgerald",
+        "Nathaniel Ashworth",
+        "Ophelia Sterling",
+        "Percival Hawthorne",
+        "Rosalind Kensington",
+        "Sebastian Wolverton",
+        "Theodora Ravensworth",
+        "Ulysses Blackthorn",
+    ]
+    for t in range(10):
+        n = rnd.randint(6, len(long_names_pool))
+        values = rnd.sample(long_names_pool, n)
+        fqn = f"{catalog}.{schema}.corpus_long_names_{t}"
+        _write_table(spark, fqn, [{"name": v} for v in values], ["name"])
+        categories["spelling"].append(fqn)
+
     # --- "boring" corpus tables: near-FD with no real relationship (large domain) ---
     for t in range(10):
         n = rnd.randint(60, 200)
@@ -249,8 +285,19 @@ class TestCorpusBuilderAndDetectors:
             corpus_tables, error_types=[ErrorType.NUMERIC_OUTLIER], create_schema=False
         )
 
-        # False positive (paper Fig. 2e): many small-share candidates, one legitimate winner
-        fp_values = [round(v, 2) for v in [0.3, 0.4, 0.5, 0.6, 0.76, 0.9, 1.1, 1.2, 22.0]]
+        # False positive (paper Fig. 2e): "44 candidates of an election, most of whom
+        # receive less than 1% votes" plus one legitimate winner. The candidate count
+        # matters, not just the shape: with too few small values, MAD collapses to a
+        # tiny number and inflates the raw max-MAD score into an artificially huge
+        # number (a small-sample-size artifact, not a real signal) -- large enough
+        # that it would swamp even the true positive's own raw score below, which
+        # defeats the point of the example (the paper's C+/C- Example 5 shows the two
+        # cases sharing the *same* raw score; only the corpus-based reasoning below
+        # tells them apart).
+        rnd = corpus_tables_by_category["rnd"]
+        fp_values = [round(rnd.uniform(0.05, 0.9), 2) for _ in range(43)] + [
+            round(rnd.uniform(20, 40), 2)
+        ]
         fp_fqn = f"{catalog}.{schema}.target_fp_outlier"
         _write_table(spark, fp_fqn, [{"pct": v} for v in fp_values], ["pct"])
 
