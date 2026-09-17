@@ -40,7 +40,24 @@ def corpus_tables_by_category(spark, uc_location):
 
     import random
 
-    rnd = random.Random(42)
+    # Each category gets its own, independently-seeded Random instance rather
+    # than sharing one. A shared RNG's state after generating category A
+    # depends on exactly how many random calls category A happened to make,
+    # so any later change to an earlier category (more tables, a wider
+    # range, ...) silently changes every later category's draws too -- which
+    # is exactly what repeatedly broke the outlier and FD assertions here
+    # while isolated single-category debugging (starting from a fresh seed)
+    # kept passing. Independent seeds make each category's data reproducible
+    # on its own.
+    names_rnd = random.Random("uniqueness-names")
+    ids_rnd = random.Random("uniqueness-ids")
+    votes_rnd = random.Random("outlier-votes")
+    figures_rnd = random.Random("outlier-figures")
+    romans_rnd = random.Random("spelling-romans")
+    long_names_rnd = random.Random("spelling-long-names")
+    fd_rnd = random.Random("fd-corpus")
+    fd_target_rnd = random.Random("fd-target")
+
     categories: dict[str, list[str]] = {
         "uniqueness": [],
         "outlier": [],
@@ -91,16 +108,16 @@ def corpus_tables_by_category(spark, uc_location):
         "Elizabeth Thomas",
     ]
     for t in range(10):
-        n = rnd.randint(60, 300)
-        values = [rnd.choice(common_names) for _ in range(n)]  # lots of natural collisions
+        n = names_rnd.randint(60, 300)
+        values = [names_rnd.choice(common_names) for _ in range(n)]  # lots of natural collisions
         fqn = f"{catalog}.{schema}.corpus_names_{t}"
         _write_table(spark, fqn, [{"name": v} for v in values], ["name"])
         categories["uniqueness"].append(fqn)
 
     # --- "boring" corpus tables: ID-like unique mixed-alphanumeric columns ---
     for t in range(10):
-        n = rnd.randint(60, 300)
-        values = [f"ICAO{rnd.randint(100000, 999999)}X{t}{i}" for i in range(n)]
+        n = ids_rnd.randint(60, 300)
+        values = [f"ICAO{ids_rnd.randint(100000, 999999)}X{t}{i}" for i in range(n)]
         fqn = f"{catalog}.{schema}.corpus_ids_{t}"
         _write_table(spark, fqn, [{"code": v} for v in values], ["code"])
         categories["uniqueness"].append(fqn)
@@ -124,9 +141,9 @@ def corpus_tables_by_category(spark, uc_location):
     # drawn (the same sparsity issue diagnosed for the "figures" category
     # below, just for this shape of column instead).
     for t in range(30):
-        n = rnd.randint(6, 60)
-        values = [round(rnd.uniform(0.1, 3.0), 2) for _ in range(n)]
-        values[0] = round(rnd.uniform(20, 45), 2)  # one legitimately larger "winner"
+        n = votes_rnd.randint(6, 60)
+        values = [round(votes_rnd.uniform(0.1, 3.0), 2) for _ in range(n)]
+        values[0] = round(votes_rnd.uniform(20, 45), 2)  # one legitimately larger "winner"
         fqn = f"{catalog}.{schema}.corpus_votes_{t}"
         _write_table(spark, fqn, [{"pct": v} for v in values], ["pct"])
         categories["outlier"].append(fqn)
@@ -148,18 +165,18 @@ def corpus_tables_by_category(spark, uc_location):
     # linear sweep guarantees the full range is represented independent of
     # the random seed.
     for t in range(20):
-        n = rnd.randint(6, 20)
-        base = rnd.uniform(5000, 15000)
+        n = figures_rnd.randint(6, 20)
+        base = figures_rnd.uniform(5000, 15000)
         spread = 300 + t * 400  # sweeps 300 .. ~8000
-        values = [round(base + rnd.uniform(-spread, spread), 2) for _ in range(n)]
+        values = [round(base + figures_rnd.uniform(-spread, spread), 2) for _ in range(n)]
         fqn = f"{catalog}.{schema}.corpus_figures_{t}"
         _write_table(spark, fqn, [{"amount": v} for v in values], ["amount"])
         categories["outlier"].append(fqn)
 
     # --- "boring" corpus tables: roman-numeral-suffixed strings (spelling baseline) ---
     for t in range(10):
-        n = rnd.randint(6, len(roman_numerals))
-        values = [f"Super Bowl {r}" for r in rnd.sample(roman_numerals, n)]
+        n = romans_rnd.randint(6, len(roman_numerals))
+        values = [f"Super Bowl {r}" for r in romans_rnd.sample(roman_numerals, n)]
         fqn = f"{catalog}.{schema}.corpus_spelling_{t}"
         _write_table(spark, fqn, [{"event": v} for v in values], ["event"])
         categories["spelling"].append(fqn)
@@ -207,11 +224,11 @@ def corpus_tables_by_category(spark, uc_location):
     # tokens -- a longer constructed token would land in a different bucket
     # and provide no coverage for the one that matters.
     for t in range(8):
-        n = rnd.randint(6, len(long_names_pool))
+        n = long_names_rnd.randint(6, len(long_names_pool))
         k = t + 1
         word_a = "abcdefgh"
         word_b = word_a[: 8 - k] + "z" * k
-        values = rnd.sample(long_names_pool, max(n - 2, 4)) + [
+        values = long_names_rnd.sample(long_names_pool, max(n - 2, 4)) + [
             f"Corpustest {word_a}",
             f"Corpustest {word_b}",
         ]
@@ -221,16 +238,16 @@ def corpus_tables_by_category(spark, uc_location):
 
     # --- "boring" corpus tables: near-FD with no real relationship (large domain) ---
     for t in range(10):
-        n = rnd.randint(60, 200)
-        lhs = [str(rnd.randint(0, 10_000)) for _ in range(n)]
-        rhs = [str(rnd.randint(0, 10_000)) for _ in range(n)]
+        n = fd_rnd.randint(60, 200)
+        lhs = [str(fd_rnd.randint(0, 10_000)) for _ in range(n)]
+        rhs = [str(fd_rnd.randint(0, 10_000)) for _ in range(n)]
         fqn = f"{catalog}.{schema}.corpus_fd_{t}"
         _write_table(
             spark, fqn, [{"a": a, "b": b} for a, b in zip(lhs, rhs, strict=True)], ["a", "b"]
         )
         categories["fd"].append(fqn)
 
-    return {"catalog": catalog, "schema": schema, "categories": categories, "rnd": rnd}
+    return {"catalog": catalog, "schema": schema, "categories": categories, "rnd": fd_target_rnd}
 
 
 @pytest.fixture
