@@ -1,0 +1,32 @@
+<svg viewBox="0 0 720 380" xmlns="http://www.w3.org/2000/svg" font-family="system-ui, -apple-system, 'Segoe UI', sans-serif" role="img" aria-label="F1 score by error type">
+<rect x="0" y="0" width="720" height="380" fill="#fcfcfb"/>
+<text x="44" y="24" font-size="15" font-weight="600" fill="#0b0b0b">F1 score by error type</text>
+<line x1="44" y1="324.0" x2="700" y2="324.0" stroke="#e1e0d9" stroke-width="1"/>
+<text x="36" y="327.5" font-size="10.5" fill="#898781" text-anchor="end">0.00</text>
+<line x1="44" y1="267.2" x2="700" y2="267.2" stroke="#e1e0d9" stroke-width="1"/>
+<text x="36" y="270.7" font-size="10.5" fill="#898781" text-anchor="end">0.20</text>
+<line x1="44" y1="210.4" x2="700" y2="210.4" stroke="#e1e0d9" stroke-width="1"/>
+<text x="36" y="213.9" font-size="10.5" fill="#898781" text-anchor="end">0.40</text>
+<line x1="44" y1="153.6" x2="700" y2="153.6" stroke="#e1e0d9" stroke-width="1"/>
+<text x="36" y="157.1" font-size="10.5" fill="#898781" text-anchor="end">0.60</text>
+<line x1="44" y1="96.8" x2="700" y2="96.8" stroke="#e1e0d9" stroke-width="1"/>
+<text x="36" y="100.3" font-size="10.5" fill="#898781" text-anchor="end">0.80</text>
+<line x1="44" y1="40.0" x2="700" y2="40.0" stroke="#e1e0d9" stroke-width="1"/>
+<text x="36" y="43.5" font-size="10.5" fill="#898781" text-anchor="end">1.00</text>
+<line x1="44" y1="324.0" x2="700" y2="324.0" stroke="#c3c2b7" stroke-width="1.25"/>
+<path d="M 58.432,44.0 Q 58.432,40.0 62.432,40.0 L 156.76799999999997,40.0 Q 160.76799999999997,40.0 160.76799999999997,44.0 L 160.76799999999997,324.0 L 58.432,324.0 Z" fill="#1baf7a"/>
+<text x="109.6" y="35.0" font-size="10.5" fill="#52514e" text-anchor="middle">1.00</text>
+<text x="109.6" y="342.0" font-size="11" fill="#52514e" text-anchor="middle">overall</text>
+<path d="M 189.63199999999998,44.0 Q 189.63199999999998,40.0 193.63199999999998,40.0 L 287.96799999999996,40.0 Q 291.96799999999996,40.0 291.96799999999996,44.0 L 291.96799999999996,324.0 L 189.63199999999998,324.0 Z" fill="#1baf7a"/>
+<text x="240.8" y="35.0" font-size="10.5" fill="#52514e" text-anchor="middle">1.00</text>
+<text x="240.8" y="342.0" font-size="11" fill="#52514e" text-anchor="middle">uniqueness</text>
+<path d="M 320.832,44.0 Q 320.832,40.0 324.832,40.0 L 419.168,40.0 Q 423.168,40.0 423.168,44.0 L 423.168,324.0 L 320.832,324.0 Z" fill="#1baf7a"/>
+<text x="372.0" y="35.0" font-size="10.5" fill="#52514e" text-anchor="middle">1.00</text>
+<text x="372.0" y="342.0" font-size="11" fill="#52514e" text-anchor="middle">numeric_outlier</text>
+<path d="M 452.032,44.0 Q 452.032,40.0 456.032,40.0 L 550.3679999999999,40.0 Q 554.3679999999999,40.0 554.3679999999999,44.0 L 554.3679999999999,324.0 L 452.032,324.0 Z" fill="#1baf7a"/>
+<text x="503.2" y="35.0" font-size="10.5" fill="#52514e" text-anchor="middle">1.00</text>
+<text x="503.2" y="342.0" font-size="11" fill="#52514e" text-anchor="middle">spelling</text>
+<path d="M 583.232,44.0 Q 583.232,40.0 587.232,40.0 L 681.568,40.0 Q 685.568,40.0 685.568,44.0 L 685.568,324.0 L 583.232,324.0 Z" fill="#1baf7a"/>
+<text x="634.4" y="35.0" font-size="10.5" fill="#52514e" text-anchor="middle">1.00</text>
+<text x="634.4" y="342.0" font-size="11" fill="#52514e" text-anchor="middle">functional_dependency</text>
+</svg>

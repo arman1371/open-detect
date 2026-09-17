@@ -350,6 +350,16 @@ def main() -> None:
         BASELINE_FILE.write_text(json.dumps(results, indent=2) + "\n")
         print(f"\nUpdated {BASELINE_FILE}")
 
+        subprocess.run(
+            [sys.executable, str(BENCHMARK_DIR / "generate_report.py")],
+            cwd=REPO_ROOT,
+            check=True,
+        )
+        print(
+            "Regenerated benchmarks/results/REPORT.md and benchmarks/results/charts/ "
+            "-- remember to `git add` them alongside baseline.json"
+        )
+
 
 if __name__ == "__main__":
     main()

@@ -30,9 +30,12 @@ benchmarks/
     corpus/<error_type>/*.csv   # background "T": ~140 small Wikipedia-shaped tables
     eval/targets.json           # 8 labeled evaluation targets + ground truth
   run_benchmark.py       # builds corpus stats, runs detection, scores vs. ground truth
+  generate_report.py     # renders a results JSON as REPORT.md + SVG charts (stdlib only)
   results/
     baseline.json         # checked-in reference run, updated deliberately (see below)
     latest.json            # produced by the most recent run (gitignored)
+    REPORT.md              # human-readable rendering of baseline.json, checked in
+    charts/*.svg           # charts embedded in REPORT.md, checked in
 ```
 
 ### The corpus (`data/wiki_subset/corpus/`)
@@ -89,6 +92,31 @@ Results are written to `benchmarks/results/latest.json`, and if
 `benchmarks/results/baseline.json` exists, a version-over-version comparison
 table is printed (and, in CI, appended to the job summary).
 
+## Reading the results without JSON
+
+Raw JSON isn't a great way to eyeball how detection is doing.
+[`benchmarks/results/REPORT.md`](results/REPORT.md) is a checked-in,
+human-readable rendering of `baseline.json` -- overall/per-error-type
+precision/recall/F1/accuracy tables, the ranking-correctness table, the full
+target list, and the charts below, generated straight from the same JSON (no
+plotting library, just stdlib SVG generation):
+
+| ![Overall metrics](results/charts/overall_metrics.svg) | ![F1 by error type](results/charts/f1_by_error_type.svg) |
+|---|---|
+
+![Detection ranking](results/charts/ranking_lr_ratio.svg)
+
+`REPORT.md` and `results/charts/` are regenerated automatically whenever the
+baseline is refreshed (`--update-baseline`, see below). To regenerate them
+by hand from any results JSON (e.g. to preview `latest.json` locally without
+touching the checked-in baseline report):
+
+```bash
+uv run python benchmarks/generate_report.py --input benchmarks/results/latest.json --output-dir /tmp/preview
+# or, to (re)write the checked-in baseline report:
+uv run python benchmarks/generate_report.py
+```
+
 **Requires JDK 17** locally for the same reason the main test suite does --
 see the "JDK version" note in the top-level `README.md`. On a JDK 21+
 machine the Spark/Delta session either fails to start or fails partway
@@ -100,19 +128,24 @@ JDK 17 (see `.github/workflows/benchmark.yml`).
 `benchmarks/results/baseline.json` is a checked-in snapshot of a benchmark
 run, meant to answer "did this change make detection better or worse?" It
 is **not** auto-updated by CI -- a run producing worse numbers than the
-baseline should not silently overwrite the reference point. Every push and
-pull request runs the benchmark and prints/uploads a comparison against the
-current baseline (as a workflow artifact and in the job summary), but the
-build does not fail on a regression; use the comparison table to decide
-whether a change is worth landing.
+baseline should not silently overwrite the reference point. The `Benchmark`
+GitHub Actions workflow only runs on manual dispatch (Actions tab -> Benchmark
+-> Run workflow), not on every push or PR, since a couple of minutes per run
+adds up; run it manually (or locally) when you want a comparison against the
+current baseline (printed and uploaded as a workflow artifact, and appended to
+the job summary in CI) -- it does not fail the build on a regression, it's a
+signal to help you decide whether a change is worth landing.
 
 When a change is deliberately meant to improve (or is accepted to trade off)
 detection quality, refresh the baseline as part of that PR:
 
 ```bash
 uv run python benchmarks/run_benchmark.py --update-baseline
-git add benchmarks/results/baseline.json
+git add benchmarks/results/baseline.json benchmarks/results/REPORT.md benchmarks/results/charts
 ```
+
+(`--update-baseline` regenerates `REPORT.md` and `results/charts/` from the
+new baseline automatically -- just remember to stage them too.)
 
 ## Why not download the real WIKI corpus in CI?
 
