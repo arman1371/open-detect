@@ -425,24 +425,38 @@ class TestCorpusBuilderAndDetectors:
             corpus_tables, error_types=[ErrorType.FUNCTIONAL_DEPENDENCY], create_schema=False
         )
 
-        # False positive: unrelated random columns with a domain small enough that
-        # coincidental lhs collisions (and near-certain rhs mismatches) actually
-        # occur (paper's "population -> statistical area" case) -- a domain as
-        # large as the row count would make collisions vanishingly rare, giving
-        # zero violating rows and thus no candidate for the detector to score.
+        # False positive: unrelated random integer columns generated with the
+        # *same* domain/row-count recipe as the "boring" corpus_fd tables
+        # above (large domain, occasional coincidental collision). This lands
+        # the target's (theta_before, theta_after) transition squarely inside
+        # the range the integer-typed corpus bucket already has support for,
+        # so the LR lookup finds this pattern common -- correctly scoring it
+        # as unsurprising. (A domain small enough to force many violations,
+        # as an earlier version of this test used, produces a transition the
+        # corpus has *no* support for at all, which also collapses to a
+        # ratio of 1.0 via Laplace smoothing -- but for the wrong reason: no
+        # evidence either way, not "seen and judged normal".)
         rnd = corpus_tables_by_category["rnd"]
         n = 150
-        fp_a = [str(rnd.randint(0, 300)) for _ in range(n)]
-        fp_b = [str(rnd.randint(0, 100_000)) for _ in range(n)]
+        fp_a = [str(rnd.randint(0, 10_000)) for _ in range(n)]
+        fp_b = [str(rnd.randint(0, 10_000)) for _ in range(n)]
         fp_fqn = f"{catalog}.{schema}.target_fp_fd"
         _write_table(
             spark, fp_fqn, [{"a": a, "b": b} for a, b in zip(fp_a, fp_b, strict=True)], ["a", "b"]
         )
 
-        # True positive: near-perfect FD (paper Fig. 4c), one violating row
+        # True positive: near-perfect FD (paper Fig. 4c), one violating row.
+        # The RHS reuses the corpus_fd_labels "item-N" vocabulary (rather
+        # than an unrelated "awardee-N" scheme) so the target's tokens
+        # actually appear in the corpus token-frequency table, giving it the
+        # *same* mixed-alphanumeric/prevalence feature bucket as those
+        # perfectly-compliant corpus tables. Against that bucket (always
+        # theta_before == 1.0), this target's single injected violation
+        # (theta_before < 1.0) is a transition the corpus has never seen,
+        # correctly scoring it as surprising.
         tp_a = [str(i % 40) for i in range(120)]
-        tp_b = [f"awardee-{i % 40}" for i in range(120)]
-        tp_b[0] = "awardee-DIFFERENT"  # inject one violation
+        tp_b = [f"item-{i % 40}" for i in range(120)]
+        tp_b[0] = "item-DIFFERENT"  # inject one violation
         tp_fqn = f"{catalog}.{schema}.target_tp_fd"
         _write_table(
             spark, tp_fqn, [{"a": a, "b": b} for a, b in zip(tp_a, tp_b, strict=True)], ["a", "b"]
