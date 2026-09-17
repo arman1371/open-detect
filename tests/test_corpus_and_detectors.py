@@ -48,6 +48,35 @@ def corpus_tables_by_category(spark, uc_location):
         "fd": [],
     }
 
+    # 20 distinct roman numerals so sampling without replacement produces
+    # syntactically *close but not identical* pairs (MPD=1, e.g. "XIX"/"XX")
+    # rather than exact duplicates. Exact duplicates give a trivial MPD=0
+    # both in the corpus and in a naive false-positive target, which masks
+    # the actual "close pair" false-positive pattern the paper describes
+    # (Fig. 2h) and this test is meant to exercise.
+    roman_numerals = [
+        "I",
+        "II",
+        "III",
+        "IV",
+        "V",
+        "VI",
+        "VII",
+        "VIII",
+        "IX",
+        "X",
+        "XI",
+        "XII",
+        "XIII",
+        "XIV",
+        "XV",
+        "XVI",
+        "XVII",
+        "XVIII",
+        "XIX",
+        "XX",
+    ]
+
     # --- "boring" corpus tables: common names with coincidental duplicates ---
     common_names = [
         "James Smith",
@@ -100,11 +129,33 @@ def corpus_tables_by_category(spark, uc_location):
         _write_table(spark, fqn, [{"pct": v} for v in values], ["pct"])
         categories["outlier"].append(fqn)
 
+    # --- "boring" corpus tables: clustered large-magnitude figures (outlier baseline) ---
+    # The paper's own outlier target (Fig. 4e) lives in the thousands and has
+    # a *low* value as its outlier -- the inverse shape of the "many small
+    # values, one big winner" vote-share columns above, which land in a
+    # different (data_type, log_fit) sub-cube. Without a background category
+    # at this scale, that sub-cube would have zero corpus support and any
+    # target landing there would be scored as trivially "unsurprising".
+    # A wider table count and randomized spread (rather than a fixed +/-1500)
+    # matters here specifically: with too few samples, the corpus's own
+    # natural max-MAD scores for this bucket only sparsely cover the range
+    # needed to estimate the denominator (count of corpus columns whose own
+    # dispersion is at least as large as the target's post-perturbation
+    # score), making the ratio highly sensitive to which few tables happen
+    # to be drawn.
+    for t in range(30):
+        n = rnd.randint(6, 20)
+        base = rnd.uniform(5000, 15000)
+        spread = rnd.uniform(500, 4000)
+        values = [round(base + rnd.uniform(-spread, spread), 2) for _ in range(n)]
+        fqn = f"{catalog}.{schema}.corpus_figures_{t}"
+        _write_table(spark, fqn, [{"amount": v} for v in values], ["amount"])
+        categories["outlier"].append(fqn)
+
     # --- "boring" corpus tables: roman-numeral-suffixed strings (spelling baseline) ---
     for t in range(10):
-        n = rnd.randint(6, 35)
-        romans = ["XIX", "XX", "XXI", "XXII", "XXIII", "XXIV"]
-        values = [f"Super Bowl {rnd.choice(romans)}" for _ in range(n)]
+        n = rnd.randint(6, len(roman_numerals))
+        values = [f"Super Bowl {r}" for r in rnd.sample(roman_numerals, n)]
         fqn = f"{catalog}.{schema}.corpus_spelling_{t}"
         _write_table(spark, fqn, [{"event": v} for v in values], ["event"])
         categories["spelling"].append(fqn)
@@ -226,8 +277,12 @@ class TestCorpusBuilderAndDetectors:
             corpus_tables, error_types=[ErrorType.SPELLING], create_schema=False
         )
 
-        # False positive (paper Fig. 2h): roman-numeral suffixes, syntactically close by design
-        fp_values = ["Super Bowl XIX", "Super Bowl XX", "Super Bowl XXI", "Super Bowl XXII"] * 5
+        # False positive (paper Fig. 2h): distinct roman-numeral suffixes, syntactically
+        # close by design but not misspellings -- exact duplicates would trivially give
+        # MPD=0 without exercising the "close but distinct" pattern being tested.
+        fp_values = [
+            f"Super Bowl {r}" for r in ["XIX", "XX", "XXI", "XXII", "XXIII", "XXIV", "XXV", "XXVI"]
+        ]
         fp_fqn = f"{catalog}.{schema}.target_fp_spelling"
         _write_table(spark, fp_fqn, [{"event": v} for v in fp_values], ["event"])
 
