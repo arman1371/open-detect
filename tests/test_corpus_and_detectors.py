@@ -247,6 +247,26 @@ def corpus_tables_by_category(spark, uc_location):
         )
         categories["fd"].append(fqn)
 
+    # --- "boring" corpus tables: near-perfect FD with a mixed-alphanumeric RHS ---
+    # The true-positive target's RHS ("awardee-0", "awardee-1", ...) is
+    # MIXED_ALPHANUMERIC, a different data_type sub-cube than the plain-integer
+    # RHS columns above, which had zero support there. A deterministic sweep of
+    # injected violation counts (0 up) guarantees corpus coverage across the
+    # near-1.0 compliance-ratio range the target's own before-value could land
+    # on, independent of the random seed.
+    for t in range(10):
+        n = 100 + t * 20
+        domain = n // 3
+        lhs = [str(i % domain) for i in range(n)]
+        rhs = [f"item-{i % domain}" for i in range(n)]
+        for i in range(t):
+            rhs[i] = f"item-{(i + 1) % domain}-x"  # inject t violations
+        fqn = f"{catalog}.{schema}.corpus_fd_labels_{t}"
+        _write_table(
+            spark, fqn, [{"a": a, "b": b} for a, b in zip(lhs, rhs, strict=True)], ["a", "b"]
+        )
+        categories["fd"].append(fqn)
+
     return {"catalog": catalog, "schema": schema, "categories": categories, "rnd": fd_target_rnd}
 
 
