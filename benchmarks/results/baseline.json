@@ -1,0 +1,152 @@
+{
+  "generated_at": "2026-09-17T17:55:20+00:00",
+  "git_commit": "a74765d",
+  "dataset": "wiki_subset",
+  "targets": [
+    {
+      "id": "uniqueness_fp_common_surnames",
+      "error_type": "uniqueness",
+      "description": "A 'List of notable people named Smith' style table: one coincidental duplicate surname among common names. Not a real error.",
+      "expected_significant": false,
+      "predicted_significant": false,
+      "lr_ratio": 1.0
+    },
+    {
+      "id": "uniqueness_tp_airport_codes",
+      "error_type": "uniqueness",
+      "description": "An airport-code-style ID column with one injected duplicate -- codes like this are expected to always be unique.",
+      "expected_significant": true,
+      "predicted_significant": true,
+      "lr_ratio": 0.1
+    },
+    {
+      "id": "outlier_fp_election_result",
+      "error_type": "numeric_outlier",
+      "description": "Election vote shares: many small candidates plus one legitimately larger winner (paper's own 'C-' false-positive worked example).",
+      "expected_significant": false,
+      "predicted_significant": false,
+      "lr_ratio": 1.0
+    },
+    {
+      "id": "outlier_tp_population_typo",
+      "error_type": "numeric_outlier",
+      "description": "Population figures (thousands) with a decimal-point typo ('8.716' instead of '8716') -- paper's own 'C+' true-positive example.",
+      "expected_significant": true,
+      "predicted_significant": true,
+      "lr_ratio": 0.16666666666666666
+    },
+    {
+      "id": "spelling_fp_amendment_list",
+      "error_type": "spelling",
+      "description": "Consecutive amendment numerals: syntactically close by design, not misspellings.",
+      "expected_significant": false,
+      "predicted_significant": false,
+      "lr_ratio": 1.0
+    },
+    {
+      "id": "spelling_tp_biography_typo",
+      "error_type": "spelling",
+      "description": "One genuine misspelling ('Doeling' for 'Dowling') among unrelated long biography names -- paper's own true-positive example.",
+      "expected_significant": true,
+      "predicted_significant": true,
+      "lr_ratio": 0.16666666666666666
+    },
+    {
+      "id": "fd_fp_pageviews_vs_edits",
+      "error_type": "functional_dependency",
+      "description": "Two independent numeric-ish columns with no real dependency.",
+      "expected_significant": false,
+      "predicted_significant": false,
+      "lr_ratio": 0.3333333333333333
+    },
+    {
+      "id": "fd_tp_country_code_violation",
+      "error_type": "functional_dependency",
+      "description": "ISO code -> country name table (a hard functional dependency on Wikipedia) with one injected violating row.",
+      "expected_significant": true,
+      "predicted_significant": true,
+      "lr_ratio": 0.09090909090909091
+    }
+  ],
+  "metrics": {
+    "overall": {
+      "n": 8,
+      "true_positive": 4,
+      "false_positive": 0,
+      "false_negative": 0,
+      "true_negative": 4,
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1": 1.0,
+      "accuracy": 1.0
+    },
+    "by_error_type": {
+      "uniqueness": {
+        "n": 2,
+        "true_positive": 1,
+        "false_positive": 0,
+        "false_negative": 0,
+        "true_negative": 1,
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1": 1.0,
+        "accuracy": 1.0
+      },
+      "numeric_outlier": {
+        "n": 2,
+        "true_positive": 1,
+        "false_positive": 0,
+        "false_negative": 0,
+        "true_negative": 1,
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1": 1.0,
+        "accuracy": 1.0
+      },
+      "spelling": {
+        "n": 2,
+        "true_positive": 1,
+        "false_positive": 0,
+        "false_negative": 0,
+        "true_negative": 1,
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1": 1.0,
+        "accuracy": 1.0
+      },
+      "functional_dependency": {
+        "n": 2,
+        "true_positive": 1,
+        "false_positive": 0,
+        "false_negative": 0,
+        "true_negative": 1,
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1": 1.0,
+        "accuracy": 1.0
+      }
+    },
+    "ranking": {
+      "uniqueness": {
+        "true_positive_lr_ratio": 0.1,
+        "false_positive_lr_ratio": 1.0,
+        "correctly_ranked": true
+      },
+      "numeric_outlier": {
+        "true_positive_lr_ratio": 0.16666666666666666,
+        "false_positive_lr_ratio": 1.0,
+        "correctly_ranked": true
+      },
+      "spelling": {
+        "true_positive_lr_ratio": 0.16666666666666666,
+        "false_positive_lr_ratio": 1.0,
+        "correctly_ranked": true
+      },
+      "functional_dependency": {
+        "true_positive_lr_ratio": 0.09090909090909091,
+        "false_positive_lr_ratio": 0.3333333333333333,
+        "correctly_ranked": true
+      }
+    }
+  }
+}
