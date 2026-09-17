@@ -201,15 +201,19 @@ def corpus_tables_by_category(spark, uc_location):
     # own MPD is scored. Deterministically sweeping a constructed pair's edit
     # distance from 1 up guarantees the corpus has *some* entries at every
     # distance the target could land on, independent of the random seed.
-    for t in range(15):
+    # The differing token itself is kept at a fixed 8-character length (not a
+    # long, growing suffix) so it lands in the *same* token_length sub-cube
+    # as the target's own "Doeling"/"Dowling"-length (7-char) differing
+    # tokens -- a longer constructed token would land in a different bucket
+    # and provide no coverage for the one that matters.
+    for t in range(8):
         n = rnd.randint(6, len(long_names_pool))
         k = t + 1
-        suffix_len = 15
-        suffix_a = "0" * suffix_len
-        suffix_b = "0" * (suffix_len - k) + "9" * k
+        word_a = "abcdefgh"
+        word_b = word_a[: 8 - k] + "z" * k
         values = rnd.sample(long_names_pool, max(n - 2, 4)) + [
-            f"Corpustest Baseline{suffix_a}",
-            f"Corpustest Baseline{suffix_b}",
+            f"Corpustest {word_a}",
+            f"Corpustest {word_b}",
         ]
         fqn = f"{catalog}.{schema}.corpus_long_names_{t}"
         _write_table(spark, fqn, [{"name": v} for v in values], ["name"])
@@ -312,10 +316,14 @@ class TestCorpusBuilderAndDetectors:
         # that it would swamp even the true positive's own raw score below, which
         # defeats the point of the example (the paper's C+/C- Example 5 shows the two
         # cases sharing the *same* raw score; only the corpus-based reasoning below
-        # tells them apart).
+        # tells them apart). The baseline/winner ranges are also matched exactly to
+        # the corpus_votes generator above -- a narrower baseline range here would
+        # give this specific column a smaller natural MAD (and thus a more extreme
+        # raw score) than the very corpus columns meant to represent its own "normal"
+        # pattern, undermining the comparison before the corpus lookup even runs.
         rnd = corpus_tables_by_category["rnd"]
-        fp_values = [round(rnd.uniform(0.05, 0.9), 2) for _ in range(43)] + [
-            round(rnd.uniform(20, 40), 2)
+        fp_values = [round(rnd.uniform(0.1, 3.0), 2) for _ in range(43)] + [
+            round(rnd.uniform(20, 45), 2)
         ]
         fp_fqn = f"{catalog}.{schema}.target_fp_outlier"
         _write_table(spark, fp_fqn, [{"pct": v} for v in fp_values], ["pct"])
