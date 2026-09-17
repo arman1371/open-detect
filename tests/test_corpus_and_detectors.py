@@ -308,27 +308,20 @@ class TestCorpusBuilderAndDetectors:
             corpus_tables, error_types=[ErrorType.NUMERIC_OUTLIER], create_schema=False
         )
 
-        # False positive (paper Fig. 2e): "44 candidates of an election, most of whom
-        # receive less than 1% votes" plus one legitimate winner. The candidate count
-        # matters, not just the shape: with too few small values, MAD collapses to a
-        # tiny number and inflates the raw max-MAD score into an artificially huge
-        # number (a small-sample-size artifact, not a real signal) -- large enough
-        # that it would swamp even the true positive's own raw score below, which
-        # defeats the point of the example (the paper's C+/C- Example 5 shows the two
-        # cases sharing the *same* raw score; only the corpus-based reasoning below
-        # tells them apart). The baseline/winner ranges are also matched exactly to
-        # the corpus_votes generator above -- a narrower baseline range here would
-        # give this specific column a smaller natural MAD (and thus a more extreme
-        # raw score) than the very corpus columns meant to represent its own "normal"
-        # pattern, undermining the comparison before the corpus lookup even runs.
-        rnd = corpus_tables_by_category["rnd"]
-        fp_values = [round(rnd.uniform(0.1, 3.0), 2) for _ in range(43)] + [
-            round(rnd.uniform(20, 45), 2)
-        ]
+        # False positive (paper Example 3/4/5, "C-"): 44 election candidates collapse
+        # to this same worked example in the paper -- a handful of small values with
+        # one legitimate larger value. Deliberately using the paper's own C-/C+ pair
+        # (rather than independently-constructed examples) matters: both have the
+        # *same* raw max-MAD score (~8.1, verified in test_metrics.py), which is
+        # exactly the paper's point -- raw-score thresholding alone cannot tell them
+        # apart, so any difference the assertion below observes must come from the
+        # corpus-based reasoning, not from the two targets simply having different
+        # raw scores to begin with (as happened with earlier hand-picked examples).
+        fp_values = [43.0, 22.0, 9.0, 5.0, 0.76, 0.32, 0.30]
         fp_fqn = f"{catalog}.{schema}.target_fp_outlier"
         _write_table(spark, fp_fqn, [{"pct": v} for v in fp_values], ["pct"])
 
-        # True positive (paper Fig. 4e): "8.716" typo'd in place of "8,716"
+        # True positive (paper Example 3/4/5, "C+"): "8.716" typo'd in place of "8,716"
         tp_values = [8011.0, 8.716, 9954.0, 11895.0, 13329.0, 11352.0, 11709.0]
         tp_fqn = f"{catalog}.{schema}.target_tp_outlier"
         _write_table(spark, tp_fqn, [{"amount": v} for v in tp_values], ["amount"])
