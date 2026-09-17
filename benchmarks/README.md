@@ -128,11 +128,13 @@ JDK 17 (see `.github/workflows/benchmark.yml`).
 `benchmarks/results/baseline.json` is a checked-in snapshot of a benchmark
 run, meant to answer "did this change make detection better or worse?" It
 is **not** auto-updated by CI -- a run producing worse numbers than the
-baseline should not silently overwrite the reference point. Every push and
-pull request runs the benchmark and prints/uploads a comparison against the
-current baseline (as a workflow artifact and in the job summary), but the
-build does not fail on a regression; use the comparison table to decide
-whether a change is worth landing.
+baseline should not silently overwrite the reference point. The `Benchmark`
+GitHub Actions workflow only runs on manual dispatch (Actions tab -> Benchmark
+-> Run workflow), not on every push or PR, since a couple of minutes per run
+adds up; run it manually (or locally) when you want a comparison against the
+current baseline (printed and uploaded as a workflow artifact, and appended to
+the job summary in CI) -- it does not fail the build on a regression, it's a
+signal to help you decide whether a change is worth landing.
 
 When a change is deliberately meant to improve (or is accepted to trade off)
 detection quality, refresh the baseline as part of that PR:
