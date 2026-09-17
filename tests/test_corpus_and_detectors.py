@@ -138,17 +138,19 @@ def corpus_tables_by_category(spark, uc_location):
     # different (data_type, log_fit) sub-cube. Without a background category
     # at this scale, that sub-cube would have zero corpus support and any
     # target landing there would be scored as trivially "unsurprising".
-    # A wider table count and randomized spread (rather than a fixed +/-1500)
-    # matters here specifically: with too few samples, the corpus's own
-    # natural max-MAD scores for this bucket only sparsely cover the range
-    # needed to estimate the denominator (count of corpus columns whose own
-    # dispersion is at least as large as the target's post-perturbation
-    # score), making the ratio highly sensitive to which few tables happen
-    # to be drawn.
-    for t in range(30):
+    # A *deterministic sweep* of spread (rather than randomized) matters here
+    # specifically: the ratio's denominator counts corpus columns whose own
+    # natural dispersion is at least as large as the target's post-
+    # perturbation score, so if random draws happen not to cover that
+    # score's range, the denominator silently collapses to zero (and the
+    # Laplace-smoothed ratio degenerates to the default "no evidence, assume
+    # normal" 1.0) regardless of how surprising the target actually is. A
+    # linear sweep guarantees the full range is represented independent of
+    # the random seed.
+    for t in range(20):
         n = rnd.randint(6, 20)
         base = rnd.uniform(5000, 15000)
-        spread = rnd.uniform(500, 4000)
+        spread = 300 + t * 400  # sweeps 300 .. ~8000
         values = [round(base + rnd.uniform(-spread, spread), 2) for _ in range(n)]
         fqn = f"{catalog}.{schema}.corpus_figures_{t}"
         _write_table(spark, fqn, [{"amount": v} for v in values], ["amount"])
@@ -191,9 +193,24 @@ def corpus_tables_by_category(spark, uc_location):
         "Theodora Ravensworth",
         "Ulysses Blackthorn",
     ]
-    for t in range(10):
+    # A pool of well-separated names alone leaves a coverage gap: the
+    # true-positive target's *before* MPD is 1 (its injected close pair), but
+    # every well-separated pool sample has its own natural MPD around 9-14,
+    # so nothing in the corpus is ever "at least as close as 1" and the
+    # ratio's denominator collapses to zero regardless of how the target's
+    # own MPD is scored. Deterministically sweeping a constructed pair's edit
+    # distance from 1 up guarantees the corpus has *some* entries at every
+    # distance the target could land on, independent of the random seed.
+    for t in range(15):
         n = rnd.randint(6, len(long_names_pool))
-        values = rnd.sample(long_names_pool, n)
+        k = t + 1
+        suffix_len = 15
+        suffix_a = "0" * suffix_len
+        suffix_b = "0" * (suffix_len - k) + "9" * k
+        values = rnd.sample(long_names_pool, max(n - 2, 4)) + [
+            f"Corpustest Baseline{suffix_a}",
+            f"Corpustest Baseline{suffix_b}",
+        ]
         fqn = f"{catalog}.{schema}.corpus_long_names_{t}"
         _write_table(spark, fqn, [{"name": v} for v in values], ["name"])
         categories["spelling"].append(fqn)
