@@ -313,12 +313,19 @@ def build_corpus() -> None:
             rows,
         )
 
-    # uniqueness / true-positive baseline: ID-like codes, always unique
+    # uniqueness / true-positive baseline: ID-like codes, always unique.
+    # Each value pairs a code with a distinct numeric suffix (mirroring
+    # `uniqueness_tp_airport_codes` in build_eval_targets below), which
+    # matters beyond flavor: it makes the column MIXED_ALPHANUMERIC and
+    # pushes row counts past 100, matching that eval target's own
+    # (data_type, row_count) feature bucket so the corpus actually has
+    # support for it (see unidetect.featurization.build_uniqueness_bucket).
     rnd = random.Random("wiki-uniqueness-codes")
+    code_pool = ISO_CODES + IATA_CODES
     for t in range(10):
-        pool = ISO_CODES if t % 2 == 0 else IATA_CODES
-        k = min(len(pool), rnd.randint(15, len(pool)))
-        rows = [(code,) for code in rnd.sample(pool, k)]
+        n = 100 + t * 10
+        rows = [(f"{code_pool[i % len(code_pool)]}{(t * 1000 + i):04d}",) for i in range(n)]
+        rnd.shuffle(rows)
         _write_csv(
             CORPUS_DIR / "uniqueness" / f"code_list_{t:02d}.csv",
             ["code"],
@@ -338,12 +345,21 @@ def build_corpus() -> None:
             rows,
         )
 
-    # numeric_outlier / true-positive baseline: clustered population-ish figures
+    # numeric_outlier / true-positive baseline: clustered population-ish figures.
+    # A wide, deterministic sweep of spread (up to ~30x the tightest table's)
+    # matters here the same way it does in
+    # tests/test_corpus_and_detectors.py: the eval target's own *post-drop*
+    # residual max-MAD score is still a moderately large ~3.6 (six genuine
+    # population figures spanning 8k-13k aren't perfectly clustered), so
+    # without some corpus columns whose own natural dispersion reaches that
+    # range too, the denominator has zero support and the ratio collapses to
+    # the Laplace-smoothed default of "unsurprising" regardless of how real
+    # the injected typo is.
     rnd = random.Random("wiki-outlier-population")
-    for t in range(15):
+    for t in range(40):
         n = rnd.randint(6, 20)
         base = rnd.uniform(5000, 15000)
-        spread = 300 + t * 400
+        spread = 300 + t * 700
         values = [round(base + rnd.uniform(-spread, spread), 1) for _ in range(n)]
         rows = [(v,) for v in values]
         _write_csv(
@@ -364,11 +380,15 @@ def build_corpus() -> None:
             rows,
         )
 
-    # spelling / true-positive baseline: long, mutually-distinct biography names
+    # spelling / true-positive baseline: long, mutually-distinct biography names.
+    # Two full cycles through the 1-8 differing-token-length sweep (not one)
+    # so the eval target's own bucket has more than a bare handful of corpus
+    # rows backing it -- comfortably below the significance threshold rather
+    # than sitting exactly on it.
     rnd = random.Random("wiki-spelling-names")
-    for t in range(8):
+    for t in range(16):
         n = rnd.randint(6, len(LONG_NAMES_POOL))
-        k = t + 1
+        k = (t % 8) + 1
         word_a = "abcdefgh"
         word_b = word_a[: 8 - k] + "z" * k
         values = rnd.sample(LONG_NAMES_POOL, max(n - 2, 4)) + [
@@ -382,10 +402,15 @@ def build_corpus() -> None:
             rows,
         )
 
-    # functional_dependency / true-positive baseline: near-perfect key -> label
+    # functional_dependency / true-positive baseline: near-perfect key -> label.
+    # Row counts sweep up to ~220 -- past `fd_tp_country_code_violation`'s own
+    # 120-row scale below -- so the corpus has support in that target's
+    # row-count bucket (not just at the smaller scales this swept
+    # previously), and enough of it to sit comfortably below the
+    # significance threshold rather than exactly on it.
     rnd = random.Random("wiki-fd-codes")
-    for t in range(10):
-        n = 40 + t * 6
+    for t in range(16):
+        n = 40 + t * 12
         codes = [ISO_CODES[i % len(ISO_CODES)] for i in range(n)]
         rows = [(c, ISO_COUNTRIES[c]) for c in codes]
         _write_csv(
@@ -394,11 +419,22 @@ def build_corpus() -> None:
             rows,
         )
 
-    # functional_dependency / false-positive baseline: unrelated numeric-ish pairs
+    # functional_dependency / false-positive baseline: unrelated small-integer
+    # pairs (e.g. a weekly page-view count vs. an unrelated weekly edit
+    # count -- plausible Wikipedia analytics columns with no real dependency
+    # between them). A narrow domain (300) matters: with a domain wide
+    # enough that most tables are exactly, coincidentally 100% "compliant"
+    # by construction (few if any repeated LHS values), any candidate with
+    # even a handful of coincidental collisions reads as a novel,
+    # never-before-seen transition and scores as "surprising" regardless of
+    # intent. A narrow domain instead makes partial compliance -- and
+    # specifically the compliance level a 150-row sample of this recipe
+    # typically lands at -- the corpus's normal, common case for this
+    # bucket.
     rnd = random.Random("wiki-fd-unrelated")
-    for t in range(10):
+    for t in range(20):
         n = rnd.randint(60, 150)
-        rows = [(str(rnd.randint(0, 5000)), str(rnd.randint(0, 5000))) for _ in range(n)]
+        rows = [(str(rnd.randint(0, 300)), str(rnd.randint(0, 300))) for _ in range(n)]
         _write_csv(
             CORPUS_DIR / "functional_dependency" / f"pageviews_vs_edits_{t:02d}.csv",
             ["page_views", "edit_count"],
@@ -514,7 +550,7 @@ def build_eval_targets() -> list[dict]:
     # --- functional_dependency ---
     rnd = random.Random("wiki-fd-target")
     n = 150
-    fp_rows = [[str(rnd.randint(0, 5000)), str(rnd.randint(0, 5000))] for _ in range(n)]
+    fp_rows = [[str(rnd.randint(0, 300)), str(rnd.randint(0, 300))] for _ in range(n)]
     targets.append(
         {
             "id": "fd_fp_pageviews_vs_edits",

@@ -27,7 +27,7 @@ access at benchmark-run time.
 benchmarks/
   generate_dataset.py   # regenerates data/wiki_subset/ deterministically (stdlib only)
   data/wiki_subset/
-    corpus/<error_type>/*.csv   # background "T": ~90 small Wikipedia-shaped tables
+    corpus/<error_type>/*.csv   # background "T": ~140 small Wikipedia-shaped tables
     eval/targets.json           # 8 labeled evaluation targets + ground truth
   run_benchmark.py       # builds corpus stats, runs detection, scores vs. ground truth
   results/
