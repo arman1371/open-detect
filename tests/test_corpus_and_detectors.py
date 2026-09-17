@@ -262,10 +262,14 @@ class TestCorpusBuilderAndDetectors:
             corpus_tables, error_types=[ErrorType.FUNCTIONAL_DEPENDENCY], create_schema=False
         )
 
-        # False positive: large, unrelated random domains (paper's "population -> statistical area" case)
+        # False positive: unrelated random columns with a domain small enough that
+        # coincidental lhs collisions (and near-certain rhs mismatches) actually
+        # occur (paper's "population -> statistical area" case) -- a domain as
+        # large as the row count would make collisions vanishingly rare, giving
+        # zero violating rows and thus no candidate for the detector to score.
         rnd = corpus_tables_by_category["rnd"]
         n = 150
-        fp_a = [str(rnd.randint(0, 100_000)) for _ in range(n)]
+        fp_a = [str(rnd.randint(0, 300)) for _ in range(n)]
         fp_b = [str(rnd.randint(0, 100_000)) for _ in range(n)]
         fp_fqn = f"{catalog}.{schema}.target_fp_fd"
         _write_table(
