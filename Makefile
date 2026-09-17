@@ -1,4 +1,4 @@
-.PHONY: install dev-install lint format type-check test test-fast cov build clean
+.PHONY: install dev-install lint format type-check test test-fast cov build clean benchmark
 
 install:
 	uv sync --no-dev
@@ -7,11 +7,11 @@ dev-install:
 	uv sync
 
 lint:
-	uv run ruff check src tests
+	uv run ruff check src tests benchmarks
 
 format:
-	uv run ruff check --fix src tests
-	uv run black src tests
+	uv run ruff check --fix src tests benchmarks
+	uv run black src tests benchmarks
 
 type-check:
 	uv run mypy src
@@ -24,6 +24,9 @@ test-fast:
 
 cov:
 	uv run pytest --cov=unidetect --cov-report=term-missing --cov-report=html
+
+benchmark:
+	uv run python benchmarks/run_benchmark.py
 
 build:
 	uv build

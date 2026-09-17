@@ -1,0 +1,39 @@
+name: Benchmark
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  wiki-subset:
+    runs-on: ubuntu-latest
+    env:
+      UV_PYTHON: "3.11"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v3
+        with:
+          enable-cache: true
+      - uses: actions/setup-java@v4
+        with:
+          distribution: "temurin"
+          java-version: "17"
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/.ivy2
+            ~/.m2/repository
+          key: ${{ runner.os }}-ivy-${{ hashFiles('uv.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-ivy-
+      - run: uv sync
+      - run: uv run python benchmarks/run_benchmark.py
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: wiki-subset-benchmark-results
+          path: benchmarks/results/latest.json
+          if-no-files-found: warn
+          retention-days: 90
