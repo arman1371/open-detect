@@ -1,0 +1,42 @@
+<svg viewBox="0 0 720 380" xmlns="http://www.w3.org/2000/svg" font-family="system-ui, -apple-system, 'Segoe UI', sans-serif" role="img" aria-label="Detection ranking: lr_ratio">
+<rect x="0" y="0" width="720" height="380" fill="#fcfcfb"/>
+<text x="44" y="24" font-size="15" font-weight="600" fill="#0b0b0b">Detection ranking: lr_ratio</text>
+<text x="44" y="40" font-size="11.5" fill="#898781">A correctly ranked pair has a shorter blue bar than orange</text>
+<line x1="44" y1="300.0" x2="700" y2="300.0" stroke="#e1e0d9" stroke-width="1"/>
+<text x="36" y="303.5" font-size="10.5" fill="#898781" text-anchor="end">0.00</text>
+<line x1="44" y1="250.8" x2="700" y2="250.8" stroke="#e1e0d9" stroke-width="1"/>
+<text x="36" y="254.3" font-size="10.5" fill="#898781" text-anchor="end">0.20</text>
+<line x1="44" y1="201.6" x2="700" y2="201.6" stroke="#e1e0d9" stroke-width="1"/>
+<text x="36" y="205.1" font-size="10.5" fill="#898781" text-anchor="end">0.40</text>
+<line x1="44" y1="152.4" x2="700" y2="152.4" stroke="#e1e0d9" stroke-width="1"/>
+<text x="36" y="155.9" font-size="10.5" fill="#898781" text-anchor="end">0.60</text>
+<line x1="44" y1="103.2" x2="700" y2="103.2" stroke="#e1e0d9" stroke-width="1"/>
+<text x="36" y="106.7" font-size="10.5" fill="#898781" text-anchor="end">0.80</text>
+<line x1="44" y1="54.0" x2="700" y2="54.0" stroke="#e1e0d9" stroke-width="1"/>
+<text x="36" y="57.5" font-size="10.5" fill="#898781" text-anchor="end">1.00</text>
+<line x1="44" y1="300.0" x2="700" y2="300.0" stroke="#c3c2b7" stroke-width="1.25"/>
+<path d="M 62.04,279.4 Q 62.04,275.4 66.03999999999999,275.4 L 120.5,275.4 Q 124.5,275.4 124.5,279.4 L 124.5,300.0 L 62.04,300.0 Z" fill="#2a78d6"/>
+<text x="93.3" y="270.4" font-size="10.5" fill="#52514e" text-anchor="middle">0.100</text>
+<path d="M 127.5,58.0 Q 127.5,54.0 131.5,54.0 L 185.96,54.0 Q 189.96,54.0 189.96,58.0 L 189.96,300.0 L 127.5,300.0 Z" fill="#eb6834"/>
+<text x="158.7" y="49.0" font-size="10.5" fill="#52514e" text-anchor="middle">1.000</text>
+<text x="126.0" y="318.0" font-size="11" fill="#52514e" text-anchor="middle">uniqueness</text>
+<path d="M 226.04,263.0 Q 226.04,259.0 230.04,259.0 L 284.5,259.0 Q 288.5,259.0 288.5,263.0 L 288.5,300.0 L 226.04,300.0 Z" fill="#2a78d6"/>
+<text x="257.3" y="254.0" font-size="10.5" fill="#52514e" text-anchor="middle">0.167</text>
+<path d="M 291.5,58.0 Q 291.5,54.0 295.5,54.0 L 349.96,54.0 Q 353.96,54.0 353.96,58.0 L 353.96,300.0 L 291.5,300.0 Z" fill="#eb6834"/>
+<text x="322.7" y="49.0" font-size="10.5" fill="#52514e" text-anchor="middle">1.000</text>
+<text x="290.0" y="318.0" font-size="11" fill="#52514e" text-anchor="middle">numeric_outlier</text>
+<path d="M 390.04,263.0 Q 390.04,259.0 394.04,259.0 L 448.5,259.0 Q 452.5,259.0 452.5,263.0 L 452.5,300.0 L 390.04,300.0 Z" fill="#2a78d6"/>
+<text x="421.3" y="254.0" font-size="10.5" fill="#52514e" text-anchor="middle">0.167</text>
+<path d="M 455.5,58.0 Q 455.5,54.0 459.5,54.0 L 513.96,54.0 Q 517.96,54.0 517.96,58.0 L 517.96,300.0 L 455.5,300.0 Z" fill="#eb6834"/>
+<text x="486.7" y="49.0" font-size="10.5" fill="#52514e" text-anchor="middle">1.000</text>
+<text x="454.0" y="318.0" font-size="11" fill="#52514e" text-anchor="middle">spelling</text>
+<path d="M 554.04,281.6363636363636 Q 554.04,277.6363636363636 558.04,277.6363636363636 L 612.5,277.6363636363636 Q 616.5,277.6363636363636 616.5,281.6363636363636 L 616.5,300.0 L 554.04,300.0 Z" fill="#2a78d6"/>
+<text x="585.3" y="272.6" font-size="10.5" fill="#52514e" text-anchor="middle">0.091</text>
+<path d="M 619.5,222.0 Q 619.5,218.0 623.5,218.0 L 677.96,218.0 Q 681.96,218.0 681.96,222.0 L 681.96,300.0 L 619.5,300.0 Z" fill="#eb6834"/>
+<text x="650.7" y="213.0" font-size="10.5" fill="#52514e" text-anchor="middle">0.333</text>
+<text x="618.0" y="318.0" font-size="11" fill="#52514e" text-anchor="middle">functional_dependency</text>
+<rect x="159.0" y="354.0" width="11" height="11" rx="2.5" fill="#2a78d6"/>
+<text x="176.0" y="363.0" font-size="11" fill="#52514e">true error (lower = more surprising)</text>
+<rect x="449.0" y="354.0" width="11" height="11" rx="2.5" fill="#eb6834"/>
+<text x="466.0" y="363.0" font-size="11" fill="#52514e">false positive</text>
+</svg>
