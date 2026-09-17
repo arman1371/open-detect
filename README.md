@@ -136,6 +136,18 @@ something this library's tests can work around. Databricks runtimes ship
 their own compatible JDK, so this only matters for local development; CI
 (`.github/workflows/ci.yml`) already pins JDK 17 via `actions/setup-java`.
 
+## Benchmark
+
+[`benchmarks/`](benchmarks/README.md) tracks detection quality against a
+small, deterministic dataset inspired by the paper's own **WIKI** evaluation
+corpus (a subset of Wikipedia-domain tables). It runs on every push/PR via
+[`.github/workflows/benchmark.yml`](.github/workflows/benchmark.yml) and
+prints a version-over-version comparison against a checked-in baseline, so a
+change's effect on precision/recall/F1 (and on whether true errors rank as
+more surprising than false positives) is visible before it merges. See
+[`benchmarks/README.md`](benchmarks/README.md) for details and how to update
+the baseline.
+
 ## Fidelity notes
 
 Two places in the published paper have PDF-extraction artifacts (a dropped

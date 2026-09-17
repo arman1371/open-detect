@@ -20,3 +20,4 @@ derby.log
 .idea/
 *.log
 .DS_Store
+benchmarks/results/latest.json

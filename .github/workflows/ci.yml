@@ -15,8 +15,8 @@ jobs:
       - uses: astral-sh/setup-uv@v3
         with:
           enable-cache: true
-      - run: uv run --group dev ruff check src tests
-      - run: uv run --group dev black --check src tests
+      - run: uv run --group dev ruff check src tests benchmarks
+      - run: uv run --group dev black --check src tests benchmarks
 
   test:
     runs-on: ubuntu-latest
