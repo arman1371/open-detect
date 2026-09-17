@@ -1,0 +1,106 @@
+# Databricks Asset Bundle for unidetect.
+#
+# Deploy with:
+#   databricks bundle deploy -t dev
+# Run a job on demand with:
+#   databricks bundle run build_corpus_statistics_job -t dev
+#
+# See https://docs.databricks.com/en/dev-tools/bundles/ for the DAB reference.
+
+bundle:
+  name: unidetect
+
+variables:
+  unidetect_catalog:
+    description: Unity Catalog catalog that will hold unidetect's own tables.
+    default: main
+  unidetect_schema:
+    description: Unity Catalog schema that will hold unidetect's own tables.
+    default: data_quality
+  corpus_catalog:
+    description: Catalog to scan for the background corpus T.
+    default: main
+
+artifacts:
+  unidetect_wheel:
+    type: whl
+    build: python -m build --wheel
+    path: .
+
+resources:
+  jobs:
+    build_corpus_statistics_job:
+      name: "[${bundle.target}] unidetect - build corpus statistics"
+      tags:
+        project: unidetect
+      tasks:
+        - task_key: build_corpus_statistics
+          job_cluster_key: unidetect_cluster
+          python_wheel_task:
+            package_name: unidetect
+            entry_point: build_corpus_statistics_job
+            parameters:
+              - "--catalog"
+              - ${var.unidetect_catalog}
+              - "--schema"
+              - ${var.unidetect_schema}
+              - "--corpus-catalog"
+              - ${var.corpus_catalog}
+          libraries:
+            - whl: ./dist/*.whl
+      job_clusters:
+        - job_cluster_key: unidetect_cluster
+          new_cluster:
+            spark_version: "15.4.x-scala2.12"
+            node_type_id: "i3.xlarge"
+            num_workers: 4
+            data_security_mode: SINGLE_USER
+      schedule:
+        quartz_cron_expression: "0 0 3 ? * SUN"
+        timezone_id: "UTC"
+        pause_status: PAUSED
+
+    run_detection_job:
+      name: "[${bundle.target}] unidetect - run detection"
+      tags:
+        project: unidetect
+      tasks:
+        - task_key: run_detection
+          job_cluster_key: unidetect_cluster
+          python_wheel_task:
+            package_name: unidetect
+            entry_point: run_detection_job
+            parameters:
+              - "--catalog"
+              - ${var.unidetect_catalog}
+              - "--schema"
+              - ${var.unidetect_schema}
+              - "--target-tables"
+              - "REPLACE_ME_WITH_COMMA_SEPARATED_TABLES"
+              - "--write-results"
+          libraries:
+            - whl: ./dist/*.whl
+      job_clusters:
+        - job_cluster_key: unidetect_cluster
+          new_cluster:
+            spark_version: "15.4.x-scala2.12"
+            node_type_id: "i3.xlarge"
+            num_workers: 2
+            data_security_mode: SINGLE_USER
+      schedule:
+        quartz_cron_expression: "0 0 5 * * ?"
+        timezone_id: "UTC"
+        pause_status: PAUSED
+
+targets:
+  dev:
+    mode: development
+    default: true
+    workspace:
+      host: https://<your-workspace>.cloud.databricks.com
+
+  prod:
+    mode: production
+    workspace:
+      host: https://<your-workspace>.cloud.databricks.com
+      root_path: /Shared/.bundle/${bundle.name}/${bundle.target}
