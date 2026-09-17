@@ -1,32 +1,32 @@
 .PHONY: install dev-install lint format type-check test test-fast cov build clean
 
 install:
-	pip install .
+	uv sync --no-dev
 
 dev-install:
-	pip install -e ".[dev]"
+	uv sync
 
 lint:
-	ruff check src tests
+	uv run ruff check src tests
 
 format:
-	ruff check --fix src tests
-	black src tests
+	uv run ruff check --fix src tests
+	uv run black src tests
 
 type-check:
-	mypy src
+	uv run mypy src
 
 test:
-	pytest
+	uv run pytest
 
 test-fast:
-	pytest tests/test_metrics.py tests/test_perturbation.py tests/test_featurization.py tests/test_config.py tests/test_text_utils.py
+	uv run pytest tests/test_metrics.py tests/test_perturbation.py tests/test_featurization.py tests/test_config.py tests/test_text_utils.py
 
 cov:
-	pytest --cov=unidetect --cov-report=term-missing --cov-report=html
+	uv run pytest --cov=unidetect --cov-report=term-missing --cov-report=html
 
 build:
-	python -m build
+	uv build
 
 clean:
 	rm -rf build dist *.egg-info src/*.egg-info .pytest_cache .mypy_cache .ruff_cache htmlcov .coverage

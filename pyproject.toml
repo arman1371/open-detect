@@ -40,6 +40,18 @@ spark = [
   # NumPy 2.x").
   "numpy<2",
 ]
+[project.urls]
+Homepage = "https://github.com/arman1371/open-detect"
+Repository = "https://github.com/arman1371/open-detect"
+
+[project.scripts]
+build_corpus_statistics_job = "unidetect.jobs.build_corpus_statistics:main"
+run_detection_job = "unidetect.jobs.run_detection:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/unidetect"]
+
+[dependency-groups]
 dev = [
   "pyspark>=3.5,<4.0",
   "pyarrow>=11,<15",
@@ -52,17 +64,6 @@ dev = [
   "mypy>=1.10",
   "pandas-stubs",
 ]
-
-[project.urls]
-Homepage = "https://github.com/arman1371/open-detect"
-Repository = "https://github.com/arman1371/open-detect"
-
-[project.scripts]
-build_corpus_statistics_job = "unidetect.jobs.build_corpus_statistics:main"
-run_detection_job = "unidetect.jobs.run_detection:main"
-
-[tool.hatch.build.targets.wheel]
-packages = ["src/unidetect"]
 
 [tool.ruff]
 line-length = 100
