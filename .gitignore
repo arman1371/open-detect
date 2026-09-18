@@ -21,3 +21,9 @@ derby.log
 *.log
 .DS_Store
 benchmarks/results/latest.json
+
+# Graphify
+graphify-out/cost.json
+graphify-out/cache
+graphify-out/.graphify_*
+graphify-out/manifest.json
