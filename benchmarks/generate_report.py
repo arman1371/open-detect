@@ -32,6 +32,18 @@ ERROR_TYPES = [
     "functional_dependency",
 ]
 
+#: Display order for severity levels, easiest-to-call to hardest. Kept in
+#: sync with ``run_benchmark.py::SEVERITIES`` and ``generate_dataset.py``.
+SEVERITIES = ["paper_example", "obvious", "moderate", "subtle", "clean"]
+
+SEVERITY_LABELS = {
+    "paper_example": "paper example",
+    "obvious": "obvious corruption",
+    "moderate": "moderate corruption",
+    "subtle": "subtle corruption",
+    "clean": "clean (no injection)",
+}
+
 # Colors are the validated categorical/chrome slots from the dataviz skill's
 # reference palette (light mode) -- see benchmarks/README.md.
 INK = "#0b0b0b"
@@ -209,6 +221,28 @@ def _f1_by_error_type_chart(results: dict) -> str:
     )
 
 
+def _severity_chart(results: dict) -> str:
+    # Precision/recall are degenerate for severity tiers that are entirely
+    # one ground-truth class ("obvious"/"moderate"/"subtle" contain only
+    # true-positive targets; "clean" contains only true-negative targets),
+    # so plotting them per severity would show a meaningless 0/1 artifact
+    # rather than a real precision or recall measurement. Accuracy is
+    # well-defined in every tier -- it reduces to recall on a pure-TP tier
+    # and to the true-negative rate on the pure-FP "clean" tier -- so it's
+    # the one metric that is comparable across the whole severity axis.
+    by_severity = results["metrics"].get("by_severity", {})
+    groups = [s for s in SEVERITIES if s in by_severity]
+    return grouped_bar_chart(
+        [SEVERITY_LABELS.get(s, s) for s in groups],
+        {"Accuracy": [by_severity[s]["accuracy"] for s in groups]},
+        {"Accuracy": AQUA},
+        title="Accuracy by corruption severity",
+        subtitle="How detection holds up as injected errors get harder to spot "
+        "(or, for 'clean', how often genuinely clean data is left alone)",
+        y_max=1.0,
+    )
+
+
 def _ranking_chart(results: dict) -> str:
     ranking = results["metrics"]["ranking"]
     groups = [et for et in ERROR_TYPES if et in ranking]
@@ -282,6 +316,35 @@ def render_markdown(results: dict) -> str:
     lines.append("![F1 by error type](charts/f1_by_error_type.svg)")
     lines.append("")
 
+    by_severity = results["metrics"].get("by_severity", {})
+    if by_severity:
+        lines.append("## By corruption severity")
+        lines.append("")
+        lines.append(
+            "How detection holds up as injected errors get harder to spot. "
+            "`paper_example` are the paper's own canonical worked examples "
+            "(a mix of true- and false-positive shapes); `obvious`/`moderate`/`subtle` "
+            "are true-positive targets with graded, programmatically-injected "
+            "corruption; `clean` are false-positive shapes with no injected error at "
+            "all. Precision/recall are not shown here because most of these tiers are "
+            "single-class by construction (see [benchmarks/README.md](../README.md)) "
+            "-- accuracy is the one metric that is meaningful across all of them."
+        )
+        lines.append("")
+        lines.append("| Severity | n | TP | FP | FN | TN | Accuracy |")
+        lines.append("|---|---|---|---|---|---|---|")
+        for severity in SEVERITIES:
+            if severity not in by_severity:
+                continue
+            m = by_severity[severity]
+            lines.append(
+                f"| `{severity}` | {m['n']} | {m['true_positive']} | {m['false_positive']} | "
+                f"{m['false_negative']} | {m['true_negative']} | {_fmt_pct(m['accuracy'])} |"
+            )
+        lines.append("")
+        lines.append("![Accuracy by corruption severity](charts/severity_accuracy.svg)")
+        lines.append("")
+
     lines.append("## Ranking correctness")
     lines.append("")
     lines.append(
@@ -306,14 +369,18 @@ def render_markdown(results: dict) -> str:
 
     lines.append("## Evaluation targets")
     lines.append("")
-    lines.append("| Target | Error type | Expected | Predicted | lr_ratio | Result | Description |")
-    lines.append("|---|---|---|---|---|---|---|")
+    lines.append(
+        "| Target | Error type | Severity | Expected | Predicted | lr_ratio | Result | "
+        "Description |"
+    )
+    lines.append("|---|---|---|---|---|---|---|---|")
     for t in results["targets"]:
         result_mark = "✅" if t["predicted_significant"] == t["expected_significant"] else "❌"
         lr = f"{t['lr_ratio']:.4f}" if t.get("lr_ratio") is not None else "n/a"
         lines.append(
-            f"| `{t['id']}` | `{t['error_type']}` | {t['expected_significant']} | "
-            f"{t['predicted_significant']} | {lr} | {result_mark} | {t['description']} |"
+            f"| `{t['id']}` | `{t['error_type']}` | `{t.get('severity', 'unknown')}` | "
+            f"{t['expected_significant']} | {t['predicted_significant']} | {lr} | "
+            f"{result_mark} | {t['description']} |"
         )
     lines.append("")
     lines.append("---")
@@ -334,6 +401,8 @@ def write_report(results: dict, output_dir: Path) -> None:
 
     (charts_dir / "overall_metrics.svg").write_text(_overall_metrics_chart(results) + "\n")
     (charts_dir / "f1_by_error_type.svg").write_text(_f1_by_error_type_chart(results) + "\n")
+    if results["metrics"].get("by_severity"):
+        (charts_dir / "severity_accuracy.svg").write_text(_severity_chart(results) + "\n")
     (charts_dir / "ranking_lr_ratio.svg").write_text(_ranking_chart(results) + "\n")
 
     (output_dir / "REPORT.md").write_text(render_markdown(results) + "\n")

@@ -47,6 +47,13 @@ ERROR_TYPES = [
     "functional_dependency",
 ]
 
+#: Corruption-severity levels a target can be tagged with (see
+#: ``generate_dataset.py``): the three graded true-positive levels, plus
+#: "paper_example" (the paper's own canonical worked examples) and "clean"
+#: (a false-positive shape with no injected error at all). Order here is
+#: display order, roughly easiest-to-detect/reject to hardest.
+SEVERITIES = ["paper_example", "obvious", "moderate", "subtle", "clean"]
+
 
 class SparkUnavailable(Exception):
     """Raised only when a local Delta-enabled Spark session cannot be started at all.
@@ -224,6 +231,7 @@ def run() -> dict:
                     {
                         "id": target["id"],
                         "error_type": error_type,
+                        "severity": target.get("severity", "unknown"),
                         "description": target["description"],
                         "expected_significant": target["expected_significant"],
                         "predicted_significant": predicted_significant,
@@ -236,10 +244,29 @@ def run() -> dict:
         error_type: _confusion_metrics([r for r in target_rows if r["error_type"] == error_type])
         for error_type in ERROR_TYPES
     }
+    by_severity = {
+        severity: _confusion_metrics([r for r in target_rows if r["severity"] == severity])
+        for severity in SEVERITIES
+        if any(r["severity"] == severity for r in target_rows)
+    }
 
     ranking: dict[str, dict] = {}
     for error_type in ERROR_TYPES:
-        type_rows = [r for r in target_rows if r["error_type"] == error_type]
+        # Restricted to `severity == "paper_example"`: this check exists to
+        # verify the paper's own central claim (a genuine error is *always*
+        # scored as more surprising than a superficially-anomalous
+        # non-error) on its own canonical worked example pair. Taking the
+        # min lr_ratio across *all* severities -- including the
+        # deliberately adversarial "clean" false-positive variants added
+        # for the broader precision/recall sweep -- would conflate that
+        # narrow claim with the much harder question of whether ranking
+        # holds against every hand-picked hard case, which is what
+        # `by_severity` and `by_error_type` above already measure.
+        type_rows = [
+            r
+            for r in target_rows
+            if r["error_type"] == error_type and r["severity"] == "paper_example"
+        ]
         tp_rows = [r for r in type_rows if r["expected_significant"] and r["lr_ratio"] is not None]
         fp_rows = [
             r for r in type_rows if not r["expected_significant"] and r["lr_ratio"] is not None
@@ -261,6 +288,7 @@ def run() -> dict:
         "metrics": {
             "overall": overall,
             "by_error_type": by_type,
+            "by_severity": by_severity,
             "ranking": ranking,
         },
     }
@@ -296,6 +324,18 @@ def _print_comparison(current: dict, baseline: dict | None) -> str:
         cur = current["metrics"]["by_error_type"].get(error_type, {})
         base = baseline["metrics"]["by_error_type"].get(error_type) if baseline else None
         _row(error_type, cur, base)
+
+    lines.append("")
+    lines.append("### By corruption severity (how it holds up on dirty data)")
+    lines.append("")
+    lines.append(header)
+    lines.append(sep)
+    for severity in SEVERITIES:
+        cur = current["metrics"]["by_severity"].get(severity)
+        if cur is None:
+            continue
+        base = baseline["metrics"].get("by_severity", {}).get(severity) if baseline else None
+        _row(f"severity={severity}", cur, base)
 
     lines.append("")
     lines.append("| Error type | correctly ranked (TP more surprising than FP) |")
