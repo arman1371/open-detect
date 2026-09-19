@@ -23,7 +23,15 @@ from unidetect.pipeline import UniDetect
 
 
 def _write_table(spark, fqn: str, rows: list[dict], columns: list[str]) -> None:
-    df = spark.createDataFrame([tuple(row[c] for c in columns) for row in rows], schema=columns)
+    if rows:
+        df = spark.createDataFrame([tuple(row[c] for c in columns) for row in rows], schema=columns)
+    else:
+        # createDataFrame cannot infer a schema from an empty list of rows,
+        # so an all-string StructType is supplied explicitly instead.
+        from pyspark.sql.types import StringType, StructField, StructType
+
+        schema = StructType([StructField(c, StringType()) for c in columns])
+        df = spark.createDataFrame([], schema=schema)
     df.write.format("delta").mode("overwrite").saveAsTable(fqn)
 
 
