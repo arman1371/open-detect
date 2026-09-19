@@ -1,4 +1,4 @@
-.PHONY: install dev-install lint format type-check test test-fast cov build clean benchmark
+.PHONY: install dev-install lint format type-check test test-fast cov build clean benchmark benchmark-real-world-gov benchmark-all
 
 install:
 	uv sync --no-dev
@@ -26,7 +26,12 @@ cov:
 	uv run pytest --cov=unidetect --cov-report=term-missing --cov-report=html
 
 benchmark:
-	uv run python benchmarks/run_benchmark.py
+	uv run python benchmarks/wiki_subset/run_benchmark.py
+
+benchmark-real-world-gov:
+	uv run python benchmarks/real_world_gov/run_benchmark.py
+
+benchmark-all: benchmark benchmark-real-world-gov
 
 build:
 	uv build

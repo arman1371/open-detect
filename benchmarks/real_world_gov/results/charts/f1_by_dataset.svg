@@ -1,0 +1,32 @@
+<svg viewBox="0 0 760 380" xmlns="http://www.w3.org/2000/svg" font-family="system-ui, -apple-system, 'Segoe UI', sans-serif" role="img" aria-label="F1 score by dataset">
+<rect x="0" y="0" width="760" height="380" fill="#fcfcfb"/>
+<text x="44" y="24" font-size="15" font-weight="600" fill="#0b0b0b">F1 score by dataset</text>
+<line x1="44" y1="324.0" x2="740" y2="324.0" stroke="#e1e0d9" stroke-width="1"/>
+<text x="36" y="327.5" font-size="10.5" fill="#898781" text-anchor="end">0.00</text>
+<line x1="44" y1="267.2" x2="740" y2="267.2" stroke="#e1e0d9" stroke-width="1"/>
+<text x="36" y="270.7" font-size="10.5" fill="#898781" text-anchor="end">0.20</text>
+<line x1="44" y1="210.4" x2="740" y2="210.4" stroke="#e1e0d9" stroke-width="1"/>
+<text x="36" y="213.9" font-size="10.5" fill="#898781" text-anchor="end">0.40</text>
+<line x1="44" y1="153.6" x2="740" y2="153.6" stroke="#e1e0d9" stroke-width="1"/>
+<text x="36" y="157.1" font-size="10.5" fill="#898781" text-anchor="end">0.60</text>
+<line x1="44" y1="96.8" x2="740" y2="96.8" stroke="#e1e0d9" stroke-width="1"/>
+<text x="36" y="100.3" font-size="10.5" fill="#898781" text-anchor="end">0.80</text>
+<line x1="44" y1="40.0" x2="740" y2="40.0" stroke="#e1e0d9" stroke-width="1"/>
+<text x="36" y="43.5" font-size="10.5" fill="#898781" text-anchor="end">1.00</text>
+<line x1="44" y1="324.0" x2="740" y2="324.0" stroke="#c3c2b7" stroke-width="1.25"/>
+<path d="M 59.312,44.0 Q 59.312,40.0 63.312,40.0 L 163.88799999999998,40.0 Q 167.88799999999998,40.0 167.88799999999998,44.0 L 167.88799999999998,324.0 L 59.312,324.0 Z" fill="#1baf7a"/>
+<text x="113.6" y="35.0" font-size="10.5" fill="#52514e" text-anchor="middle">1.00</text>
+<text x="113.6" y="342.0" font-size="11" fill="#52514e" text-anchor="middle">Hate_Crimes</text>
+<path d="M 198.512,157.6 Q 198.512,153.6 202.512,153.6 L 303.08799999999997,153.6 Q 307.08799999999997,153.6 307.08799999999997,157.6 L 307.08799999999997,324.0 L 198.512,324.0 Z" fill="#1baf7a"/>
+<text x="252.8" y="148.6" font-size="10.5" fill="#52514e" text-anchor="middle">0.60</text>
+<text x="252.8" y="342.0" font-size="11" fill="#52514e" text-anchor="middle">Illicit-drug-use.g8_2...</text>
+<path d="M 337.712,214.39999999999998 Q 337.712,210.39999999999998 341.712,210.39999999999998 L 442.288,210.39999999999998 Q 446.288,210.39999999999998 446.288,214.39999999999998 L 446.288,324.0 L 337.712,324.0 Z" fill="#1baf7a"/>
+<text x="392.0" y="205.4" font-size="10.5" fill="#52514e" text-anchor="middle">0.40</text>
+<text x="392.0" y="342.0" font-size="11" fill="#52514e" text-anchor="middle">Pregnancy_Risk_Assess...</text>
+<path d="M 476.912,214.39999999999998 Q 476.912,210.39999999999998 480.912,210.39999999999998 L 581.4879999999999,210.39999999999998 Q 585.4879999999999,210.39999999999998 585.4879999999999,214.39999999999998 L 585.4879999999999,324.0 L 476.912,324.0 Z" fill="#1baf7a"/>
+<text x="531.2" y="205.4" font-size="10.5" fill="#52514e" text-anchor="middle">0.40</text>
+<text x="531.2" y="342.0" font-size="11" fill="#52514e" text-anchor="middle">adult-depression-lghc...</text>
+<path d="M 616.112,55.360000000000014 Q 616.112,51.360000000000014 620.112,51.360000000000014 L 720.688,51.360000000000014 Q 724.688,51.360000000000014 724.688,55.360000000000014 L 724.688,324.0 L 616.112,324.0 Z" fill="#1baf7a"/>
+<text x="670.4" y="46.4" font-size="10.5" fill="#52514e" text-anchor="middle">0.96</text>
+<text x="670.4" y="342.0" font-size="11" fill="#52514e" text-anchor="middle">oklahoma-public-schoo...</text>
+</svg>

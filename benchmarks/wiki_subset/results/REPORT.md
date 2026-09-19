@@ -1,6 +1,6 @@
 # WIKI-subset benchmark results
 
-Human-readable view of the checked-in benchmark run. See [benchmarks/README.md](../README.md) for how this benchmark works and how to regenerate this file.
+Human-readable view of the checked-in benchmark run. See [README.md](../README.md) for how this benchmark works and how to regenerate this file.
 
 **Generated at:** 2026-09-17T23:44:36.797081+00:00  
 **Commit:** `f99a32d`  
@@ -32,7 +32,7 @@ Human-readable view of the checked-in benchmark run. See [benchmarks/README.md](
 
 ## By corruption severity
 
-How detection holds up as injected errors get harder to spot. `paper_example` are the paper's own canonical worked examples (a mix of true- and false-positive shapes); `obvious`/`moderate`/`subtle` are true-positive targets with graded, programmatically-injected corruption; `clean` are false-positive shapes with no injected error at all. Precision/recall are not shown here because most of these tiers are single-class by construction (see [benchmarks/README.md](../README.md)) -- accuracy is the one metric that is meaningful across all of them.
+How detection holds up as injected errors get harder to spot. `paper_example` are the paper's own canonical worked examples (a mix of true- and false-positive shapes); `obvious`/`moderate`/`subtle` are true-positive targets with graded, programmatically-injected corruption; `clean` are false-positive shapes with no injected error at all. Precision/recall are not shown here because most of these tiers are single-class by construction (see [README.md](../README.md)) -- accuracy is the one metric that is meaningful across all of them.
 
 | Severity | n | TP | FP | FN | TN | Accuracy |
 |---|---|---|---|---|---|---|
@@ -127,6 +127,6 @@ For each error type: is the true-positive (genuine error) target scored as *more
 _Regenerate this file (and the charts above) from a results JSON with:_
 
 ```bash
-uv run python benchmarks/generate_report.py
+uv run python benchmarks/wiki_subset/generate_report.py
 ```
 

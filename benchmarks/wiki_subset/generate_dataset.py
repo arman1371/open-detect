@@ -1,4 +1,4 @@
-"""Generates the WIKI-subset benchmark dataset checked into ``benchmarks/data/``.
+"""Generates the WIKI-subset benchmark dataset checked into ``data/``.
 
 Uni-Detect's own evaluation corpus (paper Section 4.1) is **WIKI**: "a subset
 of WEB from the wikipedia.org domain with over 3M tables." Shipping (or
@@ -41,10 +41,10 @@ are looking for the "why"):
 Network access is deliberately not used: the values below are hand-curated
 from well-known, mostly-static reference facts (ISO country codes/names,
 common English surnames, ...) so the generated dataset is fully reproducible
-offline and in CI. Run this script to regenerate ``benchmarks/data/`` after
-changing anything below:
+offline and in CI. Run this script to regenerate ``data/`` after changing
+anything below:
 
-    uv run python benchmarks/generate_dataset.py
+    uv run python benchmarks/wiki_subset/generate_dataset.py
 """
 
 from __future__ import annotations
@@ -54,7 +54,7 @@ import json
 import random
 from pathlib import Path
 
-DATA_DIR = Path(__file__).parent / "data" / "wiki_subset"
+DATA_DIR = Path(__file__).parent / "data"
 CORPUS_DIR = DATA_DIR / "corpus"
 EVAL_DIR = DATA_DIR / "eval"
 
