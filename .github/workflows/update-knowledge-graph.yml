@@ -1,8 +1,7 @@
 name: Update Knowledge Graph
 
 on:
-  pull_request:
-    types: [closed]
+  push:
     branches: [main]
   workflow_dispatch:
 
@@ -12,7 +11,6 @@ concurrency:
 
 jobs:
   update-graph:
-    if: github.event_name == 'workflow_dispatch' || github.event.pull_request.merged == true
     runs-on: ubuntu-latest
     permissions:
       contents: write
