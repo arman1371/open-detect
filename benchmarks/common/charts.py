@@ -1,6 +1,6 @@
 """Pure-stdlib SVG bar-chart rendering shared by every benchmark's report.
 
-Extracted from what used to be ``benchmarks/generate_report.py``'s own
+Extracted from what used to be ``benchmarks/wiki_subset/generate_report.py``'s own
 private chart code so a second (or third) benchmark's ``generate_report.py``
 gets the same look (and the same validated color palette, see the dataviz
 skill) without copy-pasting the SVG-generation code.

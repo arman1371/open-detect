@@ -4,13 +4,12 @@ WIKI-subset benchmark results at a glance without reading raw JSON.
 
 Usage::
 
-    uv run python benchmarks/generate_report.py
-    uv run python benchmarks/generate_report.py --input benchmarks/results/latest.json
+    uv run python benchmarks/wiki_subset/generate_report.py
+    uv run python benchmarks/wiki_subset/generate_report.py --input benchmarks/wiki_subset/results/latest.json
 
-Defaults to rendering ``benchmarks/results/baseline.json`` (the checked-in
-reference run) into ``benchmarks/results/REPORT.md`` and
-``benchmarks/results/charts/*.svg``. Pure stdlib -- no plotting library
-required.
+Defaults to rendering ``results/baseline.json`` (the checked-in reference
+run) into ``results/REPORT.md`` and ``results/charts/*.svg``. Pure stdlib --
+no plotting library required.
 """
 
 from __future__ import annotations
@@ -24,7 +23,7 @@ BENCHMARK_DIR = Path(__file__).parent
 RESULTS_DIR = BENCHMARK_DIR / "results"
 BASELINE_FILE = RESULTS_DIR / "baseline.json"
 
-sys.path.insert(0, str(BENCHMARK_DIR))
+sys.path.insert(0, str(BENCHMARK_DIR.parent))
 from common.charts import AQUA, BLUE, ORANGE, grouped_bar_chart  # noqa: E402
 
 ERROR_TYPES = [
@@ -139,7 +138,7 @@ def render_markdown(results: dict) -> str:
     lines.append("")
     lines.append(
         "Human-readable view of the checked-in benchmark run. "
-        "See [benchmarks/README.md](../README.md) for how this benchmark works "
+        "See [README.md](../README.md) for how this benchmark works "
         "and how to regenerate this file."
     )
     lines.append("")
@@ -184,7 +183,7 @@ def render_markdown(results: dict) -> str:
             "are true-positive targets with graded, programmatically-injected "
             "corruption; `clean` are false-positive shapes with no injected error at "
             "all. Precision/recall are not shown here because most of these tiers are "
-            "single-class by construction (see [benchmarks/README.md](../README.md)) "
+            "single-class by construction (see [README.md](../README.md)) "
             "-- accuracy is the one metric that is meaningful across all of them."
         )
         lines.append("")
@@ -245,7 +244,7 @@ def render_markdown(results: dict) -> str:
     lines.append("_Regenerate this file (and the charts above) from a results JSON with:_")
     lines.append("")
     lines.append("```bash")
-    lines.append("uv run python benchmarks/generate_report.py")
+    lines.append("uv run python benchmarks/wiki_subset/generate_report.py")
     lines.append("```")
     lines.append("")
 
@@ -270,12 +269,12 @@ def main() -> None:
     parser.add_argument(
         "--input",
         default=str(BASELINE_FILE),
-        help="Path to a benchmark results JSON (default: benchmarks/results/baseline.json).",
+        help="Path to a benchmark results JSON (default: results/baseline.json).",
     )
     parser.add_argument(
         "--output-dir",
         default=str(RESULTS_DIR),
-        help="Directory to write REPORT.md and charts/ into (default: benchmarks/results).",
+        help="Directory to write REPORT.md and charts/ into (default: results).",
     )
     args = parser.parse_args()
 

@@ -20,7 +20,7 @@ derby.log
 .idea/
 *.log
 .DS_Store
-benchmarks/results/latest.json
+benchmarks/wiki_subset/results/latest.json
 benchmarks/real_world_gov/results/latest.json
 
 # Graphify

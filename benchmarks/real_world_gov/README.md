@@ -1,6 +1,6 @@
 # Benchmark: real_world_gov
 
-`wiki_subset` (see [`../README.md`](../README.md)) is a synthetic benchmark:
+`wiki_subset` (see [`../wiki_subset/README.md`](../wiki_subset/README.md)) is a synthetic benchmark:
 a hand-built background corpus plus programmatically-injected errors, sized
 and shaped to run in a couple of minutes on CI with no external network
 access. This benchmark is the complementary check: real government
@@ -36,7 +36,7 @@ data-cleaning papers.
    them).
 2. Keep only those whose `dirty.csv` is at most 300 KB -- a size bound
    applied *before* sampling, for the same reason `wiki_subset`'s own
-   corpus is kept small (see `../README.md`'s "Why not download the real
+   corpus is kept small (see `../wiki_subset/README.md`'s "Why not download the real
    WIKI corpus in CI?"): this benchmark's data is checked into the repo and
    should stay small enough to review and run on every invocation. 122 of
    the 143 datasets pass this bound; none were excluded for their
@@ -169,7 +169,7 @@ guesswork:
   just *outside* the cutoff.
 
 This -- FD's precision being the weak point once background support
-exists at all -- is the same finding `../README.md` reports for
+exists at all -- is the same finding `../wiki_subset/README.md` reports for
 `wiki_subset` and the same one Wang & He report for their own paper
 (Section 4, on FD: "though UniDetect still outperforms baselines, the
 precision is not very high"). Seeing it reproduce on independent, real
@@ -194,7 +194,7 @@ Arrow/JDK incompatibility.
 
 > **Provenance of the currently checked-in `baseline.json`/`REPORT.md`:**
 > produced in an environment with only JDK 21 available (see above), so --
-> following the exact precedent `../README.md` documents for `wiki_subset`'s
+> following the exact precedent `../wiki_subset/README.md` documents for `wiki_subset`'s
 > own baseline -- by a pure-Python harness that calls the same production
 > `unidetect.perturbation` / `unidetect.featurization` / `unidetect.strategies`
 > functions `run_benchmark.py`'s real Spark pipeline calls, and replicates
@@ -211,7 +211,7 @@ Arrow/JDK incompatibility.
 
 ## Comparing across versions
 
-Same policy as `wiki_subset` (see `../README.md`): `results/baseline.json`
+Same policy as `wiki_subset` (see `../wiki_subset/README.md`): `results/baseline.json`
 is a checked-in snapshot, not auto-updated by CI. Refresh it deliberately
 when a change is meant to affect detection quality:
 

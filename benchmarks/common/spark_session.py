@@ -1,6 +1,6 @@
 """Local, Delta-enabled Spark session bootstrap shared by every benchmark.
 
-Extracted from what used to be ``benchmarks/run_benchmark.py``'s own
+Extracted from what used to be ``benchmarks/wiki_subset/run_benchmark.py``'s own
 private ``_spark_session`` so a second (or third) benchmark doesn't need to
 re-implement the same warehouse-dir/heap/Delta-catalog plumbing.
 """

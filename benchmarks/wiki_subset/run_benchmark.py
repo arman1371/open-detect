@@ -1,16 +1,15 @@
 """Runs the WIKI-subset benchmark: builds corpus statistics from
-``benchmarks/data/wiki_subset/corpus`` and scores the labeled targets in
-``benchmarks/data/wiki_subset/eval/targets.json`` against their known ground
-truth (see ``benchmarks/README.md`` for the full picture).
+``data/corpus`` and scores the labeled targets in ``data/eval/targets.json``
+against their known ground truth (see ``README.md`` for the full picture).
 
 Usage::
 
-    uv run python benchmarks/run_benchmark.py
-    uv run python benchmarks/run_benchmark.py --update-baseline
+    uv run python benchmarks/wiki_subset/run_benchmark.py
+    uv run python benchmarks/wiki_subset/run_benchmark.py --update-baseline
 
-Writes ``benchmarks/results/latest.json`` and, when a baseline exists,
-prints a version-over-version comparison (also appended to
-``$GITHUB_STEP_SUMMARY`` when running in GitHub Actions).
+Writes ``results/latest.json`` and, when a baseline exists, prints a
+version-over-version comparison (also appended to ``$GITHUB_STEP_SUMMARY``
+when running in GitHub Actions).
 """
 
 from __future__ import annotations
@@ -23,13 +22,14 @@ import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).parent))
+BENCHMARK_DIR = Path(__file__).parent
+REPO_ROOT = BENCHMARK_DIR.parent.parent
+
+sys.path.insert(0, str(BENCHMARK_DIR.parent))
 from common.metrics import confusion_metrics  # noqa: E402
 from common.spark_session import SparkUnavailable, git_commit, spark_session  # noqa: E402
 
-BENCHMARK_DIR = Path(__file__).parent
-REPO_ROOT = BENCHMARK_DIR.parent
-DATA_DIR = BENCHMARK_DIR / "data" / "wiki_subset"
+DATA_DIR = BENCHMARK_DIR / "data"
 CORPUS_DIR = DATA_DIR / "corpus"
 TARGETS_FILE = DATA_DIR / "eval" / "targets.json"
 RESULTS_DIR = BENCHMARK_DIR / "results"
@@ -266,7 +266,7 @@ def main() -> None:
     parser.add_argument(
         "--update-baseline",
         action="store_true",
-        help="Overwrite benchmarks/results/baseline.json with this run's results.",
+        help="Overwrite results/baseline.json with this run's results.",
     )
     args = parser.parse_args()
 
@@ -309,7 +309,7 @@ def main() -> None:
             check=True,
         )
         print(
-            "Regenerated benchmarks/results/REPORT.md and benchmarks/results/charts/ "
+            "Regenerated results/REPORT.md and results/charts/ "
             "-- remember to `git add` them alongside baseline.json"
         )
 

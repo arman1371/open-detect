@@ -26,12 +26,12 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-ivy-
       - run: uv sync
-      - run: uv run python benchmarks/run_benchmark.py
+      - run: uv run python benchmarks/wiki_subset/run_benchmark.py
       - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: wiki-subset-benchmark-results
-          path: benchmarks/results/latest.json
+          path: benchmarks/wiki_subset/results/latest.json
           if-no-files-found: warn
           retention-days: 90
 

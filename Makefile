@@ -26,7 +26,7 @@ cov:
 	uv run pytest --cov=unidetect --cov-report=term-missing --cov-report=html
 
 benchmark:
-	uv run python benchmarks/run_benchmark.py
+	uv run python benchmarks/wiki_subset/run_benchmark.py
 
 benchmark-real-world-gov:
 	uv run python benchmarks/real_world_gov/run_benchmark.py
