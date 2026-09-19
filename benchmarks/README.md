@@ -1,3 +1,25 @@
+# Benchmarks
+
+This repo currently ships two independent benchmarks, sharing common
+infrastructure (`common/` -- a local Spark-session bootstrap, confusion-matrix
+scoring, and SVG/Markdown report rendering) so a third can reuse the same
+pieces rather than being copy-pasted:
+
+| Benchmark | What it measures | Data |
+|---|---|---|
+| **`wiki_subset`** (this file, `run_benchmark.py`, `data/wiki_subset/`) | Synthetic, programmatically-injected errors at three graded severities, built to mirror the paper's own WIKI corpus (see below). CI-friendly: a couple of minutes, no external network access. | Hand-built, checked in. |
+| **[`real_world_gov`](real_world_gov/README.md)** (`real_world_gov/run_benchmark.py`, `real_world_gov/data/`) | Real government open-data tables with real, historically-injected errors and independently-produced ground truth. | 5 datasets sampled from [LUH-DBS/Matelda](https://github.com/LUH-DBS/Matelda)'s `DGov_NTR` corpus, checked in. |
+
+Run either with `make benchmark` / `make benchmark-real-world-gov` (or
+`make benchmark-all` for both); see each benchmark's own README for how its
+data was built/selected and how to read its results. Adding a new benchmark
+means: a `<name>/` (or `data/<name>/`) directory for its inputs, a
+`run_benchmark.py` built on `common.spark_session`/`common.metrics`, a
+`generate_report.py` built on `common.charts`, a `results/baseline.json`,
+and a README following this file's or `real_world_gov/README.md`'s shape.
+
+---
+
 # Benchmark: WIKI subset
 
 Uni-Detect's own paper evaluates against four corpora (Section 4.1), one of

@@ -18,15 +18,14 @@ from __future__ import annotations
 import argparse
 import json
 import os
-import shutil
 import subprocess
 import sys
-import tempfile
-from collections.abc import Iterator
-from contextlib import contextmanager
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any
+
+sys.path.insert(0, str(Path(__file__).parent))
+from common.metrics import confusion_metrics  # noqa: E402
+from common.spark_session import SparkUnavailable, git_commit, spark_session  # noqa: E402
 
 BENCHMARK_DIR = Path(__file__).parent
 REPO_ROOT = BENCHMARK_DIR.parent
@@ -53,70 +52,6 @@ ERROR_TYPES = [
 #: (a false-positive shape with no injected error at all). Order here is
 #: display order, roughly easiest-to-detect/reject to hardest.
 SEVERITIES = ["paper_example", "obvious", "moderate", "subtle", "clean"]
-
-
-class SparkUnavailable(Exception):
-    """Raised only when a local Delta-enabled Spark session cannot be started at all.
-
-    Kept narrow and distinct from any other exception so that a real failure
-    *during* the benchmark (a bad detector result, an OOM, a bug) fails the
-    script loudly instead of being swallowed as if the environment simply
-    lacked Spark/Delta -- see ``main()``.
-    """
-
-
-def _git_commit() -> str:
-    try:
-        return subprocess.check_output(
-            ["git", "rev-parse", "--short", "HEAD"], cwd=REPO_ROOT, text=True
-        ).strip()
-    except Exception:  # noqa: BLE001
-        return "unknown"
-
-
-@contextmanager
-def _spark_session() -> Iterator[Any]:
-    os.environ.setdefault("PYSPARK_PYTHON", sys.executable)
-    os.environ.setdefault("PYSPARK_DRIVER_PYTHON", sys.executable)
-
-    from delta import configure_spark_with_delta_pip
-    from pyspark.sql import SparkSession
-
-    warehouse_dir = tempfile.mkdtemp(prefix="unidetect-benchmark-warehouse-")
-    builder = (
-        SparkSession.builder.master("local[2]")
-        .appName("unidetect-benchmark")
-        .config("spark.sql.warehouse.dir", warehouse_dir)
-        .config("spark.sql.shuffle.partitions", "2")
-        .config("spark.ui.enabled", "false")
-        # Default driver heap is too small for this benchmark's run:
-        # unidetect.corpus.store.CorpusStatsStore.load_token_stats_map()
-        # calls `.orderBy(...).limit(max_tokens)` with a default
-        # max_tokens of 5,000,000, and Spark's TakeOrderedAndProjectExec
-        # pre-sizes an ordering buffer proportional to that limit
-        # regardless of the token table's actual (tiny) size -- an
-        # OutOfMemoryError on the default heap, not a sign of anything
-        # wrong with this benchmark's data or config.
-        .config("spark.driver.memory", "3g")
-        .config("spark.sql.extensions", "io.delta.sql.DeltaSparkSessionExtension")
-        .config(
-            "spark.sql.catalog.spark_catalog",
-            "org.apache.spark.sql.delta.catalog.DeltaCatalog",
-        )
-    )
-    try:
-        session = configure_spark_with_delta_pip(builder).getOrCreate()
-        session.sparkContext.setLogLevel("ERROR")
-        session.sql(f"CREATE NAMESPACE IF NOT EXISTS {TEST_CATALOG}.{TEST_SCHEMA}")
-    except Exception as exc:  # noqa: BLE001
-        shutil.rmtree(warehouse_dir, ignore_errors=True)
-        raise SparkUnavailable(str(exc)) from exc
-
-    try:
-        yield session
-    finally:
-        session.stop()
-        shutil.rmtree(warehouse_dir, ignore_errors=True)
 
 
 def _load_corpus_tables(spark, error_type: str) -> list[str]:
@@ -172,28 +107,6 @@ def _build_config(uc_location):
     )
 
 
-def _confusion_metrics(rows: list[dict]) -> dict:
-    tp = sum(1 for r in rows if r["expected_significant"] and r["predicted_significant"])
-    fp = sum(1 for r in rows if not r["expected_significant"] and r["predicted_significant"])
-    fn = sum(1 for r in rows if r["expected_significant"] and not r["predicted_significant"])
-    tn = sum(1 for r in rows if not r["expected_significant"] and not r["predicted_significant"])
-    precision = tp / (tp + fp) if (tp + fp) else 0.0
-    recall = tp / (tp + fn) if (tp + fn) else 0.0
-    f1 = 2 * precision * recall / (precision + recall) if (precision + recall) else 0.0
-    accuracy = (tp + tn) / len(rows) if rows else 0.0
-    return {
-        "n": len(rows),
-        "true_positive": tp,
-        "false_positive": fp,
-        "false_negative": fn,
-        "true_negative": tn,
-        "precision": round(precision, 4),
-        "recall": round(recall, 4),
-        "f1": round(f1, 4),
-        "accuracy": round(accuracy, 4),
-    }
-
-
 def run() -> dict:
     from unidetect.config import UnityCatalogLocation
     from unidetect.core.enums import ErrorType
@@ -202,7 +115,7 @@ def run() -> dict:
     uc_location = UnityCatalogLocation(catalog=TEST_CATALOG, schema=TEST_SCHEMA)
     config = _build_config(uc_location)
 
-    with _spark_session() as spark:
+    with spark_session(TEST_CATALOG, TEST_SCHEMA) as spark:
         ud = UniDetect(config, spark=spark)
         targets = _load_targets(spark)
 
@@ -239,13 +152,13 @@ def run() -> dict:
                     }
                 )
 
-    overall = _confusion_metrics(target_rows)
+    overall = confusion_metrics(target_rows)
     by_type = {
-        error_type: _confusion_metrics([r for r in target_rows if r["error_type"] == error_type])
+        error_type: confusion_metrics([r for r in target_rows if r["error_type"] == error_type])
         for error_type in ERROR_TYPES
     }
     by_severity = {
-        severity: _confusion_metrics([r for r in target_rows if r["severity"] == severity])
+        severity: confusion_metrics([r for r in target_rows if r["severity"] == severity])
         for severity in SEVERITIES
         if any(r["severity"] == severity for r in target_rows)
     }
@@ -282,7 +195,7 @@ def run() -> dict:
 
     return {
         "generated_at": datetime.now(timezone.utc).isoformat(),
-        "git_commit": _git_commit(),
+        "git_commit": git_commit(REPO_ROOT),
         "dataset": "wiki_subset",
         "targets": target_rows,
         "metrics": {
