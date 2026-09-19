@@ -57,6 +57,14 @@ class TestDataTypeInference:
     def test_empty_column_is_unknown(self):
         assert infer_column_data_type([]) == ColumnDataType.UNKNOWN
 
+    def test_no_clear_majority_falls_back_to_string(self):
+        # 2 integers, 2 floats, 2 mixed-alphanumeric out of 6 -> no type reaches 60%.
+        values = ["1", "2", "1.5", "2.5", "AB12", "CD34"]
+        assert infer_column_data_type(values) == ColumnDataType.STRING
+
+    def test_ignores_none_values(self):
+        assert infer_column_data_type([None, "1", "2", "3", None]) == ColumnDataType.INTEGER
+
     def test_is_mixed_alphanumeric(self):
         assert is_mixed_alphanumeric("ICAO123")
         assert not is_mixed_alphanumeric("Paris")
