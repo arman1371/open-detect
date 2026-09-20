@@ -47,6 +47,23 @@ def config(uc_location):
 
 
 class TestCorpusStatsStoreBeforeBuild:
+    """These tests need a corpus-stats/token-stats table that has genuinely
+    never been written -- unlike ``config`` above, which shares its table
+    names with every other Delta-backed test file against the same
+    ``spark`` session, this uses table names unique to this class so an
+    unrelated test's ``build_corpus_statistics()`` call elsewhere in the
+    suite can never make ``table_exists()`` true before this class's own
+    "before build" assertions run.
+    """
+
+    @pytest.fixture
+    def config(self, uc_location):
+        return UniDetectConfig(
+            location=uc_location,
+            corpus_stats_table="unidetect_corpus_stats_before_build_test",
+            token_stats_table="unidetect_token_stats_before_build_test",
+        )
+
     def test_table_exists_is_false(self, spark, config):
         store = CorpusStatsStore(spark, config)
         assert store.table_exists() is False
