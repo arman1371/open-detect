@@ -83,5 +83,5 @@ def main(argv: list[str] | None = None) -> None:
         logger.info("Wrote results to %s", config.detections_fqn)
 
 
-if __name__ == "__main__":
+if __name__ == "__main__":  # pragma: no cover
     main(sys.argv[1:])

@@ -2,11 +2,12 @@
 
 from __future__ import annotations
 
-from unidetect.core.enums import ColumnDataType
+from unidetect.core.enums import ColumnDataType, ErrorType
 from unidetect.featurization import (
     bucket_by_edges,
     bucket_leftness,
     bucket_row_count,
+    build_functional_dependency_bucket,
     build_outlier_bucket,
     build_spelling_bucket,
     build_uniqueness_bucket,
@@ -37,6 +38,9 @@ class TestBucketing:
     def test_leftness_caps_large_indices(self):
         assert bucket_leftness(3) == "3"
         assert bucket_leftness(50, max_explicit=10) == "10+"
+
+    def test_leftness_negative_index_is_unknown(self):
+        assert bucket_leftness(-1) == "unknown"
 
 
 class TestDataTypeInference:
@@ -79,6 +83,10 @@ class TestTokenPrevalence:
     def test_unknown_tokens_score_zero(self):
         assert token_prevalence(["totally-novel-token"], {}) == 0.0
 
+    def test_no_tokens_at_all_scores_zero(self):
+        assert token_prevalence(["!!!", "???"], {"paris": 5}) == 0.0
+        assert token_prevalence([], {"paris": 5}) == 0.0
+
     def test_tokenize_splits_on_punctuation(self):
         assert tokenize("SKU-9981/rev2") == ["SKU", "9981", "rev2"]
 
@@ -91,6 +99,11 @@ class TestLogFit:
 
     def test_non_positive_values_never_prefer_log(self):
         assert log_transform_fits_better([-1, 0, 1, 2, 3]) is False
+
+    def test_constant_values_have_zero_skew_and_do_not_prefer_log(self):
+        # A constant array has zero standard deviation in both raw and
+        # log-transformed space, so neither skew estimate can beat the other.
+        assert log_transform_fits_better([5.0, 5.0, 5.0, 5.0]) is False
 
 
 class TestFeatureBucketBuilders:
@@ -122,6 +135,20 @@ class TestFeatureBucketBuilders:
         )
         assert b1.as_key() != b2.as_key()
         assert b1.error_type.value in b1.as_key()
+
+    def test_functional_dependency_bucket_reuses_uniqueness_featurization(self):
+        bucket = build_functional_dependency_bucket(
+            rhs_values=["item-1", "item-2", "item-3"],
+            num_rows=100,
+            rhs_column_index=1,
+            token_document_frequency={},
+            row_count_edges=(20, 50, 100, 500, 1000),
+            prevalence_edges=(50, 100, 1000, 10_000, 100_000),
+        )
+        assert bucket.error_type is ErrorType.FUNCTIONAL_DEPENDENCY
+        d = bucket.as_dict()
+        assert d["leftness"] == "1"
+        assert d["data_type"] == ColumnDataType.MIXED_ALPHANUMERIC.value
 
     def test_spelling_bucket_dims(self):
         bucket = build_spelling_bucket(

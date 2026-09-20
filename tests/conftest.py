@@ -26,15 +26,74 @@ component as an opaque string.
 from __future__ import annotations
 
 import os
+import re
 import shutil
 import sys
 import tempfile
+import urllib.request
 from collections.abc import Iterator
+from pathlib import Path
 
 import pytest
 
 TEST_CATALOG = "spark_catalog"
 TEST_SCHEMA = "unidetect_test_schema"
+
+_MAVEN_BASE = "https://repo1.maven.org/maven2"
+_SCALA_VERSION = "2.12"
+
+
+def _download(url: str, dest: Path) -> None:
+    if dest.exists():
+        return
+    dest.parent.mkdir(parents=True, exist_ok=True)
+    tmp_path = dest.with_suffix(dest.suffix + ".part")
+    urllib.request.urlretrieve(url, tmp_path)  # noqa: S310 - fixed https://repo1.maven.org URL
+    tmp_path.rename(dest)
+
+
+def _delta_jars(delta_version: str) -> list[str]:
+    """Download Delta's runtime JARs directly from Maven Central over plain HTTPS.
+
+    ``configure_spark_with_delta_pip`` instead sets ``spark.jars.packages``,
+    which makes the JVM resolve the same coordinates itself via Ivy at
+    ``SparkSession`` startup. That has been observed to silently fail to
+    register ``DeltaCatalog`` on the classpath in some CI sandboxes (the JVM
+    starts and plain SQL works, but the first Delta-catalog operation raises
+    ``ClassNotFoundException: ...DeltaCatalog``), even though a plain HTTPS
+    GET to the very same Maven Central host succeeds -- and this project's
+    own dependency install (``uv sync``) already relies on that same kind of
+    plain-HTTPS resolution working. Downloading the jars ourselves and
+    passing local paths via ``spark.jars`` sidesteps the JVM-side Ivy
+    resolution path entirely.
+    """
+    cache_dir = Path(tempfile.gettempdir()) / "unidetect-test-jars" / delta_version
+
+    pom_url = (
+        f"{_MAVEN_BASE}/io/delta/delta-spark_{_SCALA_VERSION}/{delta_version}/"
+        f"delta-spark_{_SCALA_VERSION}-{delta_version}.pom"
+    )
+    with urllib.request.urlopen(pom_url) as resp:  # noqa: S310 - fixed https://repo1.maven.org URL
+        pom_text = resp.read().decode()
+    match = re.search(
+        r"<artifactId>antlr4-runtime</artifactId>\s*<version>([^<]+)</version>", pom_text
+    )
+    if not match:
+        raise RuntimeError("Could not find antlr4-runtime's version in delta-spark's POM")
+    antlr_version = match.group(1)
+
+    coords = [
+        ("io/delta", f"delta-spark_{_SCALA_VERSION}", delta_version),
+        ("io/delta", "delta-storage", delta_version),
+        ("org/antlr", "antlr4-runtime", antlr_version),
+    ]
+    jar_paths = []
+    for group_path, artifact, version in coords:
+        filename = f"{artifact}-{version}.jar"
+        dest = cache_dir / filename
+        _download(f"{_MAVEN_BASE}/{group_path}/{artifact}/{version}/{filename}", dest)
+        jar_paths.append(str(dest))
+    return jar_paths
 
 
 @pytest.fixture(scope="session")
@@ -51,7 +110,7 @@ def spark() -> Iterator[pyspark.sql.SparkSession]:  # noqa: F821
     os.environ.setdefault("PYSPARK_PYTHON", sys.executable)
     os.environ.setdefault("PYSPARK_DRIVER_PYTHON", sys.executable)
 
-    from delta import configure_spark_with_delta_pip
+    import importlib_metadata
     from pyspark.sql import SparkSession
 
     warehouse_dir = tempfile.mkdtemp(prefix="unidetect-warehouse-")
@@ -70,7 +129,9 @@ def spark() -> Iterator[pyspark.sql.SparkSession]:  # noqa: F821
 
     session = None
     try:
-        session = configure_spark_with_delta_pip(builder).getOrCreate()
+        jars = _delta_jars(importlib_metadata.version("delta_spark"))
+        builder = builder.config("spark.jars", ",".join(jars))
+        session = builder.getOrCreate()
         session.sparkContext.setLogLevel("ERROR")
         session.sql("SELECT 1").collect()
         session.sql(f"CREATE NAMESPACE IF NOT EXISTS {TEST_CATALOG}.{TEST_SCHEMA}")

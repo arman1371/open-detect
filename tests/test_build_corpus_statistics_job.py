@@ -91,8 +91,17 @@ class TestMain:
             assert called_tables[0] == ["main.sales.orders"]
 
     def test_requires_corpus_tables_or_corpus_catalog(self):
-        with pytest.raises(SystemExit):
-            main(["--catalog", "main", "--schema", "s"])
+        # main() calls get_spark() before validating --corpus-tables/
+        # --corpus-catalog, so this must be mocked like every other main()
+        # test here -- otherwise it creates a real, plain (non-Delta)
+        # SparkSession as a side effect, which every later Delta-backed test
+        # in the suite then silently reuses via SparkSession.getOrCreate()
+        # ("Using an existing Spark session"), permanently losing the Delta
+        # catalog/jars configuration for the rest of the test run.
+        with patch("unidetect.jobs.build_corpus_statistics.get_spark") as mock_get_spark:
+            mock_get_spark.return_value = MagicMock()
+            with pytest.raises(SystemExit):
+                main(["--catalog", "main", "--schema", "s"])
 
     def test_exits_when_no_corpus_tables_resolved(self):
         with (
