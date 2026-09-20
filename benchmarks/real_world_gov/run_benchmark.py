@@ -104,8 +104,15 @@ def run() -> dict:
             headers[name] = clean_header
 
         # Offline: learn "what these clean government tables typically look
-        # like" from the clean versions.
-        ud.build_corpus_statistics(list(clean_fqns.values()), error_types=list(ErrorType))
+        # like" from the clean versions. create_schema=False: the namespace
+        # is already created above by spark_session()'s own `CREATE
+        # NAMESPACE`; ensure_schema_exists() issues `CREATE CATALOG`, a
+        # Unity-Catalog-only DDL statement that a local, non-Unity-Catalog
+        # `spark_catalog` doesn't support (see wiki_subset/run_benchmark.py,
+        # which passes the same flag for the same reason).
+        ud.build_corpus_statistics(
+            list(clean_fqns.values()), error_types=list(ErrorType), create_schema=False
+        )
 
         # Online: score the dirty (really-corrupted) versions against it.
         detections = ud.detect(list(dirty_fqns.values()), error_types=list(ErrorType)).toPandas()
