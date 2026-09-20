@@ -10,6 +10,7 @@ from __future__ import annotations
 import pytest
 
 from unidetect.exceptions import InsufficientDataError
+from unidetect.metrics.base import drop_nulls
 from unidetect.metrics.functional_dependency import fd_compliance_ratio, minority_violation_rows
 from unidetect.metrics.outliers import (
     mad_scores,
@@ -19,6 +20,14 @@ from unidetect.metrics.outliers import (
 )
 from unidetect.metrics.spelling import differing_token_lengths, min_pairwise_edit_distance
 from unidetect.metrics.uniqueness import duplicate_value_indices, uniqueness_ratio
+
+
+class TestDropNulls:
+    def test_drops_none_and_nan(self):
+        assert drop_nulls(["a", None, "b", float("nan"), "c"]) == ["a", "b", "c"]
+
+    def test_keeps_non_nan_floats(self):
+        assert drop_nulls([1.0, None, 2.5]) == [1.0, 2.5]
 
 
 class TestUniquenessRatio:
@@ -134,6 +143,33 @@ class TestSpelling:
         result = min_pairwise_edit_distance(["a", "a", "b"])
         assert result.mpd == 0
 
+    def test_oversized_block_is_deterministically_subsampled(self):
+        # All 20 values share the same (prefix, length-bucket) blocking key,
+        # forcing the stride-based subsampling path rather than a full
+        # O(n^2) comparison within the block.
+        values = [f"aa{i:03d}" for i in range(20)]
+        result = min_pairwise_edit_distance(values, max_block_size=5)
+        assert result.mpd >= 0
+        # Re-running is deterministic (no randomness in the subsampling).
+        assert result == min_pairwise_edit_distance(values, max_block_size=5)
+
+    def test_raises_when_no_blocks_and_column_exceeds_max_block_size(self):
+        # Every value has a distinct (prefix, length-bucket) key, so no block
+        # ever reaches size >= 2, and the column is larger than
+        # max_block_size -- the bounded global-scan fallback cannot apply.
+        values = ["b1", "c22", "d333", "e4444", "f55555", "g666666"]
+        with pytest.raises(ValueError):
+            min_pairwise_edit_distance(values, max_block_size=3)
+
+    def test_differing_token_lengths_with_unequal_token_counts(self):
+        lengths = differing_token_lengths("Kevin Doeling Extra", "Kevin Dowling")
+        # "Doeling"/"Dowling" differ (len 7), plus the trailing unmatched "Extra" (len 5).
+        assert lengths == [7, 5]
+
+    def test_differing_token_lengths_falls_back_to_whole_value_when_no_diff(self):
+        lengths = differing_token_lengths("Same Value", "Same Value")
+        assert lengths == [len("Same Value")]
+
 
 class TestFunctionalDependency:
     def test_perfect_fd_has_ratio_one(self):
@@ -160,3 +196,26 @@ class TestFunctionalDependency:
     def test_requires_matching_lengths(self):
         with pytest.raises(ValueError):
             fd_compliance_ratio(["a"], ["b", "c"])
+
+    def test_ignores_null_lhs_rows(self):
+        lhs = ["1", None, "1", "2"]
+        rhs = ["x", "z", "x", "y"]
+        result = fd_compliance_ratio(lhs, rhs)
+        assert result.ratio == 1.0
+        assert result.violating_row_indices == ()
+
+    def test_raises_when_every_lhs_value_is_null(self):
+        with pytest.raises(ValueError):
+            fd_compliance_ratio([None, None], ["a", "b"])
+
+    def test_minority_violation_rows_ignores_null_lhs(self):
+        lhs = [None, "1", "1"]
+        rhs = ["z", "x", "y"]
+        dropped = minority_violation_rows(lhs, rhs, max_rows=10)
+        assert dropped == [2]
+
+    def test_minority_violation_rows_stops_at_max_rows(self):
+        lhs = ["1", "1", "1"]
+        rhs = ["x", "y", "z"]
+        dropped = minority_violation_rows(lhs, rhs, max_rows=1)
+        assert dropped == [1]

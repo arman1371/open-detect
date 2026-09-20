@@ -63,6 +63,17 @@ class TestPerturbSpelling:
         assert outcome.theta_after > outcome.theta_before
         assert set(outcome.evidence["pair"]) == {"Kevin Doeling", "Kevin Dowling"}
 
+    def test_undefined_after_when_remaining_values_have_no_comparable_blocks(self):
+        # One close pair (found via blocking) plus enough uniquely-blocked
+        # values that, once the pair's first value is dropped, no block has
+        # >= 2 members and the remainder exceeds max_block_size -- forcing
+        # the internal re-scoring call to raise ValueError, which
+        # perturb_spelling must translate into the "undefined after" sentinel.
+        values = ["aa000", "aa001", "bb1", "cc22", "dd333", "ee4444", "ff55555"]
+        outcome = perturb_spelling(values, epsilon=0.5, max_block_size=3)
+        assert outcome.theta_before == 1.0
+        assert outcome.theta_after == pytest.approx(1.0e9)
+
 
 class TestPerturbFunctionalDependency:
     def test_repairs_minority_violation(self):

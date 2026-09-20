@@ -40,6 +40,27 @@ class TestUniDetectConfig:
         with pytest.raises(ConfigurationError):
             UniDetectConfig(location=self._location(), alpha=alpha)
 
+    def test_rejects_negative_laplace_smoothing(self):
+        with pytest.raises(ConfigurationError):
+            UniDetectConfig(location=self._location(), laplace_smoothing=-1.0)
+
+    def test_accepts_zero_laplace_smoothing(self):
+        config = UniDetectConfig(location=self._location(), laplace_smoothing=0.0)
+        assert config.laplace_smoothing == 0.0
+
+    @pytest.mark.parametrize("max_mpd_block_size", [0, 1, -5])
+    def test_rejects_too_small_max_mpd_block_size(self, max_mpd_block_size):
+        with pytest.raises(ConfigurationError):
+            UniDetectConfig(location=self._location(), max_mpd_block_size=max_mpd_block_size)
+
+    @pytest.mark.parametrize("max_fd_column_pairs_per_table", [0, -1])
+    def test_rejects_too_small_max_fd_column_pairs_per_table(self, max_fd_column_pairs_per_table):
+        with pytest.raises(ConfigurationError):
+            UniDetectConfig(
+                location=self._location(),
+                max_fd_column_pairs_per_table=max_fd_column_pairs_per_table,
+            )
+
     def test_fully_qualified_table_names(self):
         config = UniDetectConfig(location=self._location())
         assert config.corpus_stats_fqn == "main.data_quality.unidetect_corpus_stats"
