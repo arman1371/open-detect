@@ -47,9 +47,14 @@ def _download(url: str, dest: Path) -> None:
     if dest.exists():
         return
     dest.parent.mkdir(parents=True, exist_ok=True)
-    tmp_path = dest.with_suffix(dest.suffix + ".part")
+    # Suffixed with our pid so that concurrent pytest-xdist workers racing to
+    # populate the same (shared, machine-wide) cache dir download to distinct
+    # files instead of both writing through the same handle -- the final
+    # `os.replace` is atomic, so whichever worker finishes last just
+    # overwrites the dest with an equally valid copy of the same jar.
+    tmp_path = dest.with_suffix(f"{dest.suffix}.{os.getpid()}.part")
     urllib.request.urlretrieve(url, tmp_path)  # noqa: S310 - fixed https://repo1.maven.org URL
-    tmp_path.rename(dest)
+    os.replace(tmp_path, dest)
 
 
 def _delta_jars(delta_version: str) -> list[str]:

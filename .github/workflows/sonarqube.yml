@@ -31,19 +31,18 @@ jobs:
           distribution: "temurin"
           java-version: "17"
 
+      # See the matching step in ci.yml: the `spark` fixture in
+      # tests/conftest.py downloads Delta's JARs straight from Maven Central
+      # into this path, bypassing the JVM's own Ivy resolver.
       - uses: actions/cache@v4
         with:
-          path: |
-            ~/.ivy2
-            ~/.m2/repository
-          key: ${{ runner.os }}-ivy-${{ hashFiles('uv.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-ivy-
+          path: /tmp/unidetect-test-jars
+          key: ${{ runner.os }}-delta-jars-${{ hashFiles('uv.lock') }}
 
-      - run: uv sync
+      - run: uv sync --locked
 
       - name: Run tests with coverage
-        run: uv run pytest --cov=unidetect --cov-report=xml:coverage.xml --cov-report=term-missing
+        run: uv run pytest --cov=unidetect --cov-report=xml:coverage.xml --cov-report=term-missing -n auto
 
       - name: SonarQube scan
         uses: SonarSource/sonarqube-scan-action@v5
