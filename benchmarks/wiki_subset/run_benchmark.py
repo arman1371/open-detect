@@ -1,6 +1,13 @@
-"""Runs the WIKI-subset benchmark: builds corpus statistics from
-``data/corpus`` and scores the labeled targets in ``data/eval/targets.json``
-against their known ground truth (see ``README.md`` for the full picture).
+"""Runs the WIKI-subset benchmark for every available registered algorithm
+(see ``README.md``): builds corpus statistics from ``data/corpus`` and
+scores the labeled targets in ``data/eval/targets.json`` against their known
+ground truth.
+
+- **uni_detect** -- builds corpus statistics from ``data/corpus``, then
+  scores each target against it (Spark/Delta; requires JDK 17).
+- **raha** -- scores each target directly, using the target's own
+  ``injected_row_indices`` ground truth (see ``generate_dataset.py``) via a
+  local ``KnownIndexLabeler`` (pandas; no Spark/JDK dependency at all).
 
 Usage::
 
@@ -19,6 +26,7 @@ import json
 import os
 import subprocess
 import sys
+import time
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -26,6 +34,7 @@ BENCHMARK_DIR = Path(__file__).parent
 REPO_ROOT = BENCHMARK_DIR.parent.parent
 
 sys.path.insert(0, str(BENCHMARK_DIR.parent))
+from common.comparison import comparison_table_markdown  # noqa: E402
 from common.metrics import confusion_metrics  # noqa: E402
 from common.spark_session import SparkUnavailable, git_commit, spark_session  # noqa: E402
 
@@ -52,6 +61,11 @@ ERROR_TYPES = [
 #: (a false-positive shape with no injected error at all). Order here is
 #: display order, roughly easiest-to-detect/reject to hardest.
 SEVERITIES = ["paper_example", "obvious", "moderate", "subtle", "clean"]
+
+#: The paper's own labeling-budget default (Section 6.1); RahaDetector caps
+#: it at each target's own row count, so this is effectively "as many labels
+#: as the table has, up to 20" -- full supervision on the smallest targets.
+RAHA_LABELING_BUDGET = 20
 
 
 def _load_corpus_tables(spark, error_type: str) -> list[str]:
@@ -107,7 +121,8 @@ def _build_config(uc_location):
     )
 
 
-def run() -> dict:
+def run_uni_detect() -> tuple[list[dict], dict, float]:
+    """Score every eval target with Uni-Detect. Returns (targets, metrics, duration_seconds)."""
     from unidetect.config import UnityCatalogLocation
     from unidetect.core.enums import ErrorType
     from unidetect.pipeline import UniDetect
@@ -115,6 +130,7 @@ def run() -> dict:
     uc_location = UnityCatalogLocation(catalog=TEST_CATALOG, schema=TEST_SCHEMA)
     config = _build_config(uc_location)
 
+    start = time.perf_counter()
     with spark_session(TEST_CATALOG, TEST_SCHEMA) as spark:
         ud = UniDetect(config, spark=spark)
         targets = _load_targets(spark)
@@ -151,6 +167,7 @@ def run() -> dict:
                         "lr_ratio": lr_ratio,
                     }
                 )
+    duration = time.perf_counter() - start
 
     overall = confusion_metrics(target_rows)
     by_type = {
@@ -193,17 +210,159 @@ def run() -> dict:
                 "correctly_ranked": tp_ratio < fp_ratio,
             }
 
-    return {
-        "generated_at": datetime.now(timezone.utc).isoformat(),
-        "git_commit": git_commit(REPO_ROOT),
-        "dataset": "wiki_subset",
-        "targets": target_rows,
-        "metrics": {
+    return (
+        target_rows,
+        {
             "overall": overall,
             "by_error_type": by_type,
             "by_severity": by_severity,
             "ranking": ranking,
         },
+        duration,
+    )
+
+
+def run_raha() -> tuple[list[dict], dict, dict, float]:
+    """Score every eval target with Raha.
+
+    Returns ``(targets, column_metrics, cell_metrics, duration_seconds)``,
+    the same shape ``real_world_gov/run_benchmark.py::run_raha`` returns, for
+    the same reason: ``column_metrics`` reduces to "was *any* cell of this
+    target flagged" -- the same whole-target verdict Uni-Detect's own output
+    is -- for the apples-to-apples comparison table, while ``cell_metrics``
+    is Raha's native per-cell granularity (the paper's own Table 5
+    granularity), scored against ``generate_dataset.py``'s own
+    ``injected_row_indices`` ground truth via a local
+    :class:`KnownIndexLabeler` rather than a diff against a separate clean
+    table (these synthetic targets have no such counterpart -- the generator
+    already knows exactly what it injected, so this labeler just exposes
+    that same information through Raha's ``Labeler`` interface).
+    """
+    import pandas as pd
+
+    from unidetect.algorithms.raha import RahaConfig, RahaDetector
+    from unidetect.algorithms.raha.labeling import Labeler
+
+    class KnownIndexLabeler(Labeler):
+        def __init__(self, target_column: str, injected_indices: set[int]) -> None:
+            self._target_column = target_column
+            self._injected_indices = injected_indices
+
+        def label_tuple(self, df, row_index):
+            is_error = row_index in self._injected_indices
+            return {col: (is_error if col == self._target_column else False) for col in df.columns}
+
+    targets = json.loads(TARGETS_FILE.read_text())
+    target_rows: list[dict] = []
+    cell_rows: list[dict] = []
+    start = time.perf_counter()
+    for target in targets:
+        df = pd.DataFrame(target["rows"], columns=target["columns"])
+        # The FD targets' two columns are `[lhs, rhs]`; only the RHS is ever
+        # corrupted (see generate_dataset.py's `_target` docstring). Every
+        # other error type has exactly one column, so `columns[-1]` is that
+        # column too.
+        target_column = target["columns"][-1]
+        injected = set(target["injected_row_indices"])
+
+        detector = RahaDetector(RahaConfig(labeling_budget=RAHA_LABELING_BUDGET, random_state=0))
+        result = detector.detect(
+            df, table_id=target["id"], labeler=KnownIndexLabeler(target_column, injected)
+        )
+
+        target_rows.append(
+            {
+                "id": target["id"],
+                "error_type": target["error_type"],
+                "severity": target.get("severity", "unknown"),
+                "description": target["description"],
+                "expected_significant": target["expected_significant"],
+                "predicted_significant": any(cell.is_error for cell in result),
+                "score": max((cell.score for cell in result), default=0.0),
+            }
+        )
+        for cell in result:
+            expected = cell.column_name == target_column and cell.row_index in injected
+            cell_rows.append(
+                {
+                    "error_type": target["error_type"],
+                    "severity": target.get("severity", "unknown"),
+                    "expected_significant": expected,
+                    "predicted_significant": cell.is_error,
+                }
+            )
+    duration = time.perf_counter() - start
+
+    def _metrics(rows: list[dict]) -> dict:
+        return {
+            "overall": confusion_metrics(rows),
+            "by_error_type": {
+                et: confusion_metrics([r for r in rows if r["error_type"] == et])
+                for et in ERROR_TYPES
+            },
+            "by_severity": {
+                s: confusion_metrics([r for r in rows if r["severity"] == s])
+                for s in SEVERITIES
+                if any(r["severity"] == s for r in rows)
+            },
+        }
+
+    return target_rows, _metrics(target_rows), _metrics(cell_rows), duration
+
+
+def run() -> dict:
+    algorithms: dict[str, dict] = {}
+
+    try:
+        import sklearn  # noqa: F401
+    except ImportError:
+        print(
+            "scikit-learn not installed; skipping raha "
+            "(run `uv sync` or `uv pip install unidetect[raha]` first).",
+            file=sys.stderr,
+        )
+    else:
+        raha_targets, raha_column_metrics, raha_cell_metrics, raha_duration = run_raha()
+        algorithms["raha"] = {
+            "targets": raha_targets,
+            "metrics": raha_column_metrics,
+            "cell_metrics": raha_cell_metrics,
+            "duration_seconds": raha_duration,
+            "duration_note": None,
+        }
+
+    try:
+        import delta  # noqa: F401
+        import pyspark  # noqa: F401
+    except ImportError:
+        print(
+            "pyspark/delta-spark not installed; skipping uni_detect "
+            "(run `uv sync` or `uv sync --group dev` first).",
+            file=sys.stderr,
+        )
+    else:
+        try:
+            ud_targets, ud_metrics, ud_duration = run_uni_detect()
+        except SparkUnavailable as exc:
+            print(
+                f"Could not start a local Delta-enabled Spark session; skipping uni_detect: {exc}"
+            )
+        else:
+            algorithms["uni_detect"] = {
+                "targets": ud_targets,
+                "metrics": ud_metrics,
+                "duration_seconds": ud_duration,
+                "duration_note": None,
+            }
+
+    if not algorithms:
+        raise RuntimeError("No algorithm could be run -- see the skip messages above.")
+
+    return {
+        "generated_at": datetime.now(timezone.utc).isoformat(),
+        "git_commit": git_commit(REPO_ROOT),
+        "dataset": "wiki_subset",
+        "algorithms": algorithms,
     }
 
 
@@ -213,10 +372,13 @@ def _print_comparison(current: dict, baseline: dict | None) -> str:
     if baseline:
         lines.append(f"Baseline commit: `{baseline.get('git_commit', 'unknown')}`")
     lines.append("")
+    lines.append("### Algorithm comparison")
+    lines.append("")
+    lines.append(comparison_table_markdown(current["algorithms"]))
+    lines.append("")
+
     header = "| Metric | Current | Baseline | Delta |" if baseline else "| Metric | Current |"
     sep = "|---|---|---|---|" if baseline else "|---|---|"
-    lines.append(header)
-    lines.append(sep)
 
     def _row(label: str, cur_metrics: dict, base_metrics: dict | None) -> None:
         for key in ("precision", "recall", "f1", "accuracy"):
@@ -231,30 +393,26 @@ def _print_comparison(current: dict, baseline: dict | None) -> str:
             else:
                 lines.append(f"| {label} {key} | {cur_val:.3f} |")
 
-    base_overall = baseline["metrics"]["overall"] if baseline else None
-    _row("overall", current["metrics"]["overall"], base_overall)
-    for error_type in ERROR_TYPES:
-        cur = current["metrics"]["by_error_type"].get(error_type, {})
-        base = baseline["metrics"]["by_error_type"].get(error_type) if baseline else None
-        _row(error_type, cur, base)
+    for algo_name, entry in current["algorithms"].items():
+        lines.append("")
+        lines.append(f"### `{algo_name}`")
+        lines.append("")
+        lines.append(header)
+        lines.append(sep)
+        base_entry = baseline["algorithms"].get(algo_name) if baseline else None
+        base_overall = base_entry["metrics"]["overall"] if base_entry else None
+        _row("overall", entry["metrics"]["overall"], base_overall)
+        for error_type in ERROR_TYPES:
+            cur = entry["metrics"]["by_error_type"].get(error_type, {})
+            base = base_entry["metrics"]["by_error_type"].get(error_type) if base_entry else None
+            _row(error_type, cur, base)
 
-    lines.append("")
-    lines.append("### By corruption severity (how it holds up on dirty data)")
-    lines.append("")
-    lines.append(header)
-    lines.append(sep)
-    for severity in SEVERITIES:
-        cur = current["metrics"]["by_severity"].get(severity)
-        if cur is None:
-            continue
-        base = baseline["metrics"].get("by_severity", {}).get(severity) if baseline else None
-        _row(f"severity={severity}", cur, base)
-
-    lines.append("")
-    lines.append("| Error type | correctly ranked (TP more surprising than FP) |")
-    lines.append("|---|---|")
-    for error_type, info in current["metrics"]["ranking"].items():
-        lines.append(f"| {error_type} | {'yes' if info['correctly_ranked'] else 'NO'} |")
+        if algo_name == "uni_detect":
+            lines.append("")
+            lines.append("| Error type | correctly ranked (TP more surprising than FP) |")
+            lines.append("|---|---|")
+            for error_type, info in entry["metrics"]["ranking"].items():
+                lines.append(f"| {error_type} | {'yes' if info['correctly_ranked'] else 'NO'} |")
 
     text = "\n".join(lines)
     print(text)
@@ -272,22 +430,7 @@ def main() -> None:
 
     RESULTS_DIR.mkdir(parents=True, exist_ok=True)
 
-    try:
-        import delta  # noqa: F401
-        import pyspark  # noqa: F401
-    except ImportError:
-        print(
-            "pyspark/delta-spark not installed; skipping benchmark "
-            "(run `uv sync` or `uv sync --group dev` first).",
-            file=sys.stderr,
-        )
-        sys.exit(0)
-
-    try:
-        results = run()
-    except SparkUnavailable as exc:
-        print(f"Could not start a local Delta-enabled Spark session; skipping: {exc}")
-        sys.exit(0)
+    results = run()
 
     LATEST_FILE.write_text(json.dumps(results, indent=2) + "\n")
 

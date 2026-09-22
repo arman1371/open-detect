@@ -1,686 +1,1470 @@
 {
-  "generated_at": "2026-09-17T23:44:36.797081+00:00",
-  "git_commit": "f99a32d",
+  "generated_at": "2026-09-22T12:14:09.629140+00:00",
+  "git_commit": "61f6703",
   "dataset": "wiki_subset",
-  "generation_method": "PREVIEW: computed via benchmarks-internal pure-Python simulator (same production metric/perturbation/featurization code, no Spark), because this environment's JDK 21 is incompatible with PySpark 3.5's bundled Arrow. Cross-validated against the previous dataset's Spark-run baseline.json (exact match) before being trusted. Re-run `uv run python benchmarks/run_benchmark.py --update-baseline` on JDK 17 to get a Spark-confirmed refresh.",
-  "targets": [
-    {
-      "id": "uniqueness_fp_common_surnames",
-      "error_type": "uniqueness",
-      "severity": "paper_example",
-      "description": "Paper Figure 2(a)-style: a 'List of notable people named Smith' table with one coincidental duplicate surname among common names.",
-      "expected_significant": false,
-      "predicted_significant": false,
-      "lr_ratio": 1.0
-    },
-    {
-      "id": "uniqueness_fp_surname_pool4_00",
-      "error_type": "uniqueness",
-      "severity": "clean",
-      "description": "A 'notable people' list drawn from only 4 common surnames -- natural collisions expected, not a data error.",
-      "expected_significant": false,
-      "predicted_significant": false,
-      "lr_ratio": 1.0
-    },
-    {
-      "id": "uniqueness_fp_surname_pool6_01",
-      "error_type": "uniqueness",
-      "severity": "clean",
-      "description": "A 'notable people' list drawn from only 6 common surnames -- natural collisions expected, not a data error.",
-      "expected_significant": false,
-      "predicted_significant": false,
-      "lr_ratio": 1.0
-    },
-    {
-      "id": "uniqueness_fp_surname_pool8_02",
-      "error_type": "uniqueness",
-      "severity": "clean",
-      "description": "A 'notable people' list drawn from only 8 common surnames -- natural collisions expected, not a data error.",
-      "expected_significant": false,
-      "predicted_significant": true,
-      "lr_ratio": 0.111111
-    },
-    {
-      "id": "uniqueness_fp_surname_pool10_03",
-      "error_type": "uniqueness",
-      "severity": "clean",
-      "description": "A 'notable people' list drawn from only 10 common surnames -- natural collisions expected, not a data error.",
-      "expected_significant": false,
-      "predicted_significant": true,
-      "lr_ratio": 0.2
-    },
-    {
-      "id": "uniqueness_tp_part_number_paper_example",
-      "error_type": "uniqueness",
-      "severity": "paper_example",
-      "description": "Paper Figure 6-style: a 'Part No.' column with one exact duplicate alphanumeric code -- codes like this are expected to always be unique.",
-      "expected_significant": true,
-      "predicted_significant": true,
-      "lr_ratio": 0.166667
-    },
-    {
-      "id": "uniqueness_tp_subtle_00",
-      "error_type": "uniqueness",
-      "severity": "subtle",
-      "description": "An airport/ISO-code-style ID column (subtle corruption: 1 injected duplicate(s)) -- codes like this are expected to always be unique.",
-      "expected_significant": true,
-      "predicted_significant": true,
-      "lr_ratio": 0.083333
-    },
-    {
-      "id": "uniqueness_tp_subtle_01",
-      "error_type": "uniqueness",
-      "severity": "subtle",
-      "description": "An airport/ISO-code-style ID column (subtle corruption: 1 injected duplicate(s)) -- codes like this are expected to always be unique.",
-      "expected_significant": true,
-      "predicted_significant": true,
-      "lr_ratio": 0.083333
-    },
-    {
-      "id": "uniqueness_tp_subtle_02",
-      "error_type": "uniqueness",
-      "severity": "subtle",
-      "description": "An airport/ISO-code-style ID column (subtle corruption: 1 injected duplicate(s)) -- codes like this are expected to always be unique.",
-      "expected_significant": true,
-      "predicted_significant": true,
-      "lr_ratio": 0.083333
-    },
-    {
-      "id": "uniqueness_tp_moderate_00",
-      "error_type": "uniqueness",
-      "severity": "moderate",
-      "description": "An airport/ISO-code-style ID column (moderate corruption: 4 injected duplicate(s)) -- codes like this are expected to always be unique.",
-      "expected_significant": true,
-      "predicted_significant": true,
-      "lr_ratio": 0.083333
-    },
-    {
-      "id": "uniqueness_tp_moderate_01",
-      "error_type": "uniqueness",
-      "severity": "moderate",
-      "description": "An airport/ISO-code-style ID column (moderate corruption: 4 injected duplicate(s)) -- codes like this are expected to always be unique.",
-      "expected_significant": true,
-      "predicted_significant": true,
-      "lr_ratio": 0.083333
-    },
-    {
-      "id": "uniqueness_tp_moderate_02",
-      "error_type": "uniqueness",
-      "severity": "moderate",
-      "description": "An airport/ISO-code-style ID column (moderate corruption: 4 injected duplicate(s)) -- codes like this are expected to always be unique.",
-      "expected_significant": true,
-      "predicted_significant": true,
-      "lr_ratio": 0.083333
-    },
-    {
-      "id": "uniqueness_tp_obvious_00",
-      "error_type": "uniqueness",
-      "severity": "obvious",
-      "description": "An airport/ISO-code-style ID column (obvious corruption: 10 injected duplicate(s)) -- codes like this are expected to always be unique.",
-      "expected_significant": true,
-      "predicted_significant": false,
-      "lr_ratio": 1.0
-    },
-    {
-      "id": "uniqueness_tp_obvious_01",
-      "error_type": "uniqueness",
-      "severity": "obvious",
-      "description": "An airport/ISO-code-style ID column (obvious corruption: 10 injected duplicate(s)) -- codes like this are expected to always be unique.",
-      "expected_significant": true,
-      "predicted_significant": false,
-      "lr_ratio": 1.0
-    },
-    {
-      "id": "uniqueness_tp_obvious_02",
-      "error_type": "uniqueness",
-      "severity": "obvious",
-      "description": "An airport/ISO-code-style ID column (obvious corruption: 10 injected duplicate(s)) -- codes like this are expected to always be unique.",
-      "expected_significant": true,
-      "predicted_significant": false,
-      "lr_ratio": 1.0
-    },
-    {
-      "id": "outlier_fp_election_result",
-      "error_type": "numeric_outlier",
-      "severity": "paper_example",
-      "description": "Election vote shares: many small candidates plus one legitimately larger winner (paper's own 'C-' false-positive worked example).",
-      "expected_significant": false,
-      "predicted_significant": false,
-      "lr_ratio": 0.833333
-    },
-    {
-      "id": "outlier_fp_election_margin18_00",
-      "error_type": "numeric_outlier",
-      "severity": "clean",
-      "description": "Election vote shares with a legitimate ~18% winner among many small candidates -- not a data error.",
-      "expected_significant": false,
-      "predicted_significant": false,
-      "lr_ratio": 0.25
-    },
-    {
-      "id": "outlier_fp_election_margin28_01",
-      "error_type": "numeric_outlier",
-      "severity": "clean",
-      "description": "Election vote shares with a legitimate ~28% winner among many small candidates -- not a data error.",
-      "expected_significant": false,
-      "predicted_significant": false,
-      "lr_ratio": 0.25
-    },
-    {
-      "id": "outlier_fp_election_margin38_02",
-      "error_type": "numeric_outlier",
-      "severity": "clean",
-      "description": "Election vote shares with a legitimate ~38% winner among many small candidates -- not a data error.",
-      "expected_significant": false,
-      "predicted_significant": true,
-      "lr_ratio": 0.052632
-    },
-    {
-      "id": "outlier_fp_election_margin52_03",
-      "error_type": "numeric_outlier",
-      "severity": "clean",
-      "description": "Election vote shares with a legitimate ~52% winner among many small candidates -- not a data error.",
-      "expected_significant": false,
-      "predicted_significant": true,
-      "lr_ratio": 0.066667
-    },
-    {
-      "id": "outlier_tp_population_typo_paper_example",
-      "error_type": "numeric_outlier",
-      "severity": "paper_example",
-      "description": "Population figures (thousands) with a decimal-point typo ('8.716' instead of '8716') -- paper's own 'C+' true-positive example.",
-      "expected_significant": true,
-      "predicted_significant": true,
-      "lr_ratio": 0.166667
-    },
-    {
-      "id": "outlier_tp_subtle_00",
-      "error_type": "numeric_outlier",
-      "severity": "subtle",
-      "description": "Population figures (thousands) with a subtle decimal-point error injected into one value.",
-      "expected_significant": true,
-      "predicted_significant": true,
-      "lr_ratio": 0.071429
-    },
-    {
-      "id": "outlier_tp_subtle_01",
-      "error_type": "numeric_outlier",
-      "severity": "subtle",
-      "description": "Population figures (thousands) with a subtle decimal-point error injected into one value.",
-      "expected_significant": true,
-      "predicted_significant": true,
-      "lr_ratio": 0.111111
-    },
-    {
-      "id": "outlier_tp_subtle_02",
-      "error_type": "numeric_outlier",
-      "severity": "subtle",
-      "description": "Population figures (thousands) with a subtle decimal-point error injected into one value.",
-      "expected_significant": true,
-      "predicted_significant": true,
-      "lr_ratio": 0.1
-    },
-    {
-      "id": "outlier_tp_moderate_00",
-      "error_type": "numeric_outlier",
-      "severity": "moderate",
-      "description": "Population figures (thousands) with a moderate decimal-point error injected into one value.",
-      "expected_significant": true,
-      "predicted_significant": true,
-      "lr_ratio": 0.0625
-    },
-    {
-      "id": "outlier_tp_moderate_01",
-      "error_type": "numeric_outlier",
-      "severity": "moderate",
-      "description": "Population figures (thousands) with a moderate decimal-point error injected into one value.",
-      "expected_significant": true,
-      "predicted_significant": true,
-      "lr_ratio": 0.142857
-    },
-    {
-      "id": "outlier_tp_moderate_02",
-      "error_type": "numeric_outlier",
-      "severity": "moderate",
-      "description": "Population figures (thousands) with a moderate decimal-point error injected into one value.",
-      "expected_significant": true,
-      "predicted_significant": true,
-      "lr_ratio": 0.058824
-    },
-    {
-      "id": "outlier_tp_obvious_00",
-      "error_type": "numeric_outlier",
-      "severity": "obvious",
-      "description": "Population figures (thousands) with an obvious decimal-point error injected into one value.",
-      "expected_significant": true,
-      "predicted_significant": true,
-      "lr_ratio": 0.071429
-    },
-    {
-      "id": "outlier_tp_obvious_01",
-      "error_type": "numeric_outlier",
-      "severity": "obvious",
-      "description": "Population figures (thousands) with an obvious decimal-point error injected into one value.",
-      "expected_significant": true,
-      "predicted_significant": true,
-      "lr_ratio": 0.071429
-    },
-    {
-      "id": "outlier_tp_obvious_02",
-      "error_type": "numeric_outlier",
-      "severity": "obvious",
-      "description": "Population figures (thousands) with an obvious decimal-point error injected into one value.",
-      "expected_significant": true,
-      "predicted_significant": true,
-      "lr_ratio": 0.1
-    },
-    {
-      "id": "spelling_fp_amendment_list",
-      "error_type": "spelling",
-      "severity": "paper_example",
-      "description": "Consecutive amendment numerals: syntactically close by design, not misspellings.",
-      "expected_significant": false,
-      "predicted_significant": false,
-      "lr_ratio": 1.0
-    },
-    {
-      "id": "spelling_fp_amendments_n6_00",
-      "error_type": "spelling",
-      "severity": "clean",
-      "description": "6 consecutive amendment numerals -- syntactically close pairs throughout by design, not misspellings.",
-      "expected_significant": false,
-      "predicted_significant": false,
-      "lr_ratio": 1.0
-    },
-    {
-      "id": "spelling_fp_amendments_n10_01",
-      "error_type": "spelling",
-      "severity": "clean",
-      "description": "10 consecutive amendment numerals -- syntactically close pairs throughout by design, not misspellings.",
-      "expected_significant": false,
-      "predicted_significant": false,
-      "lr_ratio": 1.0
-    },
-    {
-      "id": "spelling_fp_amendments_n14_02",
-      "error_type": "spelling",
-      "severity": "clean",
-      "description": "14 consecutive amendment numerals -- syntactically close pairs throughout by design, not misspellings.",
-      "expected_significant": false,
-      "predicted_significant": false,
-      "lr_ratio": 1.0
-    },
-    {
-      "id": "spelling_fp_amendments_n20_03",
-      "error_type": "spelling",
-      "severity": "clean",
-      "description": "20 consecutive amendment numerals -- syntactically close pairs throughout by design, not misspellings.",
-      "expected_significant": false,
-      "predicted_significant": false,
-      "lr_ratio": 1.0
-    },
-    {
-      "id": "spelling_tp_biography_typo_paper_example",
-      "error_type": "spelling",
-      "severity": "paper_example",
-      "description": "One genuine misspelling ('Doeling' for 'Dowling') among unrelated long biography names -- paper's own true-positive example.",
-      "expected_significant": true,
-      "predicted_significant": true,
-      "lr_ratio": 0.105263
-    },
-    {
-      "id": "spelling_tp_subtle_00",
-      "error_type": "spelling",
-      "severity": "subtle",
-      "description": "One genuine misspelling ('Doeling' for 'Dowling') among long biography names, subtle corruption (diluted by one legitimate distractor pair 2 edits apart).",
-      "expected_significant": true,
-      "predicted_significant": false,
-      "lr_ratio": 0.666667
-    },
-    {
-      "id": "spelling_tp_subtle_01",
-      "error_type": "spelling",
-      "severity": "subtle",
-      "description": "One genuine misspelling ('Doeling' for 'Dowling') among long biography names, subtle corruption (diluted by one legitimate distractor pair 2 edits apart).",
-      "expected_significant": true,
-      "predicted_significant": false,
-      "lr_ratio": 0.666667
-    },
-    {
-      "id": "spelling_tp_subtle_02",
-      "error_type": "spelling",
-      "severity": "subtle",
-      "description": "One genuine misspelling ('Doeling' for 'Dowling') among long biography names, subtle corruption (diluted by one legitimate distractor pair 2 edits apart).",
-      "expected_significant": true,
-      "predicted_significant": false,
-      "lr_ratio": 0.666667
-    },
-    {
-      "id": "spelling_tp_moderate_00",
-      "error_type": "spelling",
-      "severity": "moderate",
-      "description": "One genuine misspelling ('Doeling' for 'Dowling') among long biography names, moderate corruption (diluted by one legitimate distractor pair 4 edits apart).",
-      "expected_significant": true,
-      "predicted_significant": true,
-      "lr_ratio": 0.166667
-    },
-    {
-      "id": "spelling_tp_moderate_01",
-      "error_type": "spelling",
-      "severity": "moderate",
-      "description": "One genuine misspelling ('Doeling' for 'Dowling') among long biography names, moderate corruption (diluted by one legitimate distractor pair 4 edits apart).",
-      "expected_significant": true,
-      "predicted_significant": true,
-      "lr_ratio": 0.166667
-    },
-    {
-      "id": "spelling_tp_moderate_02",
-      "error_type": "spelling",
-      "severity": "moderate",
-      "description": "One genuine misspelling ('Doeling' for 'Dowling') among long biography names, moderate corruption (diluted by one legitimate distractor pair 4 edits apart).",
-      "expected_significant": true,
-      "predicted_significant": true,
-      "lr_ratio": 0.166667
-    },
-    {
-      "id": "spelling_tp_obvious_00",
-      "error_type": "spelling",
-      "severity": "obvious",
-      "description": "One genuine misspelling ('Doeling' for 'Dowling') among long biography names, obvious corruption (no distractor pair).",
-      "expected_significant": true,
-      "predicted_significant": true,
-      "lr_ratio": 0.083333
-    },
-    {
-      "id": "spelling_tp_obvious_01",
-      "error_type": "spelling",
-      "severity": "obvious",
-      "description": "One genuine misspelling ('Doeling' for 'Dowling') among long biography names, obvious corruption (no distractor pair).",
-      "expected_significant": true,
-      "predicted_significant": true,
-      "lr_ratio": 0.083333
-    },
-    {
-      "id": "spelling_tp_obvious_02",
-      "error_type": "spelling",
-      "severity": "obvious",
-      "description": "One genuine misspelling ('Doeling' for 'Dowling') among long biography names, obvious corruption (no distractor pair).",
-      "expected_significant": true,
-      "predicted_significant": true,
-      "lr_ratio": 0.083333
-    },
-    {
-      "id": "fd_fp_pageviews_vs_edits",
-      "error_type": "functional_dependency",
-      "severity": "paper_example",
-      "description": "Two independent numeric-ish columns with no real dependency.",
-      "expected_significant": false,
-      "predicted_significant": true,
-      "lr_ratio": 0.1
-    },
-    {
-      "id": "fd_fp_unrelated_domain100_00",
-      "error_type": "functional_dependency",
-      "severity": "clean",
-      "description": "Two independent columns drawn from a 0-100 integer domain -- no real dependency, not a data error.",
-      "expected_significant": false,
-      "predicted_significant": false,
-      "lr_ratio": 0.25
-    },
-    {
-      "id": "fd_fp_unrelated_domain250_01",
-      "error_type": "functional_dependency",
-      "severity": "clean",
-      "description": "Two independent columns drawn from a 0-250 integer domain -- no real dependency, not a data error.",
-      "expected_significant": false,
-      "predicted_significant": true,
-      "lr_ratio": 0.071429
-    },
-    {
-      "id": "fd_fp_unrelated_domain450_02",
-      "error_type": "functional_dependency",
-      "severity": "clean",
-      "description": "Two independent columns drawn from a 0-450 integer domain -- no real dependency, not a data error.",
-      "expected_significant": false,
-      "predicted_significant": true,
-      "lr_ratio": 0.2
-    },
-    {
-      "id": "fd_fp_unrelated_domain700_03",
-      "error_type": "functional_dependency",
-      "severity": "clean",
-      "description": "Two independent columns drawn from a 0-700 integer domain -- no real dependency, not a data error.",
-      "expected_significant": false,
-      "predicted_significant": true,
-      "lr_ratio": 0.2
-    },
-    {
-      "id": "fd_tp_country_code_violation_paper_example",
-      "error_type": "functional_dependency",
-      "severity": "paper_example",
-      "description": "ISO code -> country name table (a hard functional dependency on Wikipedia) with one injected violating row.",
-      "expected_significant": true,
-      "predicted_significant": true,
-      "lr_ratio": 0.058824
-    },
-    {
-      "id": "fd_tp_subtle_00",
-      "error_type": "functional_dependency",
-      "severity": "subtle",
-      "description": "ISO code -> country name table with subtle corruption (1 injected violating rows).",
-      "expected_significant": true,
-      "predicted_significant": true,
-      "lr_ratio": 0.058824
-    },
-    {
-      "id": "fd_tp_subtle_01",
-      "error_type": "functional_dependency",
-      "severity": "subtle",
-      "description": "ISO code -> country name table with subtle corruption (1 injected violating rows).",
-      "expected_significant": true,
-      "predicted_significant": true,
-      "lr_ratio": 0.058824
-    },
-    {
-      "id": "fd_tp_subtle_02",
-      "error_type": "functional_dependency",
-      "severity": "subtle",
-      "description": "ISO code -> country name table with subtle corruption (1 injected violating rows).",
-      "expected_significant": true,
-      "predicted_significant": true,
-      "lr_ratio": 0.058824
-    },
-    {
-      "id": "fd_tp_moderate_00",
-      "error_type": "functional_dependency",
-      "severity": "moderate",
-      "description": "ISO code -> country name table with moderate corruption (4 injected violating rows).",
-      "expected_significant": true,
-      "predicted_significant": true,
-      "lr_ratio": 0.058824
-    },
-    {
-      "id": "fd_tp_moderate_01",
-      "error_type": "functional_dependency",
-      "severity": "moderate",
-      "description": "ISO code -> country name table with moderate corruption (4 injected violating rows).",
-      "expected_significant": true,
-      "predicted_significant": true,
-      "lr_ratio": 0.058824
-    },
-    {
-      "id": "fd_tp_moderate_02",
-      "error_type": "functional_dependency",
-      "severity": "moderate",
-      "description": "ISO code -> country name table with moderate corruption (4 injected violating rows).",
-      "expected_significant": true,
-      "predicted_significant": true,
-      "lr_ratio": 0.058824
-    },
-    {
-      "id": "fd_tp_obvious_00",
-      "error_type": "functional_dependency",
-      "severity": "obvious",
-      "description": "ISO code -> country name table with obvious corruption (10 injected violating rows).",
-      "expected_significant": true,
-      "predicted_significant": false,
-      "lr_ratio": 1.0
-    },
-    {
-      "id": "fd_tp_obvious_01",
-      "error_type": "functional_dependency",
-      "severity": "obvious",
-      "description": "ISO code -> country name table with obvious corruption (10 injected violating rows).",
-      "expected_significant": true,
-      "predicted_significant": false,
-      "lr_ratio": 1.0
-    },
-    {
-      "id": "fd_tp_obvious_02",
-      "error_type": "functional_dependency",
-      "severity": "obvious",
-      "description": "ISO code -> country name table with obvious corruption (10 injected violating rows).",
-      "expected_significant": true,
-      "predicted_significant": false,
-      "lr_ratio": 1.0
-    }
-  ],
-  "metrics": {
-    "overall": {
-      "n": 60,
-      "true_positive": 31,
-      "false_positive": 8,
-      "false_negative": 9,
-      "true_negative": 12,
-      "precision": 0.7949,
-      "recall": 0.775,
-      "f1": 0.7848,
-      "accuracy": 0.7167
-    },
-    "by_error_type": {
-      "uniqueness": {
-        "n": 15,
-        "true_positive": 7,
-        "false_positive": 2,
-        "false_negative": 3,
-        "true_negative": 3,
-        "precision": 0.7778,
-        "recall": 0.7,
-        "f1": 0.7368,
-        "accuracy": 0.6667
+  "algorithms": {
+    "raha": {
+      "targets": [
+        {
+          "id": "uniqueness_fp_common_surnames",
+          "error_type": "uniqueness",
+          "severity": "paper_example",
+          "description": "Paper Figure 2(a)-style: a 'List of notable people named Smith' table with one coincidental duplicate surname among common names.",
+          "expected_significant": false,
+          "predicted_significant": false,
+          "score": 0.0
+        },
+        {
+          "id": "uniqueness_fp_surname_pool4_00",
+          "error_type": "uniqueness",
+          "severity": "clean",
+          "description": "A 'notable people' list drawn from only 4 common surnames -- natural collisions expected, not a data error.",
+          "expected_significant": false,
+          "predicted_significant": false,
+          "score": 0.0
+        },
+        {
+          "id": "uniqueness_fp_surname_pool6_01",
+          "error_type": "uniqueness",
+          "severity": "clean",
+          "description": "A 'notable people' list drawn from only 6 common surnames -- natural collisions expected, not a data error.",
+          "expected_significant": false,
+          "predicted_significant": false,
+          "score": 0.0
+        },
+        {
+          "id": "uniqueness_fp_surname_pool8_02",
+          "error_type": "uniqueness",
+          "severity": "clean",
+          "description": "A 'notable people' list drawn from only 8 common surnames -- natural collisions expected, not a data error.",
+          "expected_significant": false,
+          "predicted_significant": false,
+          "score": 0.0
+        },
+        {
+          "id": "uniqueness_fp_surname_pool10_03",
+          "error_type": "uniqueness",
+          "severity": "clean",
+          "description": "A 'notable people' list drawn from only 10 common surnames -- natural collisions expected, not a data error.",
+          "expected_significant": false,
+          "predicted_significant": false,
+          "score": 0.0
+        },
+        {
+          "id": "uniqueness_tp_part_number_paper_example",
+          "error_type": "uniqueness",
+          "severity": "paper_example",
+          "description": "Paper Figure 6-style: a 'Part No.' column with one exact duplicate alphanumeric code -- codes like this are expected to always be unique.",
+          "expected_significant": true,
+          "predicted_significant": true,
+          "score": 1.0
+        },
+        {
+          "id": "uniqueness_tp_subtle_00",
+          "error_type": "uniqueness",
+          "severity": "subtle",
+          "description": "An airport/ISO-code-style ID column (subtle corruption: 1 injected duplicate(s)) -- codes like this are expected to always be unique.",
+          "expected_significant": true,
+          "predicted_significant": false,
+          "score": 0.0
+        },
+        {
+          "id": "uniqueness_tp_subtle_01",
+          "error_type": "uniqueness",
+          "severity": "subtle",
+          "description": "An airport/ISO-code-style ID column (subtle corruption: 1 injected duplicate(s)) -- codes like this are expected to always be unique.",
+          "expected_significant": true,
+          "predicted_significant": false,
+          "score": 0.0
+        },
+        {
+          "id": "uniqueness_tp_subtle_02",
+          "error_type": "uniqueness",
+          "severity": "subtle",
+          "description": "An airport/ISO-code-style ID column (subtle corruption: 1 injected duplicate(s)) -- codes like this are expected to always be unique.",
+          "expected_significant": true,
+          "predicted_significant": false,
+          "score": 0.0
+        },
+        {
+          "id": "uniqueness_tp_moderate_00",
+          "error_type": "uniqueness",
+          "severity": "moderate",
+          "description": "An airport/ISO-code-style ID column (moderate corruption: 4 injected duplicate(s)) -- codes like this are expected to always be unique.",
+          "expected_significant": true,
+          "predicted_significant": false,
+          "score": 0.0
+        },
+        {
+          "id": "uniqueness_tp_moderate_01",
+          "error_type": "uniqueness",
+          "severity": "moderate",
+          "description": "An airport/ISO-code-style ID column (moderate corruption: 4 injected duplicate(s)) -- codes like this are expected to always be unique.",
+          "expected_significant": true,
+          "predicted_significant": true,
+          "score": 1.0
+        },
+        {
+          "id": "uniqueness_tp_moderate_02",
+          "error_type": "uniqueness",
+          "severity": "moderate",
+          "description": "An airport/ISO-code-style ID column (moderate corruption: 4 injected duplicate(s)) -- codes like this are expected to always be unique.",
+          "expected_significant": true,
+          "predicted_significant": true,
+          "score": 1.0
+        },
+        {
+          "id": "uniqueness_tp_obvious_00",
+          "error_type": "uniqueness",
+          "severity": "obvious",
+          "description": "An airport/ISO-code-style ID column (obvious corruption: 10 injected duplicate(s)) -- codes like this are expected to always be unique.",
+          "expected_significant": true,
+          "predicted_significant": true,
+          "score": 1.0
+        },
+        {
+          "id": "uniqueness_tp_obvious_01",
+          "error_type": "uniqueness",
+          "severity": "obvious",
+          "description": "An airport/ISO-code-style ID column (obvious corruption: 10 injected duplicate(s)) -- codes like this are expected to always be unique.",
+          "expected_significant": true,
+          "predicted_significant": true,
+          "score": 1.0
+        },
+        {
+          "id": "uniqueness_tp_obvious_02",
+          "error_type": "uniqueness",
+          "severity": "obvious",
+          "description": "An airport/ISO-code-style ID column (obvious corruption: 10 injected duplicate(s)) -- codes like this are expected to always be unique.",
+          "expected_significant": true,
+          "predicted_significant": true,
+          "score": 1.0
+        },
+        {
+          "id": "outlier_fp_election_result",
+          "error_type": "numeric_outlier",
+          "severity": "paper_example",
+          "description": "Election vote shares: many small candidates plus one legitimately larger winner (paper's own 'C-' false-positive worked example).",
+          "expected_significant": false,
+          "predicted_significant": false,
+          "score": 0.0
+        },
+        {
+          "id": "outlier_fp_election_margin18_00",
+          "error_type": "numeric_outlier",
+          "severity": "clean",
+          "description": "Election vote shares with a legitimate ~18% winner among many small candidates -- not a data error.",
+          "expected_significant": false,
+          "predicted_significant": false,
+          "score": 0.0
+        },
+        {
+          "id": "outlier_fp_election_margin28_01",
+          "error_type": "numeric_outlier",
+          "severity": "clean",
+          "description": "Election vote shares with a legitimate ~28% winner among many small candidates -- not a data error.",
+          "expected_significant": false,
+          "predicted_significant": false,
+          "score": 0.0
+        },
+        {
+          "id": "outlier_fp_election_margin38_02",
+          "error_type": "numeric_outlier",
+          "severity": "clean",
+          "description": "Election vote shares with a legitimate ~38% winner among many small candidates -- not a data error.",
+          "expected_significant": false,
+          "predicted_significant": false,
+          "score": 0.0
+        },
+        {
+          "id": "outlier_fp_election_margin52_03",
+          "error_type": "numeric_outlier",
+          "severity": "clean",
+          "description": "Election vote shares with a legitimate ~52% winner among many small candidates -- not a data error.",
+          "expected_significant": false,
+          "predicted_significant": false,
+          "score": 0.0
+        },
+        {
+          "id": "outlier_tp_population_typo_paper_example",
+          "error_type": "numeric_outlier",
+          "severity": "paper_example",
+          "description": "Population figures (thousands) with a decimal-point typo ('8.716' instead of '8716') -- paper's own 'C+' true-positive example.",
+          "expected_significant": true,
+          "predicted_significant": true,
+          "score": 1.0
+        },
+        {
+          "id": "outlier_tp_subtle_00",
+          "error_type": "numeric_outlier",
+          "severity": "subtle",
+          "description": "Population figures (thousands) with a subtle decimal-point error injected into one value.",
+          "expected_significant": true,
+          "predicted_significant": true,
+          "score": 1.0
+        },
+        {
+          "id": "outlier_tp_subtle_01",
+          "error_type": "numeric_outlier",
+          "severity": "subtle",
+          "description": "Population figures (thousands) with a subtle decimal-point error injected into one value.",
+          "expected_significant": true,
+          "predicted_significant": true,
+          "score": 1.0
+        },
+        {
+          "id": "outlier_tp_subtle_02",
+          "error_type": "numeric_outlier",
+          "severity": "subtle",
+          "description": "Population figures (thousands) with a subtle decimal-point error injected into one value.",
+          "expected_significant": true,
+          "predicted_significant": true,
+          "score": 1.0
+        },
+        {
+          "id": "outlier_tp_moderate_00",
+          "error_type": "numeric_outlier",
+          "severity": "moderate",
+          "description": "Population figures (thousands) with a moderate decimal-point error injected into one value.",
+          "expected_significant": true,
+          "predicted_significant": true,
+          "score": 1.0
+        },
+        {
+          "id": "outlier_tp_moderate_01",
+          "error_type": "numeric_outlier",
+          "severity": "moderate",
+          "description": "Population figures (thousands) with a moderate decimal-point error injected into one value.",
+          "expected_significant": true,
+          "predicted_significant": true,
+          "score": 1.0
+        },
+        {
+          "id": "outlier_tp_moderate_02",
+          "error_type": "numeric_outlier",
+          "severity": "moderate",
+          "description": "Population figures (thousands) with a moderate decimal-point error injected into one value.",
+          "expected_significant": true,
+          "predicted_significant": true,
+          "score": 1.0
+        },
+        {
+          "id": "outlier_tp_obvious_00",
+          "error_type": "numeric_outlier",
+          "severity": "obvious",
+          "description": "Population figures (thousands) with an obvious decimal-point error injected into one value.",
+          "expected_significant": true,
+          "predicted_significant": true,
+          "score": 1.0
+        },
+        {
+          "id": "outlier_tp_obvious_01",
+          "error_type": "numeric_outlier",
+          "severity": "obvious",
+          "description": "Population figures (thousands) with an obvious decimal-point error injected into one value.",
+          "expected_significant": true,
+          "predicted_significant": true,
+          "score": 1.0
+        },
+        {
+          "id": "outlier_tp_obvious_02",
+          "error_type": "numeric_outlier",
+          "severity": "obvious",
+          "description": "Population figures (thousands) with an obvious decimal-point error injected into one value.",
+          "expected_significant": true,
+          "predicted_significant": true,
+          "score": 1.0
+        },
+        {
+          "id": "spelling_fp_amendment_list",
+          "error_type": "spelling",
+          "severity": "paper_example",
+          "description": "Consecutive amendment numerals: syntactically close by design, not misspellings.",
+          "expected_significant": false,
+          "predicted_significant": false,
+          "score": 0.0
+        },
+        {
+          "id": "spelling_fp_amendments_n6_00",
+          "error_type": "spelling",
+          "severity": "clean",
+          "description": "6 consecutive amendment numerals -- syntactically close pairs throughout by design, not misspellings.",
+          "expected_significant": false,
+          "predicted_significant": false,
+          "score": 0.0
+        },
+        {
+          "id": "spelling_fp_amendments_n10_01",
+          "error_type": "spelling",
+          "severity": "clean",
+          "description": "10 consecutive amendment numerals -- syntactically close pairs throughout by design, not misspellings.",
+          "expected_significant": false,
+          "predicted_significant": false,
+          "score": 0.0
+        },
+        {
+          "id": "spelling_fp_amendments_n14_02",
+          "error_type": "spelling",
+          "severity": "clean",
+          "description": "14 consecutive amendment numerals -- syntactically close pairs throughout by design, not misspellings.",
+          "expected_significant": false,
+          "predicted_significant": false,
+          "score": 0.0
+        },
+        {
+          "id": "spelling_fp_amendments_n20_03",
+          "error_type": "spelling",
+          "severity": "clean",
+          "description": "20 consecutive amendment numerals -- syntactically close pairs throughout by design, not misspellings.",
+          "expected_significant": false,
+          "predicted_significant": false,
+          "score": 0.0
+        },
+        {
+          "id": "spelling_tp_biography_typo_paper_example",
+          "error_type": "spelling",
+          "severity": "paper_example",
+          "description": "One genuine misspelling ('Doeling' for 'Dowling') among unrelated long biography names -- paper's own true-positive example.",
+          "expected_significant": true,
+          "predicted_significant": true,
+          "score": 1.0
+        },
+        {
+          "id": "spelling_tp_subtle_00",
+          "error_type": "spelling",
+          "severity": "subtle",
+          "description": "One genuine misspelling ('Doeling' for 'Dowling') among long biography names, subtle corruption (diluted by one legitimate distractor pair 2 edits apart).",
+          "expected_significant": true,
+          "predicted_significant": true,
+          "score": 1.0
+        },
+        {
+          "id": "spelling_tp_subtle_01",
+          "error_type": "spelling",
+          "severity": "subtle",
+          "description": "One genuine misspelling ('Doeling' for 'Dowling') among long biography names, subtle corruption (diluted by one legitimate distractor pair 2 edits apart).",
+          "expected_significant": true,
+          "predicted_significant": true,
+          "score": 1.0
+        },
+        {
+          "id": "spelling_tp_subtle_02",
+          "error_type": "spelling",
+          "severity": "subtle",
+          "description": "One genuine misspelling ('Doeling' for 'Dowling') among long biography names, subtle corruption (diluted by one legitimate distractor pair 2 edits apart).",
+          "expected_significant": true,
+          "predicted_significant": true,
+          "score": 1.0
+        },
+        {
+          "id": "spelling_tp_moderate_00",
+          "error_type": "spelling",
+          "severity": "moderate",
+          "description": "One genuine misspelling ('Doeling' for 'Dowling') among long biography names, moderate corruption (diluted by one legitimate distractor pair 4 edits apart).",
+          "expected_significant": true,
+          "predicted_significant": true,
+          "score": 1.0
+        },
+        {
+          "id": "spelling_tp_moderate_01",
+          "error_type": "spelling",
+          "severity": "moderate",
+          "description": "One genuine misspelling ('Doeling' for 'Dowling') among long biography names, moderate corruption (diluted by one legitimate distractor pair 4 edits apart).",
+          "expected_significant": true,
+          "predicted_significant": true,
+          "score": 1.0
+        },
+        {
+          "id": "spelling_tp_moderate_02",
+          "error_type": "spelling",
+          "severity": "moderate",
+          "description": "One genuine misspelling ('Doeling' for 'Dowling') among long biography names, moderate corruption (diluted by one legitimate distractor pair 4 edits apart).",
+          "expected_significant": true,
+          "predicted_significant": true,
+          "score": 1.0
+        },
+        {
+          "id": "spelling_tp_obvious_00",
+          "error_type": "spelling",
+          "severity": "obvious",
+          "description": "One genuine misspelling ('Doeling' for 'Dowling') among long biography names, obvious corruption (no distractor pair).",
+          "expected_significant": true,
+          "predicted_significant": true,
+          "score": 1.0
+        },
+        {
+          "id": "spelling_tp_obvious_01",
+          "error_type": "spelling",
+          "severity": "obvious",
+          "description": "One genuine misspelling ('Doeling' for 'Dowling') among long biography names, obvious corruption (no distractor pair).",
+          "expected_significant": true,
+          "predicted_significant": true,
+          "score": 1.0
+        },
+        {
+          "id": "spelling_tp_obvious_02",
+          "error_type": "spelling",
+          "severity": "obvious",
+          "description": "One genuine misspelling ('Doeling' for 'Dowling') among long biography names, obvious corruption (no distractor pair).",
+          "expected_significant": true,
+          "predicted_significant": true,
+          "score": 1.0
+        },
+        {
+          "id": "fd_fp_pageviews_vs_edits",
+          "error_type": "functional_dependency",
+          "severity": "paper_example",
+          "description": "Two independent numeric-ish columns with no real dependency.",
+          "expected_significant": false,
+          "predicted_significant": false,
+          "score": 0.0
+        },
+        {
+          "id": "fd_fp_unrelated_domain100_00",
+          "error_type": "functional_dependency",
+          "severity": "clean",
+          "description": "Two independent columns drawn from a 0-100 integer domain -- no real dependency, not a data error.",
+          "expected_significant": false,
+          "predicted_significant": false,
+          "score": 0.0
+        },
+        {
+          "id": "fd_fp_unrelated_domain250_01",
+          "error_type": "functional_dependency",
+          "severity": "clean",
+          "description": "Two independent columns drawn from a 0-250 integer domain -- no real dependency, not a data error.",
+          "expected_significant": false,
+          "predicted_significant": false,
+          "score": 0.0
+        },
+        {
+          "id": "fd_fp_unrelated_domain450_02",
+          "error_type": "functional_dependency",
+          "severity": "clean",
+          "description": "Two independent columns drawn from a 0-450 integer domain -- no real dependency, not a data error.",
+          "expected_significant": false,
+          "predicted_significant": false,
+          "score": 0.0
+        },
+        {
+          "id": "fd_fp_unrelated_domain700_03",
+          "error_type": "functional_dependency",
+          "severity": "clean",
+          "description": "Two independent columns drawn from a 0-700 integer domain -- no real dependency, not a data error.",
+          "expected_significant": false,
+          "predicted_significant": false,
+          "score": 0.0
+        },
+        {
+          "id": "fd_tp_country_code_violation_paper_example",
+          "error_type": "functional_dependency",
+          "severity": "paper_example",
+          "description": "ISO code -> country name table (a hard functional dependency on Wikipedia) with one injected violating row.",
+          "expected_significant": true,
+          "predicted_significant": true,
+          "score": 1.0
+        },
+        {
+          "id": "fd_tp_subtle_00",
+          "error_type": "functional_dependency",
+          "severity": "subtle",
+          "description": "ISO code -> country name table with subtle corruption (1 injected violating rows).",
+          "expected_significant": true,
+          "predicted_significant": false,
+          "score": 0.0
+        },
+        {
+          "id": "fd_tp_subtle_01",
+          "error_type": "functional_dependency",
+          "severity": "subtle",
+          "description": "ISO code -> country name table with subtle corruption (1 injected violating rows).",
+          "expected_significant": true,
+          "predicted_significant": false,
+          "score": 0.0
+        },
+        {
+          "id": "fd_tp_subtle_02",
+          "error_type": "functional_dependency",
+          "severity": "subtle",
+          "description": "ISO code -> country name table with subtle corruption (1 injected violating rows).",
+          "expected_significant": true,
+          "predicted_significant": true,
+          "score": 1.0
+        },
+        {
+          "id": "fd_tp_moderate_00",
+          "error_type": "functional_dependency",
+          "severity": "moderate",
+          "description": "ISO code -> country name table with moderate corruption (4 injected violating rows).",
+          "expected_significant": true,
+          "predicted_significant": true,
+          "score": 1.0
+        },
+        {
+          "id": "fd_tp_moderate_01",
+          "error_type": "functional_dependency",
+          "severity": "moderate",
+          "description": "ISO code -> country name table with moderate corruption (4 injected violating rows).",
+          "expected_significant": true,
+          "predicted_significant": true,
+          "score": 1.0
+        },
+        {
+          "id": "fd_tp_moderate_02",
+          "error_type": "functional_dependency",
+          "severity": "moderate",
+          "description": "ISO code -> country name table with moderate corruption (4 injected violating rows).",
+          "expected_significant": true,
+          "predicted_significant": true,
+          "score": 1.0
+        },
+        {
+          "id": "fd_tp_obvious_00",
+          "error_type": "functional_dependency",
+          "severity": "obvious",
+          "description": "ISO code -> country name table with obvious corruption (10 injected violating rows).",
+          "expected_significant": true,
+          "predicted_significant": false,
+          "score": 0.0
+        },
+        {
+          "id": "fd_tp_obvious_01",
+          "error_type": "functional_dependency",
+          "severity": "obvious",
+          "description": "ISO code -> country name table with obvious corruption (10 injected violating rows).",
+          "expected_significant": true,
+          "predicted_significant": true,
+          "score": 1.0
+        },
+        {
+          "id": "fd_tp_obvious_02",
+          "error_type": "functional_dependency",
+          "severity": "obvious",
+          "description": "ISO code -> country name table with obvious corruption (10 injected violating rows).",
+          "expected_significant": true,
+          "predicted_significant": true,
+          "score": 1.0
+        }
+      ],
+      "metrics": {
+        "overall": {
+          "n": 60,
+          "true_positive": 33,
+          "false_positive": 0,
+          "false_negative": 7,
+          "true_negative": 20,
+          "precision": 1.0,
+          "recall": 0.825,
+          "f1": 0.9041,
+          "accuracy": 0.8833
+        },
+        "by_error_type": {
+          "uniqueness": {
+            "n": 15,
+            "true_positive": 6,
+            "false_positive": 0,
+            "false_negative": 4,
+            "true_negative": 5,
+            "precision": 1.0,
+            "recall": 0.6,
+            "f1": 0.75,
+            "accuracy": 0.7333
+          },
+          "numeric_outlier": {
+            "n": 15,
+            "true_positive": 10,
+            "false_positive": 0,
+            "false_negative": 0,
+            "true_negative": 5,
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1": 1.0,
+            "accuracy": 1.0
+          },
+          "spelling": {
+            "n": 15,
+            "true_positive": 10,
+            "false_positive": 0,
+            "false_negative": 0,
+            "true_negative": 5,
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1": 1.0,
+            "accuracy": 1.0
+          },
+          "functional_dependency": {
+            "n": 15,
+            "true_positive": 7,
+            "false_positive": 0,
+            "false_negative": 3,
+            "true_negative": 5,
+            "precision": 1.0,
+            "recall": 0.7,
+            "f1": 0.8235,
+            "accuracy": 0.8
+          }
+        },
+        "by_severity": {
+          "paper_example": {
+            "n": 8,
+            "true_positive": 4,
+            "false_positive": 0,
+            "false_negative": 0,
+            "true_negative": 4,
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1": 1.0,
+            "accuracy": 1.0
+          },
+          "obvious": {
+            "n": 12,
+            "true_positive": 11,
+            "false_positive": 0,
+            "false_negative": 1,
+            "true_negative": 0,
+            "precision": 1.0,
+            "recall": 0.9167,
+            "f1": 0.9565,
+            "accuracy": 0.9167
+          },
+          "moderate": {
+            "n": 12,
+            "true_positive": 11,
+            "false_positive": 0,
+            "false_negative": 1,
+            "true_negative": 0,
+            "precision": 1.0,
+            "recall": 0.9167,
+            "f1": 0.9565,
+            "accuracy": 0.9167
+          },
+          "subtle": {
+            "n": 12,
+            "true_positive": 7,
+            "false_positive": 0,
+            "false_negative": 5,
+            "true_negative": 0,
+            "precision": 1.0,
+            "recall": 0.5833,
+            "f1": 0.7368,
+            "accuracy": 0.5833
+          },
+          "clean": {
+            "n": 16,
+            "true_positive": 0,
+            "false_positive": 0,
+            "false_negative": 0,
+            "true_negative": 16,
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1": 0.0,
+            "accuracy": 1.0
+          }
+        }
       },
-      "numeric_outlier": {
-        "n": 15,
-        "true_positive": 10,
-        "false_positive": 2,
-        "false_negative": 0,
-        "true_negative": 3,
-        "precision": 0.8333,
-        "recall": 1.0,
-        "f1": 0.9091,
-        "accuracy": 0.8667
+      "cell_metrics": {
+        "overall": {
+          "n": 5983,
+          "true_positive": 70,
+          "false_positive": 91,
+          "false_negative": 42,
+          "true_negative": 5780,
+          "precision": 0.4348,
+          "recall": 0.625,
+          "f1": 0.5128,
+          "accuracy": 0.9778
+        },
+        "by_error_type": {
+          "uniqueness": {
+            "n": 1862,
+            "true_positive": 16,
+            "false_positive": 76,
+            "false_negative": 30,
+            "true_negative": 1740,
+            "precision": 0.1739,
+            "recall": 0.3478,
+            "f1": 0.2319,
+            "accuracy": 0.9431
+          },
+          "numeric_outlier": {
+            "n": 126,
+            "true_positive": 10,
+            "false_positive": 0,
+            "false_negative": 0,
+            "true_negative": 116,
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1": 1.0,
+            "accuracy": 1.0
+          },
+          "spelling": {
+            "n": 157,
+            "true_positive": 10,
+            "false_positive": 0,
+            "false_negative": 0,
+            "true_negative": 147,
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1": 1.0,
+            "accuracy": 1.0
+          },
+          "functional_dependency": {
+            "n": 3838,
+            "true_positive": 34,
+            "false_positive": 15,
+            "false_negative": 12,
+            "true_negative": 3777,
+            "precision": 0.6939,
+            "recall": 0.7391,
+            "f1": 0.7158,
+            "accuracy": 0.993
+          }
+        },
+        "by_severity": {
+          "paper_example": {
+            "n": 675,
+            "true_positive": 4,
+            "false_positive": 2,
+            "false_negative": 0,
+            "true_negative": 669,
+            "precision": 0.6667,
+            "recall": 1.0,
+            "f1": 0.8,
+            "accuracy": 0.997
+          },
+          "obvious": {
+            "n": 1290,
+            "true_positive": 38,
+            "false_positive": 58,
+            "false_negative": 28,
+            "true_negative": 1166,
+            "precision": 0.3958,
+            "recall": 0.5758,
+            "f1": 0.4691,
+            "accuracy": 0.9333
+          },
+          "moderate": {
+            "n": 1222,
+            "true_positive": 21,
+            "false_positive": 28,
+            "false_negative": 9,
+            "true_negative": 1164,
+            "precision": 0.4286,
+            "recall": 0.7,
+            "f1": 0.5316,
+            "accuracy": 0.9697
+          },
+          "subtle": {
+            "n": 1193,
+            "true_positive": 7,
+            "false_positive": 3,
+            "false_negative": 5,
+            "true_negative": 1178,
+            "precision": 0.7,
+            "recall": 0.5833,
+            "f1": 0.6364,
+            "accuracy": 0.9933
+          },
+          "clean": {
+            "n": 1603,
+            "true_positive": 0,
+            "false_positive": 0,
+            "false_negative": 0,
+            "true_negative": 1603,
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1": 0.0,
+            "accuracy": 1.0
+          }
+        }
       },
-      "spelling": {
-        "n": 15,
-        "true_positive": 7,
-        "false_positive": 0,
-        "false_negative": 3,
-        "true_negative": 5,
-        "precision": 1.0,
-        "recall": 0.7,
-        "f1": 0.8235,
-        "accuracy": 0.8
-      },
-      "functional_dependency": {
-        "n": 15,
-        "true_positive": 7,
-        "false_positive": 4,
-        "false_negative": 3,
-        "true_negative": 1,
-        "precision": 0.6364,
-        "recall": 0.7,
-        "f1": 0.6667,
-        "accuracy": 0.5333
-      }
+      "duration_seconds": 3.1089790940000057,
+      "duration_note": null
     },
-    "by_severity": {
-      "paper_example": {
-        "n": 8,
-        "true_positive": 4,
-        "false_positive": 1,
-        "false_negative": 0,
-        "true_negative": 3,
-        "precision": 0.8,
-        "recall": 1.0,
-        "f1": 0.8889,
-        "accuracy": 0.875
+    "uni_detect": {
+      "targets": [
+        {
+          "id": "uniqueness_fp_common_surnames",
+          "error_type": "uniqueness",
+          "severity": "paper_example",
+          "description": "Paper Figure 2(a)-style: a 'List of notable people named Smith' table with one coincidental duplicate surname among common names.",
+          "expected_significant": false,
+          "predicted_significant": false,
+          "lr_ratio": 1.0
+        },
+        {
+          "id": "uniqueness_fp_surname_pool4_00",
+          "error_type": "uniqueness",
+          "severity": "clean",
+          "description": "A 'notable people' list drawn from only 4 common surnames -- natural collisions expected, not a data error.",
+          "expected_significant": false,
+          "predicted_significant": false,
+          "lr_ratio": 1.0
+        },
+        {
+          "id": "uniqueness_fp_surname_pool6_01",
+          "error_type": "uniqueness",
+          "severity": "clean",
+          "description": "A 'notable people' list drawn from only 6 common surnames -- natural collisions expected, not a data error.",
+          "expected_significant": false,
+          "predicted_significant": false,
+          "lr_ratio": 1.0
+        },
+        {
+          "id": "uniqueness_fp_surname_pool8_02",
+          "error_type": "uniqueness",
+          "severity": "clean",
+          "description": "A 'notable people' list drawn from only 8 common surnames -- natural collisions expected, not a data error.",
+          "expected_significant": false,
+          "predicted_significant": true,
+          "lr_ratio": 0.111111
+        },
+        {
+          "id": "uniqueness_fp_surname_pool10_03",
+          "error_type": "uniqueness",
+          "severity": "clean",
+          "description": "A 'notable people' list drawn from only 10 common surnames -- natural collisions expected, not a data error.",
+          "expected_significant": false,
+          "predicted_significant": true,
+          "lr_ratio": 0.2
+        },
+        {
+          "id": "uniqueness_tp_part_number_paper_example",
+          "error_type": "uniqueness",
+          "severity": "paper_example",
+          "description": "Paper Figure 6-style: a 'Part No.' column with one exact duplicate alphanumeric code -- codes like this are expected to always be unique.",
+          "expected_significant": true,
+          "predicted_significant": true,
+          "lr_ratio": 0.166667
+        },
+        {
+          "id": "uniqueness_tp_subtle_00",
+          "error_type": "uniqueness",
+          "severity": "subtle",
+          "description": "An airport/ISO-code-style ID column (subtle corruption: 1 injected duplicate(s)) -- codes like this are expected to always be unique.",
+          "expected_significant": true,
+          "predicted_significant": true,
+          "lr_ratio": 0.083333
+        },
+        {
+          "id": "uniqueness_tp_subtle_01",
+          "error_type": "uniqueness",
+          "severity": "subtle",
+          "description": "An airport/ISO-code-style ID column (subtle corruption: 1 injected duplicate(s)) -- codes like this are expected to always be unique.",
+          "expected_significant": true,
+          "predicted_significant": true,
+          "lr_ratio": 0.083333
+        },
+        {
+          "id": "uniqueness_tp_subtle_02",
+          "error_type": "uniqueness",
+          "severity": "subtle",
+          "description": "An airport/ISO-code-style ID column (subtle corruption: 1 injected duplicate(s)) -- codes like this are expected to always be unique.",
+          "expected_significant": true,
+          "predicted_significant": true,
+          "lr_ratio": 0.083333
+        },
+        {
+          "id": "uniqueness_tp_moderate_00",
+          "error_type": "uniqueness",
+          "severity": "moderate",
+          "description": "An airport/ISO-code-style ID column (moderate corruption: 4 injected duplicate(s)) -- codes like this are expected to always be unique.",
+          "expected_significant": true,
+          "predicted_significant": true,
+          "lr_ratio": 0.083333
+        },
+        {
+          "id": "uniqueness_tp_moderate_01",
+          "error_type": "uniqueness",
+          "severity": "moderate",
+          "description": "An airport/ISO-code-style ID column (moderate corruption: 4 injected duplicate(s)) -- codes like this are expected to always be unique.",
+          "expected_significant": true,
+          "predicted_significant": true,
+          "lr_ratio": 0.083333
+        },
+        {
+          "id": "uniqueness_tp_moderate_02",
+          "error_type": "uniqueness",
+          "severity": "moderate",
+          "description": "An airport/ISO-code-style ID column (moderate corruption: 4 injected duplicate(s)) -- codes like this are expected to always be unique.",
+          "expected_significant": true,
+          "predicted_significant": true,
+          "lr_ratio": 0.083333
+        },
+        {
+          "id": "uniqueness_tp_obvious_00",
+          "error_type": "uniqueness",
+          "severity": "obvious",
+          "description": "An airport/ISO-code-style ID column (obvious corruption: 10 injected duplicate(s)) -- codes like this are expected to always be unique.",
+          "expected_significant": true,
+          "predicted_significant": false,
+          "lr_ratio": 1.0
+        },
+        {
+          "id": "uniqueness_tp_obvious_01",
+          "error_type": "uniqueness",
+          "severity": "obvious",
+          "description": "An airport/ISO-code-style ID column (obvious corruption: 10 injected duplicate(s)) -- codes like this are expected to always be unique.",
+          "expected_significant": true,
+          "predicted_significant": false,
+          "lr_ratio": 1.0
+        },
+        {
+          "id": "uniqueness_tp_obvious_02",
+          "error_type": "uniqueness",
+          "severity": "obvious",
+          "description": "An airport/ISO-code-style ID column (obvious corruption: 10 injected duplicate(s)) -- codes like this are expected to always be unique.",
+          "expected_significant": true,
+          "predicted_significant": false,
+          "lr_ratio": 1.0
+        },
+        {
+          "id": "outlier_fp_election_result",
+          "error_type": "numeric_outlier",
+          "severity": "paper_example",
+          "description": "Election vote shares: many small candidates plus one legitimately larger winner (paper's own 'C-' false-positive worked example).",
+          "expected_significant": false,
+          "predicted_significant": false,
+          "lr_ratio": 0.833333
+        },
+        {
+          "id": "outlier_fp_election_margin18_00",
+          "error_type": "numeric_outlier",
+          "severity": "clean",
+          "description": "Election vote shares with a legitimate ~18% winner among many small candidates -- not a data error.",
+          "expected_significant": false,
+          "predicted_significant": false,
+          "lr_ratio": 0.25
+        },
+        {
+          "id": "outlier_fp_election_margin28_01",
+          "error_type": "numeric_outlier",
+          "severity": "clean",
+          "description": "Election vote shares with a legitimate ~28% winner among many small candidates -- not a data error.",
+          "expected_significant": false,
+          "predicted_significant": false,
+          "lr_ratio": 0.25
+        },
+        {
+          "id": "outlier_fp_election_margin38_02",
+          "error_type": "numeric_outlier",
+          "severity": "clean",
+          "description": "Election vote shares with a legitimate ~38% winner among many small candidates -- not a data error.",
+          "expected_significant": false,
+          "predicted_significant": true,
+          "lr_ratio": 0.052632
+        },
+        {
+          "id": "outlier_fp_election_margin52_03",
+          "error_type": "numeric_outlier",
+          "severity": "clean",
+          "description": "Election vote shares with a legitimate ~52% winner among many small candidates -- not a data error.",
+          "expected_significant": false,
+          "predicted_significant": true,
+          "lr_ratio": 0.066667
+        },
+        {
+          "id": "outlier_tp_population_typo_paper_example",
+          "error_type": "numeric_outlier",
+          "severity": "paper_example",
+          "description": "Population figures (thousands) with a decimal-point typo ('8.716' instead of '8716') -- paper's own 'C+' true-positive example.",
+          "expected_significant": true,
+          "predicted_significant": true,
+          "lr_ratio": 0.166667
+        },
+        {
+          "id": "outlier_tp_subtle_00",
+          "error_type": "numeric_outlier",
+          "severity": "subtle",
+          "description": "Population figures (thousands) with a subtle decimal-point error injected into one value.",
+          "expected_significant": true,
+          "predicted_significant": true,
+          "lr_ratio": 0.071429
+        },
+        {
+          "id": "outlier_tp_subtle_01",
+          "error_type": "numeric_outlier",
+          "severity": "subtle",
+          "description": "Population figures (thousands) with a subtle decimal-point error injected into one value.",
+          "expected_significant": true,
+          "predicted_significant": true,
+          "lr_ratio": 0.111111
+        },
+        {
+          "id": "outlier_tp_subtle_02",
+          "error_type": "numeric_outlier",
+          "severity": "subtle",
+          "description": "Population figures (thousands) with a subtle decimal-point error injected into one value.",
+          "expected_significant": true,
+          "predicted_significant": true,
+          "lr_ratio": 0.1
+        },
+        {
+          "id": "outlier_tp_moderate_00",
+          "error_type": "numeric_outlier",
+          "severity": "moderate",
+          "description": "Population figures (thousands) with a moderate decimal-point error injected into one value.",
+          "expected_significant": true,
+          "predicted_significant": true,
+          "lr_ratio": 0.0625
+        },
+        {
+          "id": "outlier_tp_moderate_01",
+          "error_type": "numeric_outlier",
+          "severity": "moderate",
+          "description": "Population figures (thousands) with a moderate decimal-point error injected into one value.",
+          "expected_significant": true,
+          "predicted_significant": true,
+          "lr_ratio": 0.142857
+        },
+        {
+          "id": "outlier_tp_moderate_02",
+          "error_type": "numeric_outlier",
+          "severity": "moderate",
+          "description": "Population figures (thousands) with a moderate decimal-point error injected into one value.",
+          "expected_significant": true,
+          "predicted_significant": true,
+          "lr_ratio": 0.058824
+        },
+        {
+          "id": "outlier_tp_obvious_00",
+          "error_type": "numeric_outlier",
+          "severity": "obvious",
+          "description": "Population figures (thousands) with an obvious decimal-point error injected into one value.",
+          "expected_significant": true,
+          "predicted_significant": true,
+          "lr_ratio": 0.071429
+        },
+        {
+          "id": "outlier_tp_obvious_01",
+          "error_type": "numeric_outlier",
+          "severity": "obvious",
+          "description": "Population figures (thousands) with an obvious decimal-point error injected into one value.",
+          "expected_significant": true,
+          "predicted_significant": true,
+          "lr_ratio": 0.071429
+        },
+        {
+          "id": "outlier_tp_obvious_02",
+          "error_type": "numeric_outlier",
+          "severity": "obvious",
+          "description": "Population figures (thousands) with an obvious decimal-point error injected into one value.",
+          "expected_significant": true,
+          "predicted_significant": true,
+          "lr_ratio": 0.1
+        },
+        {
+          "id": "spelling_fp_amendment_list",
+          "error_type": "spelling",
+          "severity": "paper_example",
+          "description": "Consecutive amendment numerals: syntactically close by design, not misspellings.",
+          "expected_significant": false,
+          "predicted_significant": false,
+          "lr_ratio": 1.0
+        },
+        {
+          "id": "spelling_fp_amendments_n6_00",
+          "error_type": "spelling",
+          "severity": "clean",
+          "description": "6 consecutive amendment numerals -- syntactically close pairs throughout by design, not misspellings.",
+          "expected_significant": false,
+          "predicted_significant": false,
+          "lr_ratio": 1.0
+        },
+        {
+          "id": "spelling_fp_amendments_n10_01",
+          "error_type": "spelling",
+          "severity": "clean",
+          "description": "10 consecutive amendment numerals -- syntactically close pairs throughout by design, not misspellings.",
+          "expected_significant": false,
+          "predicted_significant": false,
+          "lr_ratio": 1.0
+        },
+        {
+          "id": "spelling_fp_amendments_n14_02",
+          "error_type": "spelling",
+          "severity": "clean",
+          "description": "14 consecutive amendment numerals -- syntactically close pairs throughout by design, not misspellings.",
+          "expected_significant": false,
+          "predicted_significant": false,
+          "lr_ratio": 1.0
+        },
+        {
+          "id": "spelling_fp_amendments_n20_03",
+          "error_type": "spelling",
+          "severity": "clean",
+          "description": "20 consecutive amendment numerals -- syntactically close pairs throughout by design, not misspellings.",
+          "expected_significant": false,
+          "predicted_significant": false,
+          "lr_ratio": 1.0
+        },
+        {
+          "id": "spelling_tp_biography_typo_paper_example",
+          "error_type": "spelling",
+          "severity": "paper_example",
+          "description": "One genuine misspelling ('Doeling' for 'Dowling') among unrelated long biography names -- paper's own true-positive example.",
+          "expected_significant": true,
+          "predicted_significant": true,
+          "lr_ratio": 0.105263
+        },
+        {
+          "id": "spelling_tp_subtle_00",
+          "error_type": "spelling",
+          "severity": "subtle",
+          "description": "One genuine misspelling ('Doeling' for 'Dowling') among long biography names, subtle corruption (diluted by one legitimate distractor pair 2 edits apart).",
+          "expected_significant": true,
+          "predicted_significant": false,
+          "lr_ratio": 0.666667
+        },
+        {
+          "id": "spelling_tp_subtle_01",
+          "error_type": "spelling",
+          "severity": "subtle",
+          "description": "One genuine misspelling ('Doeling' for 'Dowling') among long biography names, subtle corruption (diluted by one legitimate distractor pair 2 edits apart).",
+          "expected_significant": true,
+          "predicted_significant": false,
+          "lr_ratio": 0.666667
+        },
+        {
+          "id": "spelling_tp_subtle_02",
+          "error_type": "spelling",
+          "severity": "subtle",
+          "description": "One genuine misspelling ('Doeling' for 'Dowling') among long biography names, subtle corruption (diluted by one legitimate distractor pair 2 edits apart).",
+          "expected_significant": true,
+          "predicted_significant": false,
+          "lr_ratio": 0.666667
+        },
+        {
+          "id": "spelling_tp_moderate_00",
+          "error_type": "spelling",
+          "severity": "moderate",
+          "description": "One genuine misspelling ('Doeling' for 'Dowling') among long biography names, moderate corruption (diluted by one legitimate distractor pair 4 edits apart).",
+          "expected_significant": true,
+          "predicted_significant": true,
+          "lr_ratio": 0.166667
+        },
+        {
+          "id": "spelling_tp_moderate_01",
+          "error_type": "spelling",
+          "severity": "moderate",
+          "description": "One genuine misspelling ('Doeling' for 'Dowling') among long biography names, moderate corruption (diluted by one legitimate distractor pair 4 edits apart).",
+          "expected_significant": true,
+          "predicted_significant": true,
+          "lr_ratio": 0.166667
+        },
+        {
+          "id": "spelling_tp_moderate_02",
+          "error_type": "spelling",
+          "severity": "moderate",
+          "description": "One genuine misspelling ('Doeling' for 'Dowling') among long biography names, moderate corruption (diluted by one legitimate distractor pair 4 edits apart).",
+          "expected_significant": true,
+          "predicted_significant": true,
+          "lr_ratio": 0.166667
+        },
+        {
+          "id": "spelling_tp_obvious_00",
+          "error_type": "spelling",
+          "severity": "obvious",
+          "description": "One genuine misspelling ('Doeling' for 'Dowling') among long biography names, obvious corruption (no distractor pair).",
+          "expected_significant": true,
+          "predicted_significant": true,
+          "lr_ratio": 0.083333
+        },
+        {
+          "id": "spelling_tp_obvious_01",
+          "error_type": "spelling",
+          "severity": "obvious",
+          "description": "One genuine misspelling ('Doeling' for 'Dowling') among long biography names, obvious corruption (no distractor pair).",
+          "expected_significant": true,
+          "predicted_significant": true,
+          "lr_ratio": 0.083333
+        },
+        {
+          "id": "spelling_tp_obvious_02",
+          "error_type": "spelling",
+          "severity": "obvious",
+          "description": "One genuine misspelling ('Doeling' for 'Dowling') among long biography names, obvious corruption (no distractor pair).",
+          "expected_significant": true,
+          "predicted_significant": true,
+          "lr_ratio": 0.083333
+        },
+        {
+          "id": "fd_fp_pageviews_vs_edits",
+          "error_type": "functional_dependency",
+          "severity": "paper_example",
+          "description": "Two independent numeric-ish columns with no real dependency.",
+          "expected_significant": false,
+          "predicted_significant": true,
+          "lr_ratio": 0.1
+        },
+        {
+          "id": "fd_fp_unrelated_domain100_00",
+          "error_type": "functional_dependency",
+          "severity": "clean",
+          "description": "Two independent columns drawn from a 0-100 integer domain -- no real dependency, not a data error.",
+          "expected_significant": false,
+          "predicted_significant": false,
+          "lr_ratio": 0.25
+        },
+        {
+          "id": "fd_fp_unrelated_domain250_01",
+          "error_type": "functional_dependency",
+          "severity": "clean",
+          "description": "Two independent columns drawn from a 0-250 integer domain -- no real dependency, not a data error.",
+          "expected_significant": false,
+          "predicted_significant": true,
+          "lr_ratio": 0.071429
+        },
+        {
+          "id": "fd_fp_unrelated_domain450_02",
+          "error_type": "functional_dependency",
+          "severity": "clean",
+          "description": "Two independent columns drawn from a 0-450 integer domain -- no real dependency, not a data error.",
+          "expected_significant": false,
+          "predicted_significant": true,
+          "lr_ratio": 0.2
+        },
+        {
+          "id": "fd_fp_unrelated_domain700_03",
+          "error_type": "functional_dependency",
+          "severity": "clean",
+          "description": "Two independent columns drawn from a 0-700 integer domain -- no real dependency, not a data error.",
+          "expected_significant": false,
+          "predicted_significant": true,
+          "lr_ratio": 0.2
+        },
+        {
+          "id": "fd_tp_country_code_violation_paper_example",
+          "error_type": "functional_dependency",
+          "severity": "paper_example",
+          "description": "ISO code -> country name table (a hard functional dependency on Wikipedia) with one injected violating row.",
+          "expected_significant": true,
+          "predicted_significant": true,
+          "lr_ratio": 0.058824
+        },
+        {
+          "id": "fd_tp_subtle_00",
+          "error_type": "functional_dependency",
+          "severity": "subtle",
+          "description": "ISO code -> country name table with subtle corruption (1 injected violating rows).",
+          "expected_significant": true,
+          "predicted_significant": true,
+          "lr_ratio": 0.058824
+        },
+        {
+          "id": "fd_tp_subtle_01",
+          "error_type": "functional_dependency",
+          "severity": "subtle",
+          "description": "ISO code -> country name table with subtle corruption (1 injected violating rows).",
+          "expected_significant": true,
+          "predicted_significant": true,
+          "lr_ratio": 0.058824
+        },
+        {
+          "id": "fd_tp_subtle_02",
+          "error_type": "functional_dependency",
+          "severity": "subtle",
+          "description": "ISO code -> country name table with subtle corruption (1 injected violating rows).",
+          "expected_significant": true,
+          "predicted_significant": true,
+          "lr_ratio": 0.058824
+        },
+        {
+          "id": "fd_tp_moderate_00",
+          "error_type": "functional_dependency",
+          "severity": "moderate",
+          "description": "ISO code -> country name table with moderate corruption (4 injected violating rows).",
+          "expected_significant": true,
+          "predicted_significant": true,
+          "lr_ratio": 0.058824
+        },
+        {
+          "id": "fd_tp_moderate_01",
+          "error_type": "functional_dependency",
+          "severity": "moderate",
+          "description": "ISO code -> country name table with moderate corruption (4 injected violating rows).",
+          "expected_significant": true,
+          "predicted_significant": true,
+          "lr_ratio": 0.058824
+        },
+        {
+          "id": "fd_tp_moderate_02",
+          "error_type": "functional_dependency",
+          "severity": "moderate",
+          "description": "ISO code -> country name table with moderate corruption (4 injected violating rows).",
+          "expected_significant": true,
+          "predicted_significant": true,
+          "lr_ratio": 0.058824
+        },
+        {
+          "id": "fd_tp_obvious_00",
+          "error_type": "functional_dependency",
+          "severity": "obvious",
+          "description": "ISO code -> country name table with obvious corruption (10 injected violating rows).",
+          "expected_significant": true,
+          "predicted_significant": false,
+          "lr_ratio": 1.0
+        },
+        {
+          "id": "fd_tp_obvious_01",
+          "error_type": "functional_dependency",
+          "severity": "obvious",
+          "description": "ISO code -> country name table with obvious corruption (10 injected violating rows).",
+          "expected_significant": true,
+          "predicted_significant": false,
+          "lr_ratio": 1.0
+        },
+        {
+          "id": "fd_tp_obvious_02",
+          "error_type": "functional_dependency",
+          "severity": "obvious",
+          "description": "ISO code -> country name table with obvious corruption (10 injected violating rows).",
+          "expected_significant": true,
+          "predicted_significant": false,
+          "lr_ratio": 1.0
+        }
+      ],
+      "metrics": {
+        "overall": {
+          "n": 60,
+          "true_positive": 31,
+          "false_positive": 8,
+          "false_negative": 9,
+          "true_negative": 12,
+          "precision": 0.7949,
+          "recall": 0.775,
+          "f1": 0.7848,
+          "accuracy": 0.7167
+        },
+        "by_error_type": {
+          "uniqueness": {
+            "n": 15,
+            "true_positive": 7,
+            "false_positive": 2,
+            "false_negative": 3,
+            "true_negative": 3,
+            "precision": 0.7778,
+            "recall": 0.7,
+            "f1": 0.7368,
+            "accuracy": 0.6667
+          },
+          "numeric_outlier": {
+            "n": 15,
+            "true_positive": 10,
+            "false_positive": 2,
+            "false_negative": 0,
+            "true_negative": 3,
+            "precision": 0.8333,
+            "recall": 1.0,
+            "f1": 0.9091,
+            "accuracy": 0.8667
+          },
+          "spelling": {
+            "n": 15,
+            "true_positive": 7,
+            "false_positive": 0,
+            "false_negative": 3,
+            "true_negative": 5,
+            "precision": 1.0,
+            "recall": 0.7,
+            "f1": 0.8235,
+            "accuracy": 0.8
+          },
+          "functional_dependency": {
+            "n": 15,
+            "true_positive": 7,
+            "false_positive": 4,
+            "false_negative": 3,
+            "true_negative": 1,
+            "precision": 0.6364,
+            "recall": 0.7,
+            "f1": 0.6667,
+            "accuracy": 0.5333
+          }
+        },
+        "by_severity": {
+          "paper_example": {
+            "n": 8,
+            "true_positive": 4,
+            "false_positive": 1,
+            "false_negative": 0,
+            "true_negative": 3,
+            "precision": 0.8,
+            "recall": 1.0,
+            "f1": 0.8889,
+            "accuracy": 0.875
+          },
+          "obvious": {
+            "n": 12,
+            "true_positive": 6,
+            "false_positive": 0,
+            "false_negative": 6,
+            "true_negative": 0,
+            "precision": 1.0,
+            "recall": 0.5,
+            "f1": 0.6667,
+            "accuracy": 0.5
+          },
+          "moderate": {
+            "n": 12,
+            "true_positive": 12,
+            "false_positive": 0,
+            "false_negative": 0,
+            "true_negative": 0,
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1": 1.0,
+            "accuracy": 1.0
+          },
+          "subtle": {
+            "n": 12,
+            "true_positive": 9,
+            "false_positive": 0,
+            "false_negative": 3,
+            "true_negative": 0,
+            "precision": 1.0,
+            "recall": 0.75,
+            "f1": 0.8571,
+            "accuracy": 0.75
+          },
+          "clean": {
+            "n": 16,
+            "true_positive": 0,
+            "false_positive": 7,
+            "false_negative": 0,
+            "true_negative": 9,
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1": 0.0,
+            "accuracy": 0.5625
+          }
+        },
+        "ranking": {
+          "uniqueness": {
+            "true_positive_lr_ratio": 0.166667,
+            "false_positive_lr_ratio": 1.0,
+            "correctly_ranked": true
+          },
+          "numeric_outlier": {
+            "true_positive_lr_ratio": 0.166667,
+            "false_positive_lr_ratio": 0.833333,
+            "correctly_ranked": true
+          },
+          "spelling": {
+            "true_positive_lr_ratio": 0.105263,
+            "false_positive_lr_ratio": 1.0,
+            "correctly_ranked": true
+          },
+          "functional_dependency": {
+            "true_positive_lr_ratio": 0.058824,
+            "false_positive_lr_ratio": 0.1,
+            "correctly_ranked": true
+          }
+        }
       },
-      "obvious": {
-        "n": 12,
-        "true_positive": 6,
-        "false_positive": 0,
-        "false_negative": 6,
-        "true_negative": 0,
-        "precision": 1.0,
-        "recall": 0.5,
-        "f1": 0.6667,
-        "accuracy": 0.5
-      },
-      "moderate": {
-        "n": 12,
-        "true_positive": 12,
-        "false_positive": 0,
-        "false_negative": 0,
-        "true_negative": 0,
-        "precision": 1.0,
-        "recall": 1.0,
-        "f1": 1.0,
-        "accuracy": 1.0
-      },
-      "subtle": {
-        "n": 12,
-        "true_positive": 9,
-        "false_positive": 0,
-        "false_negative": 3,
-        "true_negative": 0,
-        "precision": 1.0,
-        "recall": 0.75,
-        "f1": 0.8571,
-        "accuracy": 0.75
-      },
-      "clean": {
-        "n": 16,
-        "true_positive": 0,
-        "false_positive": 7,
-        "false_negative": 0,
-        "true_negative": 9,
-        "precision": 0.0,
-        "recall": 0.0,
-        "f1": 0.0,
-        "accuracy": 0.5625
-      }
-    },
-    "ranking": {
-      "uniqueness": {
-        "true_positive_lr_ratio": 0.166667,
-        "false_positive_lr_ratio": 1.0,
-        "correctly_ranked": true
-      },
-      "numeric_outlier": {
-        "true_positive_lr_ratio": 0.166667,
-        "false_positive_lr_ratio": 0.833333,
-        "correctly_ranked": true
-      },
-      "spelling": {
-        "true_positive_lr_ratio": 0.105263,
-        "false_positive_lr_ratio": 1.0,
-        "correctly_ranked": true
-      },
-      "functional_dependency": {
-        "true_positive_lr_ratio": 0.058824,
-        "false_positive_lr_ratio": 0.1,
-        "correctly_ranked": true
-      }
+      "generation_method": "PREVIEW: computed via benchmarks-internal pure-Python simulator (same production metric/perturbation/featurization code, no Spark), because this environment's JDK 21 is incompatible with PySpark 3.5's bundled Arrow. Cross-validated against the previous dataset's Spark-run baseline.json (exact match) before being trusted. Re-run `uv run python benchmarks/run_benchmark.py --update-baseline` on JDK 17 to get a Spark-confirmed refresh.",
+      "duration_seconds": null,
+      "duration_note": "Not measured in this session's environment: only JDK 21 is available, and Uni-Detect's Spark/Arrow path requires JDK 17 (see README). These precision/recall/F1/accuracy figures are reused verbatim from a prior run (git f99a32d, computed via the pure-Python provenance harness documented in README.md -- see generation_method) rather than fabricated; a fresh run on JDK 17 would also fill in a real duration_seconds here."
     }
   }
 }

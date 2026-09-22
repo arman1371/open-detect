@@ -80,11 +80,12 @@ def gaussian_outlier_strategies(
 
     Applies only to (mostly) numeric columns -- returns no strategies
     otherwise, since "distance to the mean in standard deviations" is not
-    meaningful for non-numeric data. Cells that fail to parse as numeric are
-    left unflagged by this family (the pattern-violation strategies below
-    already expose non-numeric characters in an otherwise-numeric column).
+    meaningful for non-numeric data. Cells that fail to parse as numeric
+    (including nulls, via :func:`normalize_to_str`'s sentinel) are left
+    unflagged by this family (the pattern-violation strategies below already
+    expose non-numeric characters in an otherwise-numeric column).
     """
-    raw = values.astype(str)
+    raw = normalize_to_str(values)
     parseable = raw.map(is_float_like)
     if parseable.mean() < 0.5:
         return {}
