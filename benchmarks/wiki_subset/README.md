@@ -24,6 +24,11 @@ access at benchmark-run time.
 See [`../README.md`](../README.md) for how this benchmark relates to the
 other one (`real_world_gov`) and the infrastructure they share.
 
+This benchmark runs **every registered algorithm** (see
+[`unidetect.algorithms`](../../ARCHITECTURE.md) -- `uni_detect` and `raha`
+today) against the same 60 targets and reports a head-to-head comparison --
+effectiveness and wall-clock duration -- see "Reading the results" below.
+
 ### A note on methodology (read this before trusting the numbers)
 
 An earlier version of this benchmark had exactly **one** true-positive and
@@ -74,7 +79,7 @@ benchmarks/wiki_subset/
   data/
     corpus/<error_type>/*.csv   # background "T": ~140 small Wikipedia-shaped tables
     eval/targets.json           # 8 labeled evaluation targets + ground truth
-  run_benchmark.py       # builds corpus stats, runs detection, scores vs. ground truth
+  run_benchmark.py       # runs every available algorithm, scores each vs. ground truth
   generate_report.py     # renders a results JSON as REPORT.md + SVG charts (stdlib only)
   results/
     baseline.json         # checked-in reference run, updated deliberately (see below)
@@ -82,6 +87,13 @@ benchmarks/wiki_subset/
     REPORT.md              # human-readable rendering of baseline.json, checked in
     charts/*.svg           # charts embedded in REPORT.md, checked in
 ```
+
+`run_benchmark.py` runs `raha` (pure pandas, no external dependency beyond
+`scikit-learn`/`scipy`) and `uni_detect` (Spark/Delta, requires JDK 17)
+independently -- either can be skipped (with a printed message) if its
+dependencies aren't installed, or in `uni_detect`'s case if a local
+Delta-enabled Spark session can't be started at all, and the benchmark still
+reports whichever algorithm(s) did run.
 
 ### The corpus (`data/corpus/`)
 
@@ -124,13 +136,39 @@ above) -- roughly 200 small background tables in total:
   pools, larger legitimate election winners, more unrelated-but-narrower
   integer domains, ...) that specifically stress-test precision.
 
-Each target records `expected_significant: true/false` as ground truth and
-`severity` for the breakdown in `run_benchmark.py`'s report. Regenerate
-this data (after editing `generate_dataset.py`) with:
+Each target records `expected_significant: true/false` (Uni-Detect's
+table-level ground truth) and `severity` for the breakdown in
+`run_benchmark.py`'s report, plus `injected_row_indices` -- the exact
+0-based row(s) `generate_dataset.py` actually corrupted, if any (referring
+to `columns[0]` for every single-column target, or `columns[-1]`, the FD's
+right-hand side, for the two-column `functional_dependency` targets). This
+is the cell-level ground truth Uni-Detect has no use for but Raha's own
+evaluation needs (see "Scoring raha" below) -- `generate_dataset.py`
+tracks it directly at injection time rather than it being reverse-engineered
+after the fact. Regenerate this data (after editing `generate_dataset.py`)
+with:
 
 ```bash
 uv run python benchmarks/wiki_subset/generate_dataset.py
 ```
+
+### Scoring raha
+
+Unlike `real_world_gov`, these targets have no separately-generated "clean"
+counterpart to diff against -- `generate_dataset.py` already knows exactly
+what it injected (`injected_row_indices`), so `run_benchmark.py` exposes
+that directly through Raha's `Labeler` interface via a local
+`KnownIndexLabeler`, rather than via `GroundTruthLabeler`. Each target is
+scored at two granularities, the same split `real_world_gov` uses and for
+the same reason (see that benchmark's README): **target-level** ("was *any*
+cell flagged", the same granularity `expected_significant` and Uni-Detect's
+own output are, used for the algorithm-comparison table) and **cell-level**
+(precision/recall/F1 over every individual cell against
+`injected_row_indices` directly -- the paper's own Table 5 granularity, and
+the more informative number for judging Raha specifically, since most
+targets here are small enough that one flagged cell out of a handful of
+rows can make a target-level call look better than the underlying per-cell
+classification really is).
 
 ## Running the benchmark
 
@@ -140,25 +178,28 @@ make benchmark
 uv run python benchmarks/wiki_subset/run_benchmark.py
 ```
 
-This starts a local, Delta-enabled Spark session (same setup as
-`tests/conftest.py`), loads the WIKI-subset corpus and eval tables, builds
-corpus statistics per error type, runs `UniDetect.detect(...)` against every
-eval target, and scores the results against `expected_significant`:
+`raha` has no JDK/Spark dependency and runs anywhere `unidetect[raha]` is
+installed. `uni_detect` starts a local, Delta-enabled Spark session (same
+setup as `tests/conftest.py`, requires **JDK 17**), loads the WIKI-subset
+corpus and eval tables, builds corpus statistics per error type, and runs
+`UniDetect.detect(...)` against every eval target. Both algorithms score
+their predictions against the same ground truth:
 
 - **Precision / recall / F1 / accuracy**, overall, per error type, and per
   corruption severity, over the eval targets' predicted-vs-expected
-  `is_significant` label. The severity breakdown is what answers "how does
-  it perform on dirty data" -- e.g. whether recall holds up on `subtle`
+  significance label. The severity breakdown is what answers "how does it
+  perform on dirty data" -- e.g. whether recall holds up on `subtle`
   corruption the same way it does on `obvious` corruption.
-- **Ranking correctness** per error type, restricted to the `paper_example`
-  pair: is the paper's own canonical true-positive target scored as *more*
-  surprising (lower `lr_ratio`) than its own canonical false-positive
-  target? -- the paper's central claim on its own worked example, and the
-  thing the existing unit tests already assert one pair at a time. (This is
-  deliberately *not* computed across every severity/variant: the broader
-  question of whether ranking holds against every hand-picked hard case is
-  what the precision/recall breakdowns above already answer, and blending
-  the two would muddy both.)
+- **Ranking correctness** (`uni_detect` only -- Raha has no equivalent
+  single scalar score threshold to check the same way) per error type,
+  restricted to the `paper_example` pair: is the paper's own canonical
+  true-positive target scored as *more* surprising (lower `lr_ratio`) than
+  its own canonical false-positive target? -- the paper's central claim on
+  its own worked example, and the thing the existing unit tests already
+  assert one pair at a time. (This is deliberately *not* computed across
+  every severity/variant: the broader question of whether ranking holds
+  against every hand-picked hard case is what the precision/recall
+  breakdowns above already answer, and blending the two would muddy both.)
 
 Results are written to `results/latest.json`, and if `results/baseline.json`
 exists, a version-over-version comparison table is printed (and, in CI,
@@ -168,15 +209,14 @@ appended to the job summary).
 
 Raw JSON isn't a great way to eyeball how detection is doing.
 [`results/REPORT.md`](results/REPORT.md) is a checked-in, human-readable
-rendering of `baseline.json` -- overall/per-error-type
-precision/recall/F1/accuracy tables, the ranking-correctness table, the full
-target list, and the charts below, generated straight from the same JSON (no
-plotting library, just stdlib SVG generation):
+rendering of `baseline.json` -- the algorithm-comparison table, then each
+algorithm's overall/per-error-type/per-severity precision/recall/F1/accuracy
+tables (plus Raha's cell-level breakdown and Uni-Detect's ranking-correctness
+table), the full target list, and the charts below, generated straight from
+the same JSON (no plotting library, just stdlib SVG generation):
 
-| ![Overall metrics](results/charts/overall_metrics.svg) | ![F1 by error type](results/charts/f1_by_error_type.svg) |
+| ![F1 by algorithm](results/charts/algorithm_f1_comparison.svg) | ![Duration by algorithm](results/charts/algorithm_duration_comparison.svg) |
 |---|---|
-
-![Detection ranking](results/charts/ranking_lr_ratio.svg)
 
 `REPORT.md` and `results/charts/` are regenerated automatically whenever the
 baseline is refreshed (`--update-baseline`, see below). To regenerate them
@@ -189,30 +229,40 @@ uv run python benchmarks/wiki_subset/generate_report.py --input benchmarks/wiki_
 uv run python benchmarks/wiki_subset/generate_report.py
 ```
 
-**Requires JDK 17** locally for the same reason the main test suite does --
-see the "JDK version" note in the top-level `README.md`. On a JDK 21+
-machine the Spark/Delta session either fails to start or fails partway
-through with an Arrow/JDK incompatibility; GitHub Actions runs this under
+`raha` runs regardless of JDK. `uni_detect` **requires JDK 17** locally for
+the same reason the main test suite does -- see the "JDK version" note in
+the top-level `README.md`. On a JDK 21+ machine the Spark/Delta session
+either fails to start or fails partway through with an Arrow/JDK
+incompatibility; `run_benchmark.py` catches this and still reports `raha`'s
+results rather than failing the whole run. GitHub Actions runs this under
 JDK 17 (see `.github/workflows/benchmark.yml`).
 
 > **Provenance of the currently checked-in `baseline.json`/`REPORT.md`:**
-> the environment this dataset redesign was produced in only had JDK 21
-> available, and (as above) PySpark 3.5's bundled Arrow cannot be made to
-> work there -- confirmed by direct reproduction, not just the JDK-version
-> check. The checked-in numbers were instead produced by a pure-Python
-> harness that calls the exact same production `unidetect.metrics` /
-> `unidetect.perturbation` / `unidetect.featurization` functions the real
-> detectors call, and replicates `corpus/store.py::batch_score`'s
-> join-plus-conditional-count formula verbatim in pandas. That harness was
-> cross-checked against the *previous* dataset's Spark-produced
-> `baseline.json` first and reproduced every `lr_ratio` exactly before
-> being trusted for this one. It is not part of the checked-in benchmark
-> tooling (Spark's actual join/aggregation semantics are what
-> `run_benchmark.py` should keep using), so treat the current
-> `baseline.json` as believed-correct but pending confirmation from an
-> actual `uv run python benchmarks/wiki_subset/run_benchmark.py --update-baseline`
+> `uni_detect`'s numbers were produced in an environment (this dataset's own
+> redesign) that only had JDK 21 available, and (as above) PySpark 3.5's
+> bundled Arrow cannot be made to work there -- confirmed by direct
+> reproduction, not just the JDK-version check. Those numbers were instead
+> produced by a pure-Python harness that calls the exact same production
+> `unidetect.metrics` / `unidetect.perturbation` / `unidetect.featurization`
+> functions the real detectors call, and replicates
+> `corpus/store.py::batch_score`'s join-plus-conditional-count formula
+> verbatim in pandas (`algorithms.uni_detect.generation_method` in
+> `baseline.json` records this). That harness was cross-checked against the
+> *previous* dataset's Spark-produced `baseline.json` first and reproduced
+> every `lr_ratio` exactly before being trusted for this one; it is not part
+> of the checked-in benchmark tooling. Treat those figures as
+> believed-correct but pending confirmation from an actual
+> `uv run python benchmarks/wiki_subset/run_benchmark.py --update-baseline`
 > run on JDK 17 (e.g. via the `Benchmark` GitHub Actions workflow) before
-> leaning on it for a real version-over-version comparison.
+> leaning on them for a real version-over-version comparison. Because that
+> environment constraint (JDK 21 only) still held when `raha` was added,
+> `uni_detect`'s `targets`/`metrics` in the current `baseline.json` are those
+> same already-computed figures reused verbatim (not re-run), and its
+> `duration_seconds` is `null` -- a real Uni-Detect duration needs an actual
+> JDK 17 run, same as its targets/metrics do. `raha`'s figures, including
+> its `duration_seconds`, come from a genuine `run_raha()` call in that same
+> JDK-21-only environment -- Raha has no JDK dependency, so nothing about it
+> was approximated.
 
 ## Comparing across versions
 

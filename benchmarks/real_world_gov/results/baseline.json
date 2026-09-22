@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-09-19T10:38:31.815711+00:00",
-  "git_commit": "8c42da0",
+  "generated_at": "2026-09-22T12:06:36.893426+00:00",
+  "git_commit": "61f6703",
   "dataset": "real_world_gov",
   "source": "https://github.com/LUH-DBS/Matelda/tree/main/datasets/DGov_NTR",
   "datasets_used": [
@@ -10,593 +10,1215 @@
     "adult-depression-lghc-indicator-24",
     "oklahoma-public-school-district-directory-january-2016"
   ],
-  "targets": [
-    {
-      "id": "Hate_Crimes::casenumber",
-      "dataset": "Hate_Crimes",
-      "column": "casenumber",
-      "num_rows": 42,
-      "error_count": 7,
-      "expected_significant": true,
-      "predicted_significant": true,
-      "lr_ratio": 0.029411764705882353,
-      "matched_error_type": "functional_dependency"
-    },
-    {
-      "id": "Hate_Crimes::datevalue",
-      "dataset": "Hate_Crimes",
-      "column": "datevalue",
-      "num_rows": 42,
-      "error_count": 3,
-      "expected_significant": true,
-      "predicted_significant": true,
-      "lr_ratio": 0.029411764705882353,
-      "matched_error_type": "functional_dependency"
-    },
-    {
-      "id": "Hate_Crimes::weekday",
-      "dataset": "Hate_Crimes",
-      "column": "weekday",
-      "num_rows": 42,
-      "error_count": 10,
-      "expected_significant": true,
-      "predicted_significant": true,
-      "lr_ratio": 0.03571428571428571,
-      "matched_error_type": "functional_dependency"
-    },
-    {
-      "id": "Hate_Crimes::victims",
-      "dataset": "Hate_Crimes",
-      "column": "victims",
-      "num_rows": 42,
-      "error_count": 6,
-      "expected_significant": true,
-      "predicted_significant": true,
-      "lr_ratio": 0.037037037037037035,
-      "matched_error_type": "functional_dependency"
-    },
-    {
-      "id": "Hate_Crimes::victimrace",
-      "dataset": "Hate_Crimes",
-      "column": "victimrace",
-      "num_rows": 42,
-      "error_count": 5,
-      "expected_significant": true,
-      "predicted_significant": true,
-      "lr_ratio": 0.037037037037037035,
-      "matched_error_type": "functional_dependency"
-    },
-    {
-      "id": "Hate_Crimes::victimgender",
-      "dataset": "Hate_Crimes",
-      "column": "victimgender",
-      "num_rows": 42,
-      "error_count": 3,
-      "expected_significant": true,
-      "predicted_significant": true,
-      "lr_ratio": 0.037037037037037035,
-      "matched_error_type": "functional_dependency"
-    },
-    {
-      "id": "Hate_Crimes::victimtype",
-      "dataset": "Hate_Crimes",
-      "column": "victimtype",
-      "num_rows": 42,
-      "error_count": 12,
-      "expected_significant": true,
-      "predicted_significant": true,
-      "lr_ratio": 0.037037037037037035,
-      "matched_error_type": "functional_dependency"
-    },
-    {
-      "id": "Hate_Crimes::offenders",
-      "dataset": "Hate_Crimes",
-      "column": "offenders",
-      "num_rows": 42,
-      "error_count": 1,
-      "expected_significant": true,
-      "predicted_significant": true,
-      "lr_ratio": 0.125,
-      "matched_error_type": "functional_dependency"
-    },
-    {
-      "id": "Hate_Crimes::offenderrace",
-      "dataset": "Hate_Crimes",
-      "column": "offenderrace",
-      "num_rows": 42,
-      "error_count": 6,
-      "expected_significant": true,
-      "predicted_significant": true,
-      "lr_ratio": 0.037037037037037035,
-      "matched_error_type": "functional_dependency"
-    },
-    {
-      "id": "Hate_Crimes::offendergender",
-      "dataset": "Hate_Crimes",
-      "column": "offendergender",
-      "num_rows": 42,
-      "error_count": 8,
-      "expected_significant": true,
-      "predicted_significant": true,
-      "lr_ratio": 0.037037037037037035,
-      "matched_error_type": "functional_dependency"
-    },
-    {
-      "id": "Hate_Crimes::offense",
-      "dataset": "Hate_Crimes",
-      "column": "offense",
-      "num_rows": 42,
-      "error_count": 3,
-      "expected_significant": true,
-      "predicted_significant": true,
-      "lr_ratio": 0.029411764705882353,
-      "matched_error_type": "functional_dependency"
-    },
-    {
-      "id": "Hate_Crimes::locationtype",
-      "dataset": "Hate_Crimes",
-      "column": "locationtype",
-      "num_rows": 42,
-      "error_count": 5,
-      "expected_significant": true,
-      "predicted_significant": true,
-      "lr_ratio": 0.03571428571428571,
-      "matched_error_type": "functional_dependency"
-    },
-    {
-      "id": "Hate_Crimes::motivation",
-      "dataset": "Hate_Crimes",
-      "column": "motivation",
-      "num_rows": 42,
-      "error_count": 7,
-      "expected_significant": true,
-      "predicted_significant": true,
-      "lr_ratio": 0.029411764705882353,
-      "matched_error_type": "functional_dependency"
-    },
-    {
-      "id": "Illicit-drug-use.g8_2014_0731_0900::sexraceethnicity",
-      "dataset": "Illicit-drug-use.g8_2014_0731_0900",
-      "column": "sexraceethnicity",
-      "num_rows": 312,
-      "error_count": 146,
-      "expected_significant": true,
-      "predicted_significant": true,
-      "lr_ratio": 0.14285714285714285,
-      "matched_error_type": "functional_dependency"
-    },
-    {
-      "id": "Illicit-drug-use.g8_2014_0731_0900::sex",
-      "dataset": "Illicit-drug-use.g8_2014_0731_0900",
-      "column": "sex",
-      "num_rows": 312,
-      "error_count": 126,
-      "expected_significant": true,
-      "predicted_significant": true,
-      "lr_ratio": 0.125,
-      "matched_error_type": "functional_dependency"
-    },
-    {
-      "id": "Illicit-drug-use.g8_2014_0731_0900::raceethnicity",
-      "dataset": "Illicit-drug-use.g8_2014_0731_0900",
-      "column": "raceethnicity",
-      "num_rows": 312,
-      "error_count": 95,
-      "expected_significant": true,
-      "predicted_significant": true,
-      "lr_ratio": 0.1111111111111111,
-      "matched_error_type": "functional_dependency"
-    },
-    {
-      "id": "Illicit-drug-use.g8_2014_0731_0900::yearvalue",
-      "dataset": "Illicit-drug-use.g8_2014_0731_0900",
-      "column": "yearvalue",
-      "num_rows": 312,
-      "error_count": 0,
-      "expected_significant": false,
-      "predicted_significant": true,
-      "lr_ratio": 0.14285714285714285,
-      "matched_error_type": "functional_dependency"
-    },
-    {
-      "id": "Illicit-drug-use.g8_2014_0731_0900::percentage",
-      "dataset": "Illicit-drug-use.g8_2014_0731_0900",
-      "column": "percentage",
-      "num_rows": 312,
-      "error_count": 0,
-      "expected_significant": false,
-      "predicted_significant": true,
-      "lr_ratio": 0.125,
-      "matched_error_type": "functional_dependency"
-    },
-    {
-      "id": "Illicit-drug-use.g8_2014_0731_0900::standarderroronpercentage",
-      "dataset": "Illicit-drug-use.g8_2014_0731_0900",
-      "column": "standarderroronpercentage",
-      "num_rows": 312,
-      "error_count": 0,
-      "expected_significant": false,
-      "predicted_significant": true,
-      "lr_ratio": 0.1111111111111111,
-      "matched_error_type": "functional_dependency"
-    },
-    {
-      "id": "Illicit-drug-use.g8_2014_0731_0900::noteonpercent",
-      "dataset": "Illicit-drug-use.g8_2014_0731_0900",
-      "column": "noteonpercent",
-      "num_rows": 312,
-      "error_count": 43,
-      "expected_significant": true,
-      "predicted_significant": false,
-      "lr_ratio": 0.5,
-      "matched_error_type": "uniqueness"
-    },
-    {
-      "id": "Pregnancy_Risk_Assessment_Monitoring_System__PRAMS_::yearvalue",
-      "dataset": "Pregnancy_Risk_Assessment_Monitoring_System__PRAMS_",
-      "column": "yearvalue",
-      "num_rows": 42,
-      "error_count": 0,
-      "expected_significant": false,
-      "predicted_significant": false,
-      "lr_ratio": 0.5,
-      "matched_error_type": "functional_dependency"
-    },
-    {
-      "id": "Pregnancy_Risk_Assessment_Monitoring_System__PRAMS_::sourcevalue",
-      "dataset": "Pregnancy_Risk_Assessment_Monitoring_System__PRAMS_",
-      "column": "sourcevalue",
-      "num_rows": 42,
-      "error_count": 2,
-      "expected_significant": true,
-      "predicted_significant": false,
-      "lr_ratio": 0.25,
-      "matched_error_type": "functional_dependency"
-    },
-    {
-      "id": "Pregnancy_Risk_Assessment_Monitoring_System__PRAMS_::question",
-      "dataset": "Pregnancy_Risk_Assessment_Monitoring_System__PRAMS_",
-      "column": "question",
-      "num_rows": 42,
-      "error_count": 1,
-      "expected_significant": true,
-      "predicted_significant": false,
-      "lr_ratio": 0.25,
-      "matched_error_type": "functional_dependency"
-    },
-    {
-      "id": "Pregnancy_Risk_Assessment_Monitoring_System__PRAMS_::prevalence",
-      "dataset": "Pregnancy_Risk_Assessment_Monitoring_System__PRAMS_",
-      "column": "prevalence",
-      "num_rows": 42,
-      "error_count": 0,
-      "expected_significant": false,
-      "predicted_significant": true,
-      "lr_ratio": 0.2,
-      "matched_error_type": "functional_dependency"
-    },
-    {
-      "id": "Pregnancy_Risk_Assessment_Monitoring_System__PRAMS_::lowerninefiveconfidenceinterval",
-      "dataset": "Pregnancy_Risk_Assessment_Monitoring_System__PRAMS_",
-      "column": "lowerninefiveconfidenceinterval",
-      "num_rows": 42,
-      "error_count": 9,
-      "expected_significant": true,
-      "predicted_significant": true,
-      "lr_ratio": 0.2,
-      "matched_error_type": "functional_dependency"
-    },
-    {
-      "id": "Pregnancy_Risk_Assessment_Monitoring_System__PRAMS_::upperninefiveconfidenceinterval",
-      "dataset": "Pregnancy_Risk_Assessment_Monitoring_System__PRAMS_",
-      "column": "upperninefiveconfidenceinterval",
-      "num_rows": 42,
-      "error_count": 0,
-      "expected_significant": false,
-      "predicted_significant": false,
-      "lr_ratio": 0.25,
-      "matched_error_type": "numeric_outlier"
-    },
-    {
-      "id": "adult-depression-lghc-indicator-24::yearvalue",
-      "dataset": "adult-depression-lghc-indicator-24",
-      "column": "yearvalue",
-      "num_rows": 161,
-      "error_count": 0,
-      "expected_significant": false,
-      "predicted_significant": false,
-      "lr_ratio": 0.5,
-      "matched_error_type": "numeric_outlier"
-    },
-    {
-      "id": "adult-depression-lghc-indicator-24::strata",
-      "dataset": "adult-depression-lghc-indicator-24",
-      "column": "strata",
-      "num_rows": 161,
-      "error_count": 0,
-      "expected_significant": false,
-      "predicted_significant": false,
-      "lr_ratio": 0.375,
-      "matched_error_type": "functional_dependency"
-    },
-    {
-      "id": "adult-depression-lghc-indicator-24::strataname",
-      "dataset": "adult-depression-lghc-indicator-24",
-      "column": "strataname",
-      "num_rows": 161,
-      "error_count": 127,
-      "expected_significant": true,
-      "predicted_significant": true,
-      "lr_ratio": 0.14285714285714285,
-      "matched_error_type": "functional_dependency"
-    },
-    {
-      "id": "adult-depression-lghc-indicator-24::frequency",
-      "dataset": "adult-depression-lghc-indicator-24",
-      "column": "frequency",
-      "num_rows": 161,
-      "error_count": 0,
-      "expected_significant": false,
-      "predicted_significant": true,
-      "lr_ratio": 0.14285714285714285,
-      "matched_error_type": "functional_dependency"
-    },
-    {
-      "id": "adult-depression-lghc-indicator-24::weightedfrequency",
-      "dataset": "adult-depression-lghc-indicator-24",
-      "column": "weightedfrequency",
-      "num_rows": 161,
-      "error_count": 0,
-      "expected_significant": false,
-      "predicted_significant": true,
-      "lr_ratio": 0.16666666666666666,
-      "matched_error_type": "functional_dependency"
-    },
-    {
-      "id": "adult-depression-lghc-indicator-24::percentvalue",
-      "dataset": "adult-depression-lghc-indicator-24",
-      "column": "percentvalue",
-      "num_rows": 161,
-      "error_count": 0,
-      "expected_significant": false,
-      "predicted_significant": true,
-      "lr_ratio": 0.18181818181818182,
-      "matched_error_type": "functional_dependency"
-    },
-    {
-      "id": "adult-depression-lghc-indicator-24::lowerninefivecl",
-      "dataset": "adult-depression-lghc-indicator-24",
-      "column": "lowerninefivecl",
-      "num_rows": 161,
-      "error_count": 0,
-      "expected_significant": false,
-      "predicted_significant": false,
-      "lr_ratio": 0.25,
-      "matched_error_type": "functional_dependency"
-    },
-    {
-      "id": "adult-depression-lghc-indicator-24::upperninefivecl",
-      "dataset": "adult-depression-lghc-indicator-24",
-      "column": "upperninefivecl",
-      "num_rows": 161,
-      "error_count": 0,
-      "expected_significant": false,
-      "predicted_significant": false,
-      "lr_ratio": 0.25,
-      "matched_error_type": "functional_dependency"
-    },
-    {
-      "id": "oklahoma-public-school-district-directory-january-2016::countyname",
-      "dataset": "oklahoma-public-school-district-directory-january-2016",
-      "column": "countyname",
-      "num_rows": 554,
-      "error_count": 68,
-      "expected_significant": true,
-      "predicted_significant": true,
-      "lr_ratio": 0.14285714285714285,
-      "matched_error_type": "functional_dependency"
-    },
-    {
-      "id": "oklahoma-public-school-district-directory-january-2016::code",
-      "dataset": "oklahoma-public-school-district-directory-january-2016",
-      "column": "code",
-      "num_rows": 554,
-      "error_count": 128,
-      "expected_significant": true,
-      "predicted_significant": true,
-      "lr_ratio": 0.07692307692307693,
-      "matched_error_type": "functional_dependency"
-    },
-    {
-      "id": "oklahoma-public-school-district-directory-january-2016::districtname",
-      "dataset": "oklahoma-public-school-district-directory-january-2016",
-      "column": "districtname",
-      "num_rows": 554,
-      "error_count": 51,
-      "expected_significant": true,
-      "predicted_significant": true,
-      "lr_ratio": 0.16666666666666666,
-      "matched_error_type": "functional_dependency"
-    },
-    {
-      "id": "oklahoma-public-school-district-directory-january-2016::city",
-      "dataset": "oklahoma-public-school-district-directory-january-2016",
-      "column": "city",
-      "num_rows": 554,
-      "error_count": 60,
-      "expected_significant": true,
-      "predicted_significant": true,
-      "lr_ratio": 0.07692307692307693,
-      "matched_error_type": "functional_dependency"
-    },
-    {
-      "id": "oklahoma-public-school-district-directory-january-2016::address",
-      "dataset": "oklahoma-public-school-district-directory-january-2016",
-      "column": "address",
-      "num_rows": 554,
-      "error_count": 71,
-      "expected_significant": true,
-      "predicted_significant": false,
-      "lr_ratio": 0.25,
-      "matched_error_type": "spelling"
-    },
-    {
-      "id": "oklahoma-public-school-district-directory-january-2016::statevalue",
-      "dataset": "oklahoma-public-school-district-directory-january-2016",
-      "column": "statevalue",
-      "num_rows": 554,
-      "error_count": 62,
-      "expected_significant": true,
-      "predicted_significant": true,
-      "lr_ratio": 0.16666666666666666,
-      "matched_error_type": "functional_dependency"
-    },
-    {
-      "id": "oklahoma-public-school-district-directory-january-2016::zip",
-      "dataset": "oklahoma-public-school-district-directory-january-2016",
-      "column": "zip",
-      "num_rows": 554,
-      "error_count": 1,
-      "expected_significant": true,
-      "predicted_significant": true,
-      "lr_ratio": 0.07692307692307693,
-      "matched_error_type": "functional_dependency"
-    },
-    {
-      "id": "oklahoma-public-school-district-directory-january-2016::phone",
-      "dataset": "oklahoma-public-school-district-directory-january-2016",
-      "column": "phone",
-      "num_rows": 554,
-      "error_count": 122,
-      "expected_significant": true,
-      "predicted_significant": true,
-      "lr_ratio": 0.07692307692307693,
-      "matched_error_type": "functional_dependency"
-    },
-    {
-      "id": "oklahoma-public-school-district-directory-january-2016::fax",
-      "dataset": "oklahoma-public-school-district-directory-january-2016",
-      "column": "fax",
-      "num_rows": 554,
-      "error_count": 64,
-      "expected_significant": true,
-      "predicted_significant": true,
-      "lr_ratio": 0.2,
-      "matched_error_type": "functional_dependency"
-    },
-    {
-      "id": "oklahoma-public-school-district-directory-january-2016::websiteurl",
-      "dataset": "oklahoma-public-school-district-directory-january-2016",
-      "column": "websiteurl",
-      "num_rows": 554,
-      "error_count": 63,
-      "expected_significant": true,
-      "predicted_significant": true,
-      "lr_ratio": 0.11764705882352941,
-      "matched_error_type": "functional_dependency"
-    },
-    {
-      "id": "oklahoma-public-school-district-directory-january-2016::superintendent",
-      "dataset": "oklahoma-public-school-district-directory-january-2016",
-      "column": "superintendent",
-      "num_rows": 554,
-      "error_count": 61,
-      "expected_significant": true,
-      "predicted_significant": true,
-      "lr_ratio": 0.07692307692307693,
-      "matched_error_type": "functional_dependency"
-    },
-    {
-      "id": "oklahoma-public-school-district-directory-january-2016::superintendentemail",
-      "dataset": "oklahoma-public-school-district-directory-january-2016",
-      "column": "superintendentemail",
-      "num_rows": 554,
-      "error_count": 60,
-      "expected_significant": true,
-      "predicted_significant": true,
-      "lr_ratio": 0.07692307692307693,
-      "matched_error_type": "functional_dependency"
-    },
-    {
-      "id": "oklahoma-public-school-district-directory-january-2016::boardpresident",
-      "dataset": "oklahoma-public-school-district-directory-january-2016",
-      "column": "boardpresident",
-      "num_rows": 554,
-      "error_count": 65,
-      "expected_significant": true,
-      "predicted_significant": true,
-      "lr_ratio": 0.07692307692307693,
-      "matched_error_type": "functional_dependency"
-    }
-  ],
-  "metrics": {
-    "overall": {
-      "n": 47,
-      "true_positive": 30,
-      "false_positive": 7,
-      "false_negative": 4,
-      "true_negative": 6,
-      "precision": 0.8108,
-      "recall": 0.8824,
-      "f1": 0.8451,
-      "accuracy": 0.766
-    },
-    "by_dataset": {
-      "Hate_Crimes": {
-        "n": 13,
-        "true_positive": 13,
-        "false_positive": 0,
-        "false_negative": 0,
-        "true_negative": 0,
-        "precision": 1.0,
-        "recall": 1.0,
-        "f1": 1.0,
-        "accuracy": 1.0
+  "algorithms": {
+    "raha": {
+      "targets": [
+        {
+          "id": "Hate_Crimes::casenumber",
+          "dataset": "Hate_Crimes",
+          "column": "casenumber",
+          "num_rows": 42,
+          "error_count": 7,
+          "expected_significant": true,
+          "predicted_significant": true,
+          "score": 1.0
+        },
+        {
+          "id": "Hate_Crimes::datevalue",
+          "dataset": "Hate_Crimes",
+          "column": "datevalue",
+          "num_rows": 42,
+          "error_count": 3,
+          "expected_significant": true,
+          "predicted_significant": true,
+          "score": 1.0
+        },
+        {
+          "id": "Hate_Crimes::weekday",
+          "dataset": "Hate_Crimes",
+          "column": "weekday",
+          "num_rows": 42,
+          "error_count": 10,
+          "expected_significant": true,
+          "predicted_significant": true,
+          "score": 1.0
+        },
+        {
+          "id": "Hate_Crimes::victims",
+          "dataset": "Hate_Crimes",
+          "column": "victims",
+          "num_rows": 42,
+          "error_count": 6,
+          "expected_significant": true,
+          "predicted_significant": true,
+          "score": 1.0
+        },
+        {
+          "id": "Hate_Crimes::victimrace",
+          "dataset": "Hate_Crimes",
+          "column": "victimrace",
+          "num_rows": 42,
+          "error_count": 5,
+          "expected_significant": true,
+          "predicted_significant": true,
+          "score": 1.0
+        },
+        {
+          "id": "Hate_Crimes::victimgender",
+          "dataset": "Hate_Crimes",
+          "column": "victimgender",
+          "num_rows": 42,
+          "error_count": 3,
+          "expected_significant": true,
+          "predicted_significant": true,
+          "score": 1.0
+        },
+        {
+          "id": "Hate_Crimes::victimtype",
+          "dataset": "Hate_Crimes",
+          "column": "victimtype",
+          "num_rows": 42,
+          "error_count": 12,
+          "expected_significant": true,
+          "predicted_significant": true,
+          "score": 1.0
+        },
+        {
+          "id": "Hate_Crimes::offenders",
+          "dataset": "Hate_Crimes",
+          "column": "offenders",
+          "num_rows": 42,
+          "error_count": 1,
+          "expected_significant": true,
+          "predicted_significant": true,
+          "score": 1.0
+        },
+        {
+          "id": "Hate_Crimes::offenderrace",
+          "dataset": "Hate_Crimes",
+          "column": "offenderrace",
+          "num_rows": 42,
+          "error_count": 6,
+          "expected_significant": true,
+          "predicted_significant": true,
+          "score": 1.0
+        },
+        {
+          "id": "Hate_Crimes::offendergender",
+          "dataset": "Hate_Crimes",
+          "column": "offendergender",
+          "num_rows": 42,
+          "error_count": 8,
+          "expected_significant": true,
+          "predicted_significant": true,
+          "score": 1.0
+        },
+        {
+          "id": "Hate_Crimes::offense",
+          "dataset": "Hate_Crimes",
+          "column": "offense",
+          "num_rows": 42,
+          "error_count": 3,
+          "expected_significant": true,
+          "predicted_significant": true,
+          "score": 1.0
+        },
+        {
+          "id": "Hate_Crimes::locationtype",
+          "dataset": "Hate_Crimes",
+          "column": "locationtype",
+          "num_rows": 42,
+          "error_count": 5,
+          "expected_significant": true,
+          "predicted_significant": true,
+          "score": 1.0
+        },
+        {
+          "id": "Hate_Crimes::motivation",
+          "dataset": "Hate_Crimes",
+          "column": "motivation",
+          "num_rows": 42,
+          "error_count": 7,
+          "expected_significant": true,
+          "predicted_significant": true,
+          "score": 1.0
+        },
+        {
+          "id": "Illicit-drug-use.g8_2014_0731_0900::sexraceethnicity",
+          "dataset": "Illicit-drug-use.g8_2014_0731_0900",
+          "column": "sexraceethnicity",
+          "num_rows": 312,
+          "error_count": 146,
+          "expected_significant": true,
+          "predicted_significant": true,
+          "score": 1.0
+        },
+        {
+          "id": "Illicit-drug-use.g8_2014_0731_0900::sex",
+          "dataset": "Illicit-drug-use.g8_2014_0731_0900",
+          "column": "sex",
+          "num_rows": 312,
+          "error_count": 126,
+          "expected_significant": true,
+          "predicted_significant": true,
+          "score": 1.0
+        },
+        {
+          "id": "Illicit-drug-use.g8_2014_0731_0900::raceethnicity",
+          "dataset": "Illicit-drug-use.g8_2014_0731_0900",
+          "column": "raceethnicity",
+          "num_rows": 312,
+          "error_count": 95,
+          "expected_significant": true,
+          "predicted_significant": true,
+          "score": 1.0
+        },
+        {
+          "id": "Illicit-drug-use.g8_2014_0731_0900::yearvalue",
+          "dataset": "Illicit-drug-use.g8_2014_0731_0900",
+          "column": "yearvalue",
+          "num_rows": 312,
+          "error_count": 0,
+          "expected_significant": false,
+          "predicted_significant": false,
+          "score": 0.0
+        },
+        {
+          "id": "Illicit-drug-use.g8_2014_0731_0900::percentage",
+          "dataset": "Illicit-drug-use.g8_2014_0731_0900",
+          "column": "percentage",
+          "num_rows": 312,
+          "error_count": 0,
+          "expected_significant": false,
+          "predicted_significant": false,
+          "score": 0.0
+        },
+        {
+          "id": "Illicit-drug-use.g8_2014_0731_0900::standarderroronpercentage",
+          "dataset": "Illicit-drug-use.g8_2014_0731_0900",
+          "column": "standarderroronpercentage",
+          "num_rows": 312,
+          "error_count": 0,
+          "expected_significant": false,
+          "predicted_significant": false,
+          "score": 0.0
+        },
+        {
+          "id": "Illicit-drug-use.g8_2014_0731_0900::noteonpercent",
+          "dataset": "Illicit-drug-use.g8_2014_0731_0900",
+          "column": "noteonpercent",
+          "num_rows": 312,
+          "error_count": 43,
+          "expected_significant": true,
+          "predicted_significant": true,
+          "score": 1.0
+        },
+        {
+          "id": "Pregnancy_Risk_Assessment_Monitoring_System__PRAMS_::yearvalue",
+          "dataset": "Pregnancy_Risk_Assessment_Monitoring_System__PRAMS_",
+          "column": "yearvalue",
+          "num_rows": 42,
+          "error_count": 0,
+          "expected_significant": false,
+          "predicted_significant": false,
+          "score": 0.0
+        },
+        {
+          "id": "Pregnancy_Risk_Assessment_Monitoring_System__PRAMS_::sourcevalue",
+          "dataset": "Pregnancy_Risk_Assessment_Monitoring_System__PRAMS_",
+          "column": "sourcevalue",
+          "num_rows": 42,
+          "error_count": 2,
+          "expected_significant": true,
+          "predicted_significant": true,
+          "score": 1.0
+        },
+        {
+          "id": "Pregnancy_Risk_Assessment_Monitoring_System__PRAMS_::question",
+          "dataset": "Pregnancy_Risk_Assessment_Monitoring_System__PRAMS_",
+          "column": "question",
+          "num_rows": 42,
+          "error_count": 1,
+          "expected_significant": true,
+          "predicted_significant": true,
+          "score": 1.0
+        },
+        {
+          "id": "Pregnancy_Risk_Assessment_Monitoring_System__PRAMS_::prevalence",
+          "dataset": "Pregnancy_Risk_Assessment_Monitoring_System__PRAMS_",
+          "column": "prevalence",
+          "num_rows": 42,
+          "error_count": 0,
+          "expected_significant": false,
+          "predicted_significant": false,
+          "score": 0.0
+        },
+        {
+          "id": "Pregnancy_Risk_Assessment_Monitoring_System__PRAMS_::lowerninefiveconfidenceinterval",
+          "dataset": "Pregnancy_Risk_Assessment_Monitoring_System__PRAMS_",
+          "column": "lowerninefiveconfidenceinterval",
+          "num_rows": 42,
+          "error_count": 9,
+          "expected_significant": true,
+          "predicted_significant": true,
+          "score": 1.0
+        },
+        {
+          "id": "Pregnancy_Risk_Assessment_Monitoring_System__PRAMS_::upperninefiveconfidenceinterval",
+          "dataset": "Pregnancy_Risk_Assessment_Monitoring_System__PRAMS_",
+          "column": "upperninefiveconfidenceinterval",
+          "num_rows": 42,
+          "error_count": 0,
+          "expected_significant": false,
+          "predicted_significant": false,
+          "score": 0.0
+        },
+        {
+          "id": "adult-depression-lghc-indicator-24::yearvalue",
+          "dataset": "adult-depression-lghc-indicator-24",
+          "column": "yearvalue",
+          "num_rows": 161,
+          "error_count": 0,
+          "expected_significant": false,
+          "predicted_significant": false,
+          "score": 0.0
+        },
+        {
+          "id": "adult-depression-lghc-indicator-24::strata",
+          "dataset": "adult-depression-lghc-indicator-24",
+          "column": "strata",
+          "num_rows": 161,
+          "error_count": 0,
+          "expected_significant": false,
+          "predicted_significant": false,
+          "score": 0.0
+        },
+        {
+          "id": "adult-depression-lghc-indicator-24::strataname",
+          "dataset": "adult-depression-lghc-indicator-24",
+          "column": "strataname",
+          "num_rows": 161,
+          "error_count": 127,
+          "expected_significant": true,
+          "predicted_significant": true,
+          "score": 1.0
+        },
+        {
+          "id": "adult-depression-lghc-indicator-24::frequency",
+          "dataset": "adult-depression-lghc-indicator-24",
+          "column": "frequency",
+          "num_rows": 161,
+          "error_count": 0,
+          "expected_significant": false,
+          "predicted_significant": false,
+          "score": 0.0
+        },
+        {
+          "id": "adult-depression-lghc-indicator-24::weightedfrequency",
+          "dataset": "adult-depression-lghc-indicator-24",
+          "column": "weightedfrequency",
+          "num_rows": 161,
+          "error_count": 0,
+          "expected_significant": false,
+          "predicted_significant": false,
+          "score": 0.0
+        },
+        {
+          "id": "adult-depression-lghc-indicator-24::percentvalue",
+          "dataset": "adult-depression-lghc-indicator-24",
+          "column": "percentvalue",
+          "num_rows": 161,
+          "error_count": 0,
+          "expected_significant": false,
+          "predicted_significant": false,
+          "score": 0.0
+        },
+        {
+          "id": "adult-depression-lghc-indicator-24::lowerninefivecl",
+          "dataset": "adult-depression-lghc-indicator-24",
+          "column": "lowerninefivecl",
+          "num_rows": 161,
+          "error_count": 0,
+          "expected_significant": false,
+          "predicted_significant": false,
+          "score": 0.0
+        },
+        {
+          "id": "adult-depression-lghc-indicator-24::upperninefivecl",
+          "dataset": "adult-depression-lghc-indicator-24",
+          "column": "upperninefivecl",
+          "num_rows": 161,
+          "error_count": 0,
+          "expected_significant": false,
+          "predicted_significant": false,
+          "score": 0.0
+        },
+        {
+          "id": "oklahoma-public-school-district-directory-january-2016::countyname",
+          "dataset": "oklahoma-public-school-district-directory-january-2016",
+          "column": "countyname",
+          "num_rows": 554,
+          "error_count": 68,
+          "expected_significant": true,
+          "predicted_significant": true,
+          "score": 1.0
+        },
+        {
+          "id": "oklahoma-public-school-district-directory-january-2016::code",
+          "dataset": "oklahoma-public-school-district-directory-january-2016",
+          "column": "code",
+          "num_rows": 554,
+          "error_count": 128,
+          "expected_significant": true,
+          "predicted_significant": true,
+          "score": 1.0
+        },
+        {
+          "id": "oklahoma-public-school-district-directory-january-2016::districtname",
+          "dataset": "oklahoma-public-school-district-directory-january-2016",
+          "column": "districtname",
+          "num_rows": 554,
+          "error_count": 51,
+          "expected_significant": true,
+          "predicted_significant": true,
+          "score": 1.0
+        },
+        {
+          "id": "oklahoma-public-school-district-directory-january-2016::city",
+          "dataset": "oklahoma-public-school-district-directory-january-2016",
+          "column": "city",
+          "num_rows": 554,
+          "error_count": 60,
+          "expected_significant": true,
+          "predicted_significant": true,
+          "score": 1.0
+        },
+        {
+          "id": "oklahoma-public-school-district-directory-january-2016::address",
+          "dataset": "oklahoma-public-school-district-directory-january-2016",
+          "column": "address",
+          "num_rows": 554,
+          "error_count": 71,
+          "expected_significant": true,
+          "predicted_significant": true,
+          "score": 1.0
+        },
+        {
+          "id": "oklahoma-public-school-district-directory-january-2016::statevalue",
+          "dataset": "oklahoma-public-school-district-directory-january-2016",
+          "column": "statevalue",
+          "num_rows": 554,
+          "error_count": 62,
+          "expected_significant": true,
+          "predicted_significant": true,
+          "score": 1.0
+        },
+        {
+          "id": "oklahoma-public-school-district-directory-january-2016::zip",
+          "dataset": "oklahoma-public-school-district-directory-january-2016",
+          "column": "zip",
+          "num_rows": 554,
+          "error_count": 1,
+          "expected_significant": true,
+          "predicted_significant": true,
+          "score": 1.0
+        },
+        {
+          "id": "oklahoma-public-school-district-directory-january-2016::phone",
+          "dataset": "oklahoma-public-school-district-directory-january-2016",
+          "column": "phone",
+          "num_rows": 554,
+          "error_count": 122,
+          "expected_significant": true,
+          "predicted_significant": true,
+          "score": 1.0
+        },
+        {
+          "id": "oklahoma-public-school-district-directory-january-2016::fax",
+          "dataset": "oklahoma-public-school-district-directory-january-2016",
+          "column": "fax",
+          "num_rows": 554,
+          "error_count": 64,
+          "expected_significant": true,
+          "predicted_significant": true,
+          "score": 1.0
+        },
+        {
+          "id": "oklahoma-public-school-district-directory-january-2016::websiteurl",
+          "dataset": "oklahoma-public-school-district-directory-january-2016",
+          "column": "websiteurl",
+          "num_rows": 554,
+          "error_count": 63,
+          "expected_significant": true,
+          "predicted_significant": true,
+          "score": 1.0
+        },
+        {
+          "id": "oklahoma-public-school-district-directory-january-2016::superintendent",
+          "dataset": "oklahoma-public-school-district-directory-january-2016",
+          "column": "superintendent",
+          "num_rows": 554,
+          "error_count": 61,
+          "expected_significant": true,
+          "predicted_significant": true,
+          "score": 1.0
+        },
+        {
+          "id": "oklahoma-public-school-district-directory-january-2016::superintendentemail",
+          "dataset": "oklahoma-public-school-district-directory-january-2016",
+          "column": "superintendentemail",
+          "num_rows": 554,
+          "error_count": 60,
+          "expected_significant": true,
+          "predicted_significant": true,
+          "score": 1.0
+        },
+        {
+          "id": "oklahoma-public-school-district-directory-january-2016::boardpresident",
+          "dataset": "oklahoma-public-school-district-directory-january-2016",
+          "column": "boardpresident",
+          "num_rows": 554,
+          "error_count": 65,
+          "expected_significant": true,
+          "predicted_significant": true,
+          "score": 1.0
+        }
+      ],
+      "metrics": {
+        "overall": {
+          "n": 47,
+          "true_positive": 34,
+          "false_positive": 0,
+          "false_negative": 0,
+          "true_negative": 13,
+          "precision": 1.0,
+          "recall": 1.0,
+          "f1": 1.0,
+          "accuracy": 1.0
+        },
+        "by_dataset": {
+          "Hate_Crimes": {
+            "n": 13,
+            "true_positive": 13,
+            "false_positive": 0,
+            "false_negative": 0,
+            "true_negative": 0,
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1": 1.0,
+            "accuracy": 1.0
+          },
+          "Illicit-drug-use.g8_2014_0731_0900": {
+            "n": 7,
+            "true_positive": 4,
+            "false_positive": 0,
+            "false_negative": 0,
+            "true_negative": 3,
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1": 1.0,
+            "accuracy": 1.0
+          },
+          "Pregnancy_Risk_Assessment_Monitoring_System__PRAMS_": {
+            "n": 6,
+            "true_positive": 3,
+            "false_positive": 0,
+            "false_negative": 0,
+            "true_negative": 3,
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1": 1.0,
+            "accuracy": 1.0
+          },
+          "adult-depression-lghc-indicator-24": {
+            "n": 8,
+            "true_positive": 1,
+            "false_positive": 0,
+            "false_negative": 0,
+            "true_negative": 7,
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1": 1.0,
+            "accuracy": 1.0
+          },
+          "oklahoma-public-school-district-directory-january-2016": {
+            "n": 13,
+            "true_positive": 13,
+            "false_positive": 0,
+            "false_negative": 0,
+            "true_negative": 0,
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1": 1.0,
+            "accuracy": 1.0
+          }
+        }
       },
-      "Illicit-drug-use.g8_2014_0731_0900": {
-        "n": 7,
-        "true_positive": 3,
-        "false_positive": 3,
-        "false_negative": 1,
-        "true_negative": 0,
-        "precision": 0.5,
-        "recall": 0.75,
-        "f1": 0.6,
-        "accuracy": 0.4286
+      "cell_metrics": {
+        "overall": {
+          "n": 11472,
+          "true_positive": 705,
+          "false_positive": 503,
+          "false_negative": 780,
+          "true_negative": 9484,
+          "precision": 0.5836,
+          "recall": 0.4747,
+          "f1": 0.5236,
+          "accuracy": 0.8882
+        },
+        "by_dataset": {
+          "Hate_Crimes": {
+            "n": 546,
+            "true_positive": 60,
+            "false_positive": 11,
+            "false_negative": 16,
+            "true_negative": 459,
+            "precision": 0.8451,
+            "recall": 0.7895,
+            "f1": 0.8163,
+            "accuracy": 0.9505
+          },
+          "Illicit-drug-use.g8_2014_0731_0900": {
+            "n": 2184,
+            "true_positive": 329,
+            "false_positive": 89,
+            "false_negative": 81,
+            "true_negative": 1685,
+            "precision": 0.7871,
+            "recall": 0.8024,
+            "f1": 0.7947,
+            "accuracy": 0.9222
+          },
+          "Pregnancy_Risk_Assessment_Monitoring_System__PRAMS_": {
+            "n": 252,
+            "true_positive": 11,
+            "false_positive": 5,
+            "false_negative": 1,
+            "true_negative": 235,
+            "precision": 0.6875,
+            "recall": 0.9167,
+            "f1": 0.7857,
+            "accuracy": 0.9762
+          },
+          "adult-depression-lghc-indicator-24": {
+            "n": 1288,
+            "true_positive": 121,
+            "false_positive": 25,
+            "false_negative": 6,
+            "true_negative": 1136,
+            "precision": 0.8288,
+            "recall": 0.9528,
+            "f1": 0.8864,
+            "accuracy": 0.9759
+          },
+          "oklahoma-public-school-district-directory-january-2016": {
+            "n": 7202,
+            "true_positive": 184,
+            "false_positive": 373,
+            "false_negative": 676,
+            "true_negative": 5969,
+            "precision": 0.3303,
+            "recall": 0.214,
+            "f1": 0.2597,
+            "accuracy": 0.8543
+          }
+        }
       },
-      "Pregnancy_Risk_Assessment_Monitoring_System__PRAMS_": {
-        "n": 6,
-        "true_positive": 1,
-        "false_positive": 1,
-        "false_negative": 2,
-        "true_negative": 2,
-        "precision": 0.5,
-        "recall": 0.3333,
-        "f1": 0.4,
-        "accuracy": 0.5
+      "duration_seconds": 5.87485360300002,
+      "duration_note": null
+    },
+    "uni_detect": {
+      "targets": [
+        {
+          "id": "Hate_Crimes::casenumber",
+          "dataset": "Hate_Crimes",
+          "column": "casenumber",
+          "num_rows": 42,
+          "error_count": 7,
+          "expected_significant": true,
+          "predicted_significant": true,
+          "lr_ratio": 0.029411764705882353,
+          "matched_error_type": "functional_dependency"
+        },
+        {
+          "id": "Hate_Crimes::datevalue",
+          "dataset": "Hate_Crimes",
+          "column": "datevalue",
+          "num_rows": 42,
+          "error_count": 3,
+          "expected_significant": true,
+          "predicted_significant": true,
+          "lr_ratio": 0.029411764705882353,
+          "matched_error_type": "functional_dependency"
+        },
+        {
+          "id": "Hate_Crimes::weekday",
+          "dataset": "Hate_Crimes",
+          "column": "weekday",
+          "num_rows": 42,
+          "error_count": 10,
+          "expected_significant": true,
+          "predicted_significant": true,
+          "lr_ratio": 0.03571428571428571,
+          "matched_error_type": "functional_dependency"
+        },
+        {
+          "id": "Hate_Crimes::victims",
+          "dataset": "Hate_Crimes",
+          "column": "victims",
+          "num_rows": 42,
+          "error_count": 6,
+          "expected_significant": true,
+          "predicted_significant": true,
+          "lr_ratio": 0.037037037037037035,
+          "matched_error_type": "functional_dependency"
+        },
+        {
+          "id": "Hate_Crimes::victimrace",
+          "dataset": "Hate_Crimes",
+          "column": "victimrace",
+          "num_rows": 42,
+          "error_count": 5,
+          "expected_significant": true,
+          "predicted_significant": true,
+          "lr_ratio": 0.037037037037037035,
+          "matched_error_type": "functional_dependency"
+        },
+        {
+          "id": "Hate_Crimes::victimgender",
+          "dataset": "Hate_Crimes",
+          "column": "victimgender",
+          "num_rows": 42,
+          "error_count": 3,
+          "expected_significant": true,
+          "predicted_significant": true,
+          "lr_ratio": 0.037037037037037035,
+          "matched_error_type": "functional_dependency"
+        },
+        {
+          "id": "Hate_Crimes::victimtype",
+          "dataset": "Hate_Crimes",
+          "column": "victimtype",
+          "num_rows": 42,
+          "error_count": 12,
+          "expected_significant": true,
+          "predicted_significant": true,
+          "lr_ratio": 0.037037037037037035,
+          "matched_error_type": "functional_dependency"
+        },
+        {
+          "id": "Hate_Crimes::offenders",
+          "dataset": "Hate_Crimes",
+          "column": "offenders",
+          "num_rows": 42,
+          "error_count": 1,
+          "expected_significant": true,
+          "predicted_significant": true,
+          "lr_ratio": 0.125,
+          "matched_error_type": "functional_dependency"
+        },
+        {
+          "id": "Hate_Crimes::offenderrace",
+          "dataset": "Hate_Crimes",
+          "column": "offenderrace",
+          "num_rows": 42,
+          "error_count": 6,
+          "expected_significant": true,
+          "predicted_significant": true,
+          "lr_ratio": 0.037037037037037035,
+          "matched_error_type": "functional_dependency"
+        },
+        {
+          "id": "Hate_Crimes::offendergender",
+          "dataset": "Hate_Crimes",
+          "column": "offendergender",
+          "num_rows": 42,
+          "error_count": 8,
+          "expected_significant": true,
+          "predicted_significant": true,
+          "lr_ratio": 0.037037037037037035,
+          "matched_error_type": "functional_dependency"
+        },
+        {
+          "id": "Hate_Crimes::offense",
+          "dataset": "Hate_Crimes",
+          "column": "offense",
+          "num_rows": 42,
+          "error_count": 3,
+          "expected_significant": true,
+          "predicted_significant": true,
+          "lr_ratio": 0.029411764705882353,
+          "matched_error_type": "functional_dependency"
+        },
+        {
+          "id": "Hate_Crimes::locationtype",
+          "dataset": "Hate_Crimes",
+          "column": "locationtype",
+          "num_rows": 42,
+          "error_count": 5,
+          "expected_significant": true,
+          "predicted_significant": true,
+          "lr_ratio": 0.03571428571428571,
+          "matched_error_type": "functional_dependency"
+        },
+        {
+          "id": "Hate_Crimes::motivation",
+          "dataset": "Hate_Crimes",
+          "column": "motivation",
+          "num_rows": 42,
+          "error_count": 7,
+          "expected_significant": true,
+          "predicted_significant": true,
+          "lr_ratio": 0.029411764705882353,
+          "matched_error_type": "functional_dependency"
+        },
+        {
+          "id": "Illicit-drug-use.g8_2014_0731_0900::sexraceethnicity",
+          "dataset": "Illicit-drug-use.g8_2014_0731_0900",
+          "column": "sexraceethnicity",
+          "num_rows": 312,
+          "error_count": 146,
+          "expected_significant": true,
+          "predicted_significant": true,
+          "lr_ratio": 0.14285714285714285,
+          "matched_error_type": "functional_dependency"
+        },
+        {
+          "id": "Illicit-drug-use.g8_2014_0731_0900::sex",
+          "dataset": "Illicit-drug-use.g8_2014_0731_0900",
+          "column": "sex",
+          "num_rows": 312,
+          "error_count": 126,
+          "expected_significant": true,
+          "predicted_significant": true,
+          "lr_ratio": 0.125,
+          "matched_error_type": "functional_dependency"
+        },
+        {
+          "id": "Illicit-drug-use.g8_2014_0731_0900::raceethnicity",
+          "dataset": "Illicit-drug-use.g8_2014_0731_0900",
+          "column": "raceethnicity",
+          "num_rows": 312,
+          "error_count": 95,
+          "expected_significant": true,
+          "predicted_significant": true,
+          "lr_ratio": 0.1111111111111111,
+          "matched_error_type": "functional_dependency"
+        },
+        {
+          "id": "Illicit-drug-use.g8_2014_0731_0900::yearvalue",
+          "dataset": "Illicit-drug-use.g8_2014_0731_0900",
+          "column": "yearvalue",
+          "num_rows": 312,
+          "error_count": 0,
+          "expected_significant": false,
+          "predicted_significant": true,
+          "lr_ratio": 0.14285714285714285,
+          "matched_error_type": "functional_dependency"
+        },
+        {
+          "id": "Illicit-drug-use.g8_2014_0731_0900::percentage",
+          "dataset": "Illicit-drug-use.g8_2014_0731_0900",
+          "column": "percentage",
+          "num_rows": 312,
+          "error_count": 0,
+          "expected_significant": false,
+          "predicted_significant": true,
+          "lr_ratio": 0.125,
+          "matched_error_type": "functional_dependency"
+        },
+        {
+          "id": "Illicit-drug-use.g8_2014_0731_0900::standarderroronpercentage",
+          "dataset": "Illicit-drug-use.g8_2014_0731_0900",
+          "column": "standarderroronpercentage",
+          "num_rows": 312,
+          "error_count": 0,
+          "expected_significant": false,
+          "predicted_significant": true,
+          "lr_ratio": 0.1111111111111111,
+          "matched_error_type": "functional_dependency"
+        },
+        {
+          "id": "Illicit-drug-use.g8_2014_0731_0900::noteonpercent",
+          "dataset": "Illicit-drug-use.g8_2014_0731_0900",
+          "column": "noteonpercent",
+          "num_rows": 312,
+          "error_count": 43,
+          "expected_significant": true,
+          "predicted_significant": false,
+          "lr_ratio": 0.5,
+          "matched_error_type": "uniqueness"
+        },
+        {
+          "id": "Pregnancy_Risk_Assessment_Monitoring_System__PRAMS_::yearvalue",
+          "dataset": "Pregnancy_Risk_Assessment_Monitoring_System__PRAMS_",
+          "column": "yearvalue",
+          "num_rows": 42,
+          "error_count": 0,
+          "expected_significant": false,
+          "predicted_significant": false,
+          "lr_ratio": 0.5,
+          "matched_error_type": "functional_dependency"
+        },
+        {
+          "id": "Pregnancy_Risk_Assessment_Monitoring_System__PRAMS_::sourcevalue",
+          "dataset": "Pregnancy_Risk_Assessment_Monitoring_System__PRAMS_",
+          "column": "sourcevalue",
+          "num_rows": 42,
+          "error_count": 2,
+          "expected_significant": true,
+          "predicted_significant": false,
+          "lr_ratio": 0.25,
+          "matched_error_type": "functional_dependency"
+        },
+        {
+          "id": "Pregnancy_Risk_Assessment_Monitoring_System__PRAMS_::question",
+          "dataset": "Pregnancy_Risk_Assessment_Monitoring_System__PRAMS_",
+          "column": "question",
+          "num_rows": 42,
+          "error_count": 1,
+          "expected_significant": true,
+          "predicted_significant": false,
+          "lr_ratio": 0.25,
+          "matched_error_type": "functional_dependency"
+        },
+        {
+          "id": "Pregnancy_Risk_Assessment_Monitoring_System__PRAMS_::prevalence",
+          "dataset": "Pregnancy_Risk_Assessment_Monitoring_System__PRAMS_",
+          "column": "prevalence",
+          "num_rows": 42,
+          "error_count": 0,
+          "expected_significant": false,
+          "predicted_significant": true,
+          "lr_ratio": 0.2,
+          "matched_error_type": "functional_dependency"
+        },
+        {
+          "id": "Pregnancy_Risk_Assessment_Monitoring_System__PRAMS_::lowerninefiveconfidenceinterval",
+          "dataset": "Pregnancy_Risk_Assessment_Monitoring_System__PRAMS_",
+          "column": "lowerninefiveconfidenceinterval",
+          "num_rows": 42,
+          "error_count": 9,
+          "expected_significant": true,
+          "predicted_significant": true,
+          "lr_ratio": 0.2,
+          "matched_error_type": "functional_dependency"
+        },
+        {
+          "id": "Pregnancy_Risk_Assessment_Monitoring_System__PRAMS_::upperninefiveconfidenceinterval",
+          "dataset": "Pregnancy_Risk_Assessment_Monitoring_System__PRAMS_",
+          "column": "upperninefiveconfidenceinterval",
+          "num_rows": 42,
+          "error_count": 0,
+          "expected_significant": false,
+          "predicted_significant": false,
+          "lr_ratio": 0.25,
+          "matched_error_type": "numeric_outlier"
+        },
+        {
+          "id": "adult-depression-lghc-indicator-24::yearvalue",
+          "dataset": "adult-depression-lghc-indicator-24",
+          "column": "yearvalue",
+          "num_rows": 161,
+          "error_count": 0,
+          "expected_significant": false,
+          "predicted_significant": false,
+          "lr_ratio": 0.5,
+          "matched_error_type": "numeric_outlier"
+        },
+        {
+          "id": "adult-depression-lghc-indicator-24::strata",
+          "dataset": "adult-depression-lghc-indicator-24",
+          "column": "strata",
+          "num_rows": 161,
+          "error_count": 0,
+          "expected_significant": false,
+          "predicted_significant": false,
+          "lr_ratio": 0.375,
+          "matched_error_type": "functional_dependency"
+        },
+        {
+          "id": "adult-depression-lghc-indicator-24::strataname",
+          "dataset": "adult-depression-lghc-indicator-24",
+          "column": "strataname",
+          "num_rows": 161,
+          "error_count": 127,
+          "expected_significant": true,
+          "predicted_significant": true,
+          "lr_ratio": 0.14285714285714285,
+          "matched_error_type": "functional_dependency"
+        },
+        {
+          "id": "adult-depression-lghc-indicator-24::frequency",
+          "dataset": "adult-depression-lghc-indicator-24",
+          "column": "frequency",
+          "num_rows": 161,
+          "error_count": 0,
+          "expected_significant": false,
+          "predicted_significant": true,
+          "lr_ratio": 0.14285714285714285,
+          "matched_error_type": "functional_dependency"
+        },
+        {
+          "id": "adult-depression-lghc-indicator-24::weightedfrequency",
+          "dataset": "adult-depression-lghc-indicator-24",
+          "column": "weightedfrequency",
+          "num_rows": 161,
+          "error_count": 0,
+          "expected_significant": false,
+          "predicted_significant": true,
+          "lr_ratio": 0.16666666666666666,
+          "matched_error_type": "functional_dependency"
+        },
+        {
+          "id": "adult-depression-lghc-indicator-24::percentvalue",
+          "dataset": "adult-depression-lghc-indicator-24",
+          "column": "percentvalue",
+          "num_rows": 161,
+          "error_count": 0,
+          "expected_significant": false,
+          "predicted_significant": true,
+          "lr_ratio": 0.18181818181818182,
+          "matched_error_type": "functional_dependency"
+        },
+        {
+          "id": "adult-depression-lghc-indicator-24::lowerninefivecl",
+          "dataset": "adult-depression-lghc-indicator-24",
+          "column": "lowerninefivecl",
+          "num_rows": 161,
+          "error_count": 0,
+          "expected_significant": false,
+          "predicted_significant": false,
+          "lr_ratio": 0.25,
+          "matched_error_type": "functional_dependency"
+        },
+        {
+          "id": "adult-depression-lghc-indicator-24::upperninefivecl",
+          "dataset": "adult-depression-lghc-indicator-24",
+          "column": "upperninefivecl",
+          "num_rows": 161,
+          "error_count": 0,
+          "expected_significant": false,
+          "predicted_significant": false,
+          "lr_ratio": 0.25,
+          "matched_error_type": "functional_dependency"
+        },
+        {
+          "id": "oklahoma-public-school-district-directory-january-2016::countyname",
+          "dataset": "oklahoma-public-school-district-directory-january-2016",
+          "column": "countyname",
+          "num_rows": 554,
+          "error_count": 68,
+          "expected_significant": true,
+          "predicted_significant": true,
+          "lr_ratio": 0.14285714285714285,
+          "matched_error_type": "functional_dependency"
+        },
+        {
+          "id": "oklahoma-public-school-district-directory-january-2016::code",
+          "dataset": "oklahoma-public-school-district-directory-january-2016",
+          "column": "code",
+          "num_rows": 554,
+          "error_count": 128,
+          "expected_significant": true,
+          "predicted_significant": true,
+          "lr_ratio": 0.07692307692307693,
+          "matched_error_type": "functional_dependency"
+        },
+        {
+          "id": "oklahoma-public-school-district-directory-january-2016::districtname",
+          "dataset": "oklahoma-public-school-district-directory-january-2016",
+          "column": "districtname",
+          "num_rows": 554,
+          "error_count": 51,
+          "expected_significant": true,
+          "predicted_significant": true,
+          "lr_ratio": 0.16666666666666666,
+          "matched_error_type": "functional_dependency"
+        },
+        {
+          "id": "oklahoma-public-school-district-directory-january-2016::city",
+          "dataset": "oklahoma-public-school-district-directory-january-2016",
+          "column": "city",
+          "num_rows": 554,
+          "error_count": 60,
+          "expected_significant": true,
+          "predicted_significant": true,
+          "lr_ratio": 0.07692307692307693,
+          "matched_error_type": "functional_dependency"
+        },
+        {
+          "id": "oklahoma-public-school-district-directory-january-2016::address",
+          "dataset": "oklahoma-public-school-district-directory-january-2016",
+          "column": "address",
+          "num_rows": 554,
+          "error_count": 71,
+          "expected_significant": true,
+          "predicted_significant": false,
+          "lr_ratio": 0.25,
+          "matched_error_type": "spelling"
+        },
+        {
+          "id": "oklahoma-public-school-district-directory-january-2016::statevalue",
+          "dataset": "oklahoma-public-school-district-directory-january-2016",
+          "column": "statevalue",
+          "num_rows": 554,
+          "error_count": 62,
+          "expected_significant": true,
+          "predicted_significant": true,
+          "lr_ratio": 0.16666666666666666,
+          "matched_error_type": "functional_dependency"
+        },
+        {
+          "id": "oklahoma-public-school-district-directory-january-2016::zip",
+          "dataset": "oklahoma-public-school-district-directory-january-2016",
+          "column": "zip",
+          "num_rows": 554,
+          "error_count": 1,
+          "expected_significant": true,
+          "predicted_significant": true,
+          "lr_ratio": 0.07692307692307693,
+          "matched_error_type": "functional_dependency"
+        },
+        {
+          "id": "oklahoma-public-school-district-directory-january-2016::phone",
+          "dataset": "oklahoma-public-school-district-directory-january-2016",
+          "column": "phone",
+          "num_rows": 554,
+          "error_count": 122,
+          "expected_significant": true,
+          "predicted_significant": true,
+          "lr_ratio": 0.07692307692307693,
+          "matched_error_type": "functional_dependency"
+        },
+        {
+          "id": "oklahoma-public-school-district-directory-january-2016::fax",
+          "dataset": "oklahoma-public-school-district-directory-january-2016",
+          "column": "fax",
+          "num_rows": 554,
+          "error_count": 64,
+          "expected_significant": true,
+          "predicted_significant": true,
+          "lr_ratio": 0.2,
+          "matched_error_type": "functional_dependency"
+        },
+        {
+          "id": "oklahoma-public-school-district-directory-january-2016::websiteurl",
+          "dataset": "oklahoma-public-school-district-directory-january-2016",
+          "column": "websiteurl",
+          "num_rows": 554,
+          "error_count": 63,
+          "expected_significant": true,
+          "predicted_significant": true,
+          "lr_ratio": 0.11764705882352941,
+          "matched_error_type": "functional_dependency"
+        },
+        {
+          "id": "oklahoma-public-school-district-directory-january-2016::superintendent",
+          "dataset": "oklahoma-public-school-district-directory-january-2016",
+          "column": "superintendent",
+          "num_rows": 554,
+          "error_count": 61,
+          "expected_significant": true,
+          "predicted_significant": true,
+          "lr_ratio": 0.07692307692307693,
+          "matched_error_type": "functional_dependency"
+        },
+        {
+          "id": "oklahoma-public-school-district-directory-january-2016::superintendentemail",
+          "dataset": "oklahoma-public-school-district-directory-january-2016",
+          "column": "superintendentemail",
+          "num_rows": 554,
+          "error_count": 60,
+          "expected_significant": true,
+          "predicted_significant": true,
+          "lr_ratio": 0.07692307692307693,
+          "matched_error_type": "functional_dependency"
+        },
+        {
+          "id": "oklahoma-public-school-district-directory-january-2016::boardpresident",
+          "dataset": "oklahoma-public-school-district-directory-january-2016",
+          "column": "boardpresident",
+          "num_rows": 554,
+          "error_count": 65,
+          "expected_significant": true,
+          "predicted_significant": true,
+          "lr_ratio": 0.07692307692307693,
+          "matched_error_type": "functional_dependency"
+        }
+      ],
+      "metrics": {
+        "overall": {
+          "n": 47,
+          "true_positive": 30,
+          "false_positive": 7,
+          "false_negative": 4,
+          "true_negative": 6,
+          "precision": 0.8108,
+          "recall": 0.8824,
+          "f1": 0.8451,
+          "accuracy": 0.766
+        },
+        "by_dataset": {
+          "Hate_Crimes": {
+            "n": 13,
+            "true_positive": 13,
+            "false_positive": 0,
+            "false_negative": 0,
+            "true_negative": 0,
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1": 1.0,
+            "accuracy": 1.0
+          },
+          "Illicit-drug-use.g8_2014_0731_0900": {
+            "n": 7,
+            "true_positive": 3,
+            "false_positive": 3,
+            "false_negative": 1,
+            "true_negative": 0,
+            "precision": 0.5,
+            "recall": 0.75,
+            "f1": 0.6,
+            "accuracy": 0.4286
+          },
+          "Pregnancy_Risk_Assessment_Monitoring_System__PRAMS_": {
+            "n": 6,
+            "true_positive": 1,
+            "false_positive": 1,
+            "false_negative": 2,
+            "true_negative": 2,
+            "precision": 0.5,
+            "recall": 0.3333,
+            "f1": 0.4,
+            "accuracy": 0.5
+          },
+          "adult-depression-lghc-indicator-24": {
+            "n": 8,
+            "true_positive": 1,
+            "false_positive": 3,
+            "false_negative": 0,
+            "true_negative": 4,
+            "precision": 0.25,
+            "recall": 1.0,
+            "f1": 0.4,
+            "accuracy": 0.625
+          },
+          "oklahoma-public-school-district-directory-january-2016": {
+            "n": 13,
+            "true_positive": 12,
+            "false_positive": 0,
+            "false_negative": 1,
+            "true_negative": 0,
+            "precision": 1.0,
+            "recall": 0.9231,
+            "f1": 0.96,
+            "accuracy": 0.9231
+          }
+        }
       },
-      "adult-depression-lghc-indicator-24": {
-        "n": 8,
-        "true_positive": 1,
-        "false_positive": 3,
-        "false_negative": 0,
-        "true_negative": 4,
-        "precision": 0.25,
-        "recall": 1.0,
-        "f1": 0.4,
-        "accuracy": 0.625
-      },
-      "oklahoma-public-school-district-directory-january-2016": {
-        "n": 13,
-        "true_positive": 12,
-        "false_positive": 0,
-        "false_negative": 1,
-        "true_negative": 0,
-        "precision": 1.0,
-        "recall": 0.9231,
-        "f1": 0.96,
-        "accuracy": 0.9231
-      }
+      "duration_seconds": null,
+      "duration_note": "Not measured in this session's environment: only JDK 21 is available, and Uni-Detect's Spark/Arrow path requires JDK 17 (see README). These precision/recall/F1/accuracy figures are reused verbatim from a prior JDK-17 run (git 8c42da0) rather than fabricated; a fresh run on JDK 17 would also fill in a real duration_seconds here."
     }
   }
 }

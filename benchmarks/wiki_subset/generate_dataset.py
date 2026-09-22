@@ -506,6 +506,7 @@ def _target(
     description: str,
     columns: list[str],
     rows: list[list],
+    injected_row_indices: list[int] | None = None,
 ) -> dict:
     return {
         "id": id_,
@@ -515,13 +516,23 @@ def _target(
         "description": description,
         "columns": columns,
         "rows": rows,
+        # 0-based row indices actually modified from a "boring"/correct
+        # value, if known -- i.e. the cell-level ground truth Raha's own
+        # evaluation needs but Uni-Detect's table-level `expected_significant`
+        # doesn't. Refers to `columns[0]` for every single-column target, and
+        # to `columns[-1]` (the FD's right-hand side -- the only side these
+        # targets ever corrupt) for the two-column functional_dependency
+        # targets. Empty for every false-positive target (nothing was
+        # injected); see run_benchmark.py's `KnownIndexLabeler` for how this
+        # is used.
+        "injected_row_indices": injected_row_indices or [],
     }
 
 
 # --- uniqueness --------------------------------------------------------
 
 
-def _uniqueness_tp(rnd: random.Random, severity: str) -> list[str]:
+def _uniqueness_tp(rnd: random.Random, severity: str) -> tuple[list[str], list[int]]:
     n = rnd.randint(110, 180)
     code_pool = ISO_CODES + IATA_CODES
     values = [f"{code_pool[i % len(code_pool)]}{i:04d}" for i in range(n)]
@@ -532,10 +543,14 @@ def _uniqueness_tp(rnd: random.Random, severity: str) -> list[str]:
     # the epsilon-budget behavior described in paper Definition 2, not just
     # the easy single-duplicate case.
     n_dupes = {"subtle": 1, "moderate": 4, "obvious": 10}[severity]
+    injected: list[int] = []
     for _ in range(n_dupes):
         i, j = rnd.sample(range(len(values)), 2)
         values[j] = values[i]
-    return values
+        # Convention (matching unidetect.metrics.uniqueness.duplicate_value_indices):
+        # the first occurrence is "correct", later ones are the error.
+        injected.append(j)
+    return values, injected
 
 
 def _uniqueness_fp_variants() -> list[dict]:
@@ -607,12 +622,16 @@ def build_uniqueness_targets() -> list[dict]:
             ),
             columns=["code"],
             rows=[[v] for v in part_no_values],
+            # The second "KV214-310B8K2" (index 4) is the duplicate; index 0
+            # (the first occurrence) is "correct" by the same convention
+            # `_uniqueness_tp` uses.
+            injected_row_indices=[4],
         )
     )
     for severity in SEVERITIES:
         for i in range(SEEDS_PER_CELL):
             rnd = random.Random(f"wiki-eval-uniqueness-tp-{severity}-{i}")
-            values = _uniqueness_tp(rnd, severity)
+            values, injected = _uniqueness_tp(rnd, severity)
             targets.append(
                 _target(
                     id_=f"uniqueness_tp_{severity}_{i:02d}",
@@ -626,6 +645,7 @@ def build_uniqueness_targets() -> list[dict]:
                     ),
                     columns=["code"],
                     rows=[[v] for v in values],
+                    injected_row_indices=injected,
                 )
             )
     return targets
@@ -634,7 +654,7 @@ def build_uniqueness_targets() -> list[dict]:
 # --- numeric_outlier -----------------------------------------------------
 
 
-def _outlier_tp(rnd: random.Random, severity: str) -> list[float]:
+def _outlier_tp(rnd: random.Random, severity: str) -> tuple[list[float], list[int]]:
     n = rnd.randint(6, 9)
     base = rnd.uniform(8000, 14000)
     spread = base * 0.06
@@ -644,7 +664,7 @@ def _outlier_tp(rnd: random.Random, severity: str) -> list[float]:
     divisor = {"subtle": 10.0, "moderate": 100.0, "obvious": 1000.0}[severity]
     idx = rnd.randrange(len(values))
     values[idx] = round(values[idx] / divisor, 3)
-    return values
+    return values, [idx]
 
 
 def _outlier_fp_variants() -> list[dict]:
@@ -697,18 +717,20 @@ def build_outlier_targets() -> list[dict]:
             ),
             columns=["population_thousands"],
             rows=[[v] for v in [8011.0, 8.716, 9954.0, 11895.0, 13329.0, 11352.0, 11709.0]],
+            injected_row_indices=[1],
         )
     )
     for severity in SEVERITIES:
         for i in range(SEEDS_PER_CELL):
             rnd = random.Random(f"wiki-eval-outlier-tp-{severity}-{i}")
-            values = _outlier_tp(rnd, severity)
+            values, injected = _outlier_tp(rnd, severity)
             targets.append(
                 _target(
                     id_=f"outlier_tp_{severity}_{i:02d}",
                     error_type="numeric_outlier",
                     expected_significant=True,
                     severity=severity,
+                    injected_row_indices=injected,
                     description=(
                         f"Population figures (thousands) with {'an' if severity == 'obvious' else 'a'} "
                         f"{severity} decimal-point error injected into one value."
@@ -733,10 +755,13 @@ def build_outlier_targets() -> list[dict]:
 _SPELLING_DISTRACTOR_DISTANCE = {"subtle": 2, "moderate": 4}
 
 
-def _spelling_tp(rnd: random.Random, severity: str) -> list[str]:
+def _spelling_tp(rnd: random.Random, severity: str) -> tuple[list[str], list[int]]:
     n = rnd.randint(6, 8)
     base_names = rnd.sample(LONG_NAMES_POOL, n)
-    # The one genuine misspelling, always present.
+    # The one genuine misspelling, always present. "Doeling" is the injected
+    # typo of the correct "Dowling" -- the paper's own convention (Section
+    # 2.1's own running example similarly treats one member of a near-dup
+    # pair as ground truth and the other as the error).
     values = [*base_names, "Kevin Doeling", "Kevin Dowling"]
     distance = _SPELLING_DISTRACTOR_DISTANCE.get(severity)
     if distance is not None:
@@ -744,7 +769,7 @@ def _spelling_tp(rnd: random.Random, severity: str) -> list[str]:
         values.append(f"{DISTRACTOR_STEM} {word_a}")
         values.append(f"{DISTRACTOR_STEM} {word_b}")
     rnd.shuffle(values)
-    return values
+    return values, [values.index("Kevin Doeling")]
 
 
 def _spelling_fp_variants() -> list[dict]:
@@ -812,18 +837,20 @@ def build_spelling_targets() -> list[dict]:
                     "Alexandra Winterbourne",
                 ]
             ],
+            injected_row_indices=[0],
         )
     )
     for severity in SEVERITIES:
         for i in range(SEEDS_PER_CELL):
             rnd = random.Random(f"wiki-eval-spelling-tp-{severity}-{i}")
-            values = _spelling_tp(rnd, severity)
+            values, injected = _spelling_tp(rnd, severity)
             targets.append(
                 _target(
                     id_=f"spelling_tp_{severity}_{i:02d}",
                     error_type="spelling",
                     expected_significant=True,
                     severity=severity,
+                    injected_row_indices=injected,
                     description=(
                         "One genuine misspelling ('Doeling' for 'Dowling') among long "
                         f"biography names, {severity} corruption"
@@ -844,7 +871,7 @@ def build_spelling_targets() -> list[dict]:
 # --- functional_dependency --------------------------------------------------
 
 
-def _fd_tp(rnd: random.Random, severity: str) -> list[list[str]]:
+def _fd_tp(rnd: random.Random, severity: str) -> tuple[list[list[str]], list[int]]:
     n = rnd.randint(100, 160)
     codes = [ISO_CODES[i % 60] for i in range(n)]
     rows = [[c, ISO_COUNTRIES[c]] for c in codes]
@@ -855,7 +882,7 @@ def _fd_tp(rnd: random.Random, severity: str) -> list[list[str]]:
     violated_idx = rnd.sample(range(n), min(n_violations, n))
     for idx in violated_idx:
         rows[idx][1] = "Nonexistent Country"
-    return rows
+    return rows, violated_idx
 
 
 def _fd_fp_variants() -> list[dict]:
@@ -912,18 +939,20 @@ def build_fd_targets() -> list[dict]:
             ),
             columns=["iso_code", "country_name"],
             rows=tp_rows,
+            injected_row_indices=[0],
         )
     )
     for severity in SEVERITIES:
         for i in range(SEEDS_PER_CELL):
             rnd = random.Random(f"wiki-eval-fd-tp-{severity}-{i}")
-            rows = _fd_tp(rnd, severity)
+            rows, injected = _fd_tp(rnd, severity)
             targets.append(
                 _target(
                     id_=f"fd_tp_{severity}_{i:02d}",
                     error_type="functional_dependency",
                     expected_significant=True,
                     severity=severity,
+                    injected_row_indices=injected,
                     description=(
                         f"ISO code -> country name table with {severity} corruption "
                         f"({ {'subtle': 1, 'moderate': 4, 'obvious': 10}[severity] } injected "

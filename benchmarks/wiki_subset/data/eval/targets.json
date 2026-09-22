@@ -312,7 +312,8 @@
       [
         "Smith"
       ]
-    ]
+    ],
+    "injected_row_indices": []
   },
   {
     "id": "uniqueness_fp_surname_pool4_00",
@@ -759,7 +760,8 @@
       [
         "Johnson"
       ]
-    ]
+    ],
+    "injected_row_indices": []
   },
   {
     "id": "uniqueness_fp_surname_pool6_01",
@@ -1236,7 +1238,8 @@
       [
         "Garcia"
       ]
-    ]
+    ],
+    "injected_row_indices": []
   },
   {
     "id": "uniqueness_fp_surname_pool8_02",
@@ -1560,7 +1563,8 @@
       [
         "Williams"
       ]
-    ]
+    ],
+    "injected_row_indices": []
   },
   {
     "id": "uniqueness_fp_surname_pool10_03",
@@ -2004,7 +2008,8 @@
       [
         "Martinez"
       ]
-    ]
+    ],
+    "injected_row_indices": []
   },
   {
     "id": "uniqueness_tp_part_number_paper_example",
@@ -2034,6 +2039,9 @@
       [
         "P1087"
       ]
+    ],
+    "injected_row_indices": [
+      4
     ]
   },
   {
@@ -2469,6 +2477,9 @@
       [
         "FRA0002"
       ]
+    ],
+    "injected_row_indices": [
+      71
     ]
   },
   {
@@ -2859,6 +2870,9 @@
       [
         "EST0084"
       ]
+    ],
+    "injected_row_indices": [
+      83
     ]
   },
   {
@@ -3249,6 +3263,9 @@
       [
         "ICN0121"
       ]
+    ],
+    "injected_row_indices": [
+      85
     ]
   },
   {
@@ -3741,6 +3758,12 @@
       [
         "SRB0090"
       ]
+    ],
+    "injected_row_indices": [
+      148,
+      140,
+      121,
+      116
     ]
   },
   {
@@ -4194,6 +4217,12 @@
       [
         "NRT0120"
       ]
+    ],
+    "injected_row_indices": [
+      38,
+      107,
+      93,
+      76
     ]
   },
   {
@@ -4626,6 +4655,12 @@
       [
         "MYS0035"
       ]
+    ],
+    "injected_row_indices": [
+      16,
+      82,
+      89,
+      113
     ]
   },
   {
@@ -4968,6 +5003,18 @@
       [
         "NOR0018"
       ]
+    ],
+    "injected_row_indices": [
+      26,
+      6,
+      16,
+      76,
+      42,
+      35,
+      38,
+      13,
+      17,
+      4
     ]
   },
   {
@@ -5328,6 +5375,18 @@
       [
         "UKR0046"
       ]
+    ],
+    "injected_row_indices": [
+      57,
+      33,
+      108,
+      87,
+      83,
+      58,
+      2,
+      65,
+      29,
+      37
     ]
   },
   {
@@ -5763,6 +5822,18 @@
       [
         "CHN0005"
       ]
+    ],
+    "injected_row_indices": [
+      43,
+      20,
+      66,
+      19,
+      37,
+      4,
+      118,
+      96,
+      132,
+      98
     ]
   },
   {
@@ -5796,7 +5867,8 @@
       [
         0.3
       ]
-    ]
+    ],
+    "injected_row_indices": []
   },
   {
     "id": "outlier_fp_election_margin18_00",
@@ -5838,7 +5910,8 @@
       [
         18.0
       ]
-    ]
+    ],
+    "injected_row_indices": []
   },
   {
     "id": "outlier_fp_election_margin28_01",
@@ -5883,7 +5956,8 @@
       [
         28.0
       ]
-    ]
+    ],
+    "injected_row_indices": []
   },
   {
     "id": "outlier_fp_election_margin38_02",
@@ -5913,7 +5987,8 @@
       [
         38.0
       ]
-    ]
+    ],
+    "injected_row_indices": []
   },
   {
     "id": "outlier_fp_election_margin52_03",
@@ -5961,7 +6036,8 @@
       [
         52.0
       ]
-    ]
+    ],
+    "injected_row_indices": []
   },
   {
     "id": "outlier_tp_population_typo_paper_example",
@@ -5994,6 +6070,9 @@
       [
         11709.0
       ]
+    ],
+    "injected_row_indices": [
+      1
     ]
   },
   {
@@ -6033,6 +6112,9 @@
       [
         8887.8
       ]
+    ],
+    "injected_row_indices": [
+      1
     ]
   },
   {
@@ -6072,6 +6154,9 @@
       [
         14246.0
       ]
+    ],
+    "injected_row_indices": [
+      0
     ]
   },
   {
@@ -6111,6 +6196,9 @@
       [
         12156.1
       ]
+    ],
+    "injected_row_indices": [
+      3
     ]
   },
   {
@@ -6144,6 +6232,9 @@
       [
         14587.8
       ]
+    ],
+    "injected_row_indices": [
+      5
     ]
   },
   {
@@ -6183,6 +6274,9 @@
       [
         9642.5
       ]
+    ],
+    "injected_row_indices": [
+      2
     ]
   },
   {
@@ -6219,6 +6313,9 @@
       [
         10121.7
       ]
+    ],
+    "injected_row_indices": [
+      6
     ]
   },
   {
@@ -6249,6 +6346,9 @@
       [
         13164.9
       ]
+    ],
+    "injected_row_indices": [
+      1
     ]
   },
   {
@@ -6282,6 +6382,9 @@
       [
         14284.7
       ]
+    ],
+    "injected_row_indices": [
+      0
     ]
   },
   {
@@ -6321,6 +6424,9 @@
       [
         10438.7
       ]
+    ],
+    "injected_row_indices": [
+      2
     ]
   },
   {
@@ -6354,7 +6460,8 @@
       [
         "Amendment XXV"
       ]
-    ]
+    ],
+    "injected_row_indices": []
   },
   {
     "id": "spelling_fp_amendments_n6_00",
@@ -6384,7 +6491,8 @@
       [
         "Amendment XXIII"
       ]
-    ]
+    ],
+    "injected_row_indices": []
   },
   {
     "id": "spelling_fp_amendments_n10_01",
@@ -6426,7 +6534,8 @@
       [
         "Amendment XXI"
       ]
-    ]
+    ],
+    "injected_row_indices": []
   },
   {
     "id": "spelling_fp_amendments_n14_02",
@@ -6480,7 +6589,8 @@
       [
         "Amendment XI"
       ]
-    ]
+    ],
+    "injected_row_indices": []
   },
   {
     "id": "spelling_fp_amendments_n20_03",
@@ -6552,7 +6662,8 @@
       [
         "Amendment XI"
       ]
-    ]
+    ],
+    "injected_row_indices": []
   },
   {
     "id": "spelling_tp_biography_typo_paper_example",
@@ -6585,6 +6696,9 @@
       [
         "Alexandra Winterbourne"
       ]
+    ],
+    "injected_row_indices": [
+      0
     ]
   },
   {
@@ -6633,6 +6747,9 @@
       [
         "Vivienne Calloway"
       ]
+    ],
+    "injected_row_indices": [
+      2
     ]
   },
   {
@@ -6675,6 +6792,9 @@
       [
         "Evangeline Whitmore"
       ]
+    ],
+    "injected_row_indices": [
+      4
     ]
   },
   {
@@ -6720,6 +6840,9 @@
       [
         "Gwendolyn Pemberton"
       ]
+    ],
+    "injected_row_indices": [
+      9
     ]
   },
   {
@@ -6768,6 +6891,9 @@
       [
         "Component zbcdezzzi"
       ]
+    ],
+    "injected_row_indices": [
+      3
     ]
   },
   {
@@ -6810,6 +6936,9 @@
       [
         "Kevin Dowling"
       ]
+    ],
+    "injected_row_indices": [
+      4
     ]
   },
   {
@@ -6855,6 +6984,9 @@
       [
         "Isabella Thorne"
       ]
+    ],
+    "injected_row_indices": [
+      5
     ]
   },
   {
@@ -6894,6 +7026,9 @@
       [
         "Ulysses Blackthorn"
       ]
+    ],
+    "injected_row_indices": [
+      1
     ]
   },
   {
@@ -6930,6 +7065,9 @@
       [
         "Dominic Fairweather"
       ]
+    ],
+    "injected_row_indices": [
+      2
     ]
   },
   {
@@ -6972,6 +7110,9 @@
       [
         "Alexander Kingsley"
       ]
+    ],
+    "injected_row_indices": [
+      0
     ]
   },
   {
@@ -7585,7 +7726,8 @@
         "179",
         "16"
       ]
-    ]
+    ],
+    "injected_row_indices": []
   },
   {
     "id": "fd_fp_unrelated_domain100_00",
@@ -8022,7 +8164,8 @@
         "18",
         "0"
       ]
-    ]
+    ],
+    "injected_row_indices": []
   },
   {
     "id": "fd_fp_unrelated_domain250_01",
@@ -8531,7 +8674,8 @@
         "105",
         "250"
       ]
-    ]
+    ],
+    "injected_row_indices": []
   },
   {
     "id": "fd_fp_unrelated_domain450_02",
@@ -8984,7 +9128,8 @@
         "260",
         "295"
       ]
-    ]
+    ],
+    "injected_row_indices": []
   },
   {
     "id": "fd_fp_unrelated_domain700_03",
@@ -9569,7 +9714,8 @@
         "29",
         "535"
       ]
-    ]
+    ],
+    "injected_row_indices": []
   },
   {
     "id": "fd_tp_country_code_violation_paper_example",
@@ -10062,6 +10208,9 @@
         "PRT",
         "Portugal"
       ]
+    ],
+    "injected_row_indices": [
+      0
     ]
   },
   {
@@ -10483,6 +10632,9 @@
         "AUT",
         "Austria"
       ]
+    ],
+    "injected_row_indices": [
+      68
     ]
   },
   {
@@ -10928,6 +11080,9 @@
         "ISR",
         "Israel"
       ]
+    ],
+    "injected_row_indices": [
+      25
     ]
   },
   {
@@ -11581,6 +11736,9 @@
         "PRT",
         "Portugal"
       ]
+    ],
+    "injected_row_indices": [
+      5
     ]
   },
   {
@@ -12142,6 +12300,12 @@
         "CHE",
         "Switzerland"
       ]
+    ],
+    "injected_row_indices": [
+      59,
+      112,
+      3,
+      128
     ]
   },
   {
@@ -12611,6 +12775,12 @@
         "NPL",
         "Nepal"
       ]
+    ],
+    "injected_row_indices": [
+      57,
+      100,
+      50,
+      37
     ]
   },
   {
@@ -13056,6 +13226,12 @@
         "ISR",
         "Israel"
       ]
+    ],
+    "injected_row_indices": [
+      99,
+      63,
+      36,
+      38
     ]
   },
   {
@@ -13641,6 +13817,18 @@
         "TUR",
         "Turkey"
       ]
+    ],
+    "injected_row_indices": [
+      63,
+      84,
+      134,
+      42,
+      67,
+      73,
+      108,
+      107,
+      72,
+      131
     ]
   },
   {
@@ -14206,6 +14394,18 @@
         "SWE",
         "Sweden"
       ]
+    ],
+    "injected_row_indices": [
+      76,
+      96,
+      34,
+      53,
+      41,
+      110,
+      121,
+      103,
+      30,
+      25
     ]
   },
   {
@@ -14843,6 +15043,18 @@
         "MYS",
         "Malaysia"
       ]
+    ],
+    "injected_row_indices": [
+      59,
+      85,
+      141,
+      34,
+      33,
+      74,
+      47,
+      103,
+      88,
+      31
     ]
   }
 ]

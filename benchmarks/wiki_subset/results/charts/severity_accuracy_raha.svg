@@ -1,0 +1,33 @@
+<svg viewBox="0 0 720 380" xmlns="http://www.w3.org/2000/svg" font-family="system-ui, -apple-system, 'Segoe UI', sans-serif" role="img" aria-label="Accuracy by corruption severity">
+<rect x="0" y="0" width="720" height="380" fill="#fcfcfb"/>
+<text x="44" y="24" font-size="15" font-weight="600" fill="#0b0b0b">Accuracy by corruption severity</text>
+<text x="44" y="40" font-size="11.5" fill="#898781">How detection holds up as injected errors get harder to spot (or, for 'clean', how often genuinely clean data is left alone)</text>
+<line x1="44" y1="324.0" x2="700" y2="324.0" stroke="#e1e0d9" stroke-width="1"/>
+<text x="36" y="327.5" font-size="10.5" fill="#898781" text-anchor="end">0.00</text>
+<line x1="44" y1="270.0" x2="700" y2="270.0" stroke="#e1e0d9" stroke-width="1"/>
+<text x="36" y="273.5" font-size="10.5" fill="#898781" text-anchor="end">0.20</text>
+<line x1="44" y1="216.0" x2="700" y2="216.0" stroke="#e1e0d9" stroke-width="1"/>
+<text x="36" y="219.5" font-size="10.5" fill="#898781" text-anchor="end">0.40</text>
+<line x1="44" y1="162.0" x2="700" y2="162.0" stroke="#e1e0d9" stroke-width="1"/>
+<text x="36" y="165.5" font-size="10.5" fill="#898781" text-anchor="end">0.60</text>
+<line x1="44" y1="108.0" x2="700" y2="108.0" stroke="#e1e0d9" stroke-width="1"/>
+<text x="36" y="111.5" font-size="10.5" fill="#898781" text-anchor="end">0.80</text>
+<line x1="44" y1="54.0" x2="700" y2="54.0" stroke="#e1e0d9" stroke-width="1"/>
+<text x="36" y="57.5" font-size="10.5" fill="#898781" text-anchor="end">1.00</text>
+<line x1="44" y1="324.0" x2="700" y2="324.0" stroke="#c3c2b7" stroke-width="1.25"/>
+<path d="M 58.432,58.0 Q 58.432,54.0 62.432,54.0 L 156.76799999999997,54.0 Q 160.76799999999997,54.0 160.76799999999997,58.0 L 160.76799999999997,324.0 L 58.432,324.0 Z" fill="#1baf7a"/>
+<text x="109.6" y="49.0" font-size="10.5" fill="#52514e" text-anchor="middle">1.00</text>
+<text x="109.6" y="342.0" font-size="11" fill="#52514e" text-anchor="middle">paper example</text>
+<path d="M 189.63199999999998,80.49100000000001 Q 189.63199999999998,76.49100000000001 193.63199999999998,76.49100000000001 L 287.96799999999996,76.49100000000001 Q 291.96799999999996,76.49100000000001 291.96799999999996,80.49100000000001 L 291.96799999999996,324.0 L 189.63199999999998,324.0 Z" fill="#1baf7a"/>
+<text x="240.8" y="71.5" font-size="10.5" fill="#52514e" text-anchor="middle">0.92</text>
+<text x="240.8" y="342.0" font-size="11" fill="#52514e" text-anchor="middle">obvious corruption</text>
+<path d="M 320.832,80.49100000000001 Q 320.832,76.49100000000001 324.832,76.49100000000001 L 419.168,76.49100000000001 Q 423.168,76.49100000000001 423.168,80.49100000000001 L 423.168,324.0 L 320.832,324.0 Z" fill="#1baf7a"/>
+<text x="372.0" y="71.5" font-size="10.5" fill="#52514e" text-anchor="middle">0.92</text>
+<text x="372.0" y="342.0" font-size="11" fill="#52514e" text-anchor="middle">moderate corruption</text>
+<path d="M 452.032,170.509 Q 452.032,166.509 456.032,166.509 L 550.3679999999999,166.509 Q 554.3679999999999,166.509 554.3679999999999,170.509 L 554.3679999999999,324.0 L 452.032,324.0 Z" fill="#1baf7a"/>
+<text x="503.2" y="161.5" font-size="10.5" fill="#52514e" text-anchor="middle">0.58</text>
+<text x="503.2" y="342.0" font-size="11" fill="#52514e" text-anchor="middle">subtle corruption</text>
+<path d="M 583.232,58.0 Q 583.232,54.0 587.232,54.0 L 681.568,54.0 Q 685.568,54.0 685.568,58.0 L 685.568,324.0 L 583.232,324.0 Z" fill="#1baf7a"/>
+<text x="634.4" y="49.0" font-size="10.5" fill="#52514e" text-anchor="middle">1.00</text>
+<text x="634.4" y="342.0" font-size="11" fill="#52514e" text-anchor="middle">clean (no injection)</text>
+</svg>
