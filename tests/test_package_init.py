@@ -13,6 +13,13 @@ def test_lazy_import_resolves_unidetect_class():
     assert unidetect.UniDetect is UniDetect
 
 
+def test_lazy_import_resolves_algorithm_registry_functions():
+    from unidetect.algorithms import get_algorithm, list_algorithms
+
+    assert unidetect.get_algorithm is get_algorithm
+    assert unidetect.list_algorithms is list_algorithms
+
+
 def test_lazy_import_raises_for_unknown_attribute():
     with pytest.raises(AttributeError, match="unknown_attribute"):
         _ = unidetect.unknown_attribute

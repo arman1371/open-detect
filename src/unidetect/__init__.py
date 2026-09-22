@@ -1,10 +1,21 @@
-"""Uni-Detect: a unified, corpus-driven framework for automated error detection in tables.
+"""unidetect: a library of pluggable, paper-backed error detection algorithms.
 
-Implementation of:
-    Pei Wang and Yeye He. "Uni-Detect: A Unified Approach to Automated Error
-    Detection in Tables." SIGMOD 2019.
+Multiple table error-detection algorithms live side by side here, each in its
+own subpackage under ``unidetect.algorithms``, sharing a common result
+contract (:class:`~unidetect.algorithms.base.AlgorithmResult`) so they can be
+selected, compared, or extended uniformly:
 
-The public entry point is :class:`unidetect.pipeline.UniDetect`.
+- **Uni-Detect** (Wang & He, SIGMOD 2019) -- corpus-driven, Spark/Unity
+  Catalog-native. See :class:`unidetect.pipeline.UniDetect`.
+- **Raha** (Mahdavi et al., SIGMOD 2019) -- semi-supervised, single-table,
+  pandas-native. See :class:`unidetect.algorithms.raha.RahaDetector`.
+
+>>> from unidetect.algorithms import get_algorithm
+>>> raha = get_algorithm("raha")
+>>> result = raha.detect(my_dataframe, table_id="orders")
+
+Third-party algorithms can register themselves via the ``unidetect.algorithms``
+entry-point group -- see :mod:`unidetect.algorithms.registry`.
 """
 
 from unidetect.config import UniDetectConfig, UnityCatalogLocation
@@ -21,18 +32,26 @@ __all__ = [
     "MetricObservation",
     "UniDetectConfig",
     "UnityCatalogLocation",
+    "UniDetect",
+    "get_algorithm",
+    "list_algorithms",
 ]
 
-__version__ = "0.1.0"
+__version__ = "0.2.0"
 
 
 def __getattr__(name: str):
-    # Lazy import: unidetect.pipeline.UniDetect requires pyspark, which is an
-    # optional dependency (the pure-Python metrics/featurization modules do
-    # not). Importing it eagerly here would break `import unidetect` for
-    # users who only need the metric functions.
+    # Lazy imports: unidetect.pipeline.UniDetect requires pyspark and
+    # unidetect.algorithms.raha requires scikit-learn, both optional
+    # dependencies the pure-Python core (metrics/featurization/enums) does
+    # not need. Importing either eagerly here would break `import unidetect`
+    # for users who only need one algorithm, or neither.
     if name == "UniDetect":
         from unidetect.pipeline import UniDetect
 
         return UniDetect
+    if name in ("get_algorithm", "list_algorithms"):
+        from unidetect import algorithms
+
+        return getattr(algorithms, name)
     raise AttributeError(f"module {__name__!r} has no attribute {name!r}")

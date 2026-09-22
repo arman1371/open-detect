@@ -1,33 +1,30 @@
-# Uni-Detect
+# unidetect
 
-A production Databricks / Unity Catalog implementation of **Uni-Detect**, the
-unified, corpus-driven error-detection framework from:
+A library of pluggable, paper-backed **error detection algorithms** for
+tabular data. Each algorithm is a faithful implementation of a published
+error-detection paper, registered under a short name so you can pick one (or
+run several and compare) without learning a new API per paper:
 
-> Pei Wang and Yeye He. *Uni-Detect: A Unified Approach to Automated Error
-> Detection in Tables.* SIGMOD 2019.
-> https://doi.org/10.1145/3299869.3319855
+| Algorithm | Paper | Operating model |
+|---|---|---|
+| `uni_detect` | Wang & He, *Uni-Detect*, SIGMOD 2019 | Corpus-driven, unsupervised, Spark/Unity Catalog-native |
+| `raha` | Mahdavi et al., *Raha*, SIGMOD 2019 | Semi-supervised (≤20 labels), single-table, pandas-native |
 
-Uni-Detect finds **uniqueness-constraint violations, functional-dependency
-violations, numeric outliers, and spelling mistakes** in tables without any
-per-table configuration: no hand-tuned thresholds, no declared constraints,
-no labeled training data. Instead, it reasons statistically against a large
-background corpus of tables using a **"what-if" perturbation test**: would a
-small, hypothetical edit make this table look a lot more like the rest of
-the world's tables? If so, that edit points at a likely error.
+```python
+from unidetect.algorithms import get_algorithm
 
-This repository turns the paper's method into a library you can run against
-tables already registered in **Unity Catalog**, using **Spark/Delta Lake**
-as the compute and storage layer, in two phases:
+raha = get_algorithm("raha")
+result = raha.detect(my_dataframe, table_id="orders")
+result.errors()  # every cell either algorithm calls dirty, in one common schema
+```
 
-1. **Offline** — `UniDetect.build_corpus_statistics(...)` scans a background
-   corpus (by default, "every table this catalog already governs") and
-   materializes a small Delta table of corpus statistics.
-2. **Online** — `UniDetect.detect(...)` scores any target table(s) against
-   those statistics and returns a ranked, explainable list of likely errors,
-   fast enough for interactive or per-scan use.
-
-See [`ARCHITECTURE.md`](ARCHITECTURE.md) for how each part of the paper maps
-onto the code.
+Both algorithms return the same `AlgorithmResult` (see
+[`unidetect/algorithms/base.py`](src/unidetect/algorithms/base.py)), so
+results are comparable and unionable regardless of which algorithm produced
+them, even though the two papers' underlying methods have nothing in common.
+See [`ARCHITECTURE.md`](ARCHITECTURE.md) for how each part of each paper maps
+onto the code, and [Adding a new algorithm](#adding-a-new-algorithm) below
+for how a third algorithm plugs in.
 
 ## Install
 
@@ -40,7 +37,26 @@ uv sync       # local development, including pyspark + delta-spark for tests
 pip install unidetect
 ```
 
-## Quickstart
+## Uni-Detect (Wang & He, SIGMOD 2019)
+
+Uni-Detect finds **uniqueness-constraint violations, functional-dependency
+violations, numeric outliers, and spelling mistakes** in tables without any
+per-table configuration: no hand-tuned thresholds, no declared constraints,
+no labeled training data. Instead, it reasons statistically against a large
+background corpus of tables using a **"what-if" perturbation test**: would a
+small, hypothetical edit make this table look a lot more like the rest of
+the world's tables? If so, that edit points at a likely error. It runs
+against tables already registered in **Unity Catalog**, using **Spark/Delta
+Lake** as the compute and storage layer, in two phases:
+
+1. **Offline** — `UniDetect.build_corpus_statistics(...)` scans a background
+   corpus (by default, "every table this catalog already governs") and
+   materializes a small Delta table of corpus statistics.
+2. **Online** — `UniDetect.detect(...)` scores any target table(s) against
+   those statistics and returns a ranked, explainable list of likely errors,
+   fast enough for interactive or per-scan use.
+
+### Quickstart
 
 ```python
 from unidetect import UniDetectConfig, UnityCatalogLocation
@@ -73,7 +89,7 @@ Each row of `detections` carries:
 | `support` | how many corpus rows the ratio was estimated from |
 | `evidence_json` | type-specific explanation (offending value pair, duplicate values, outlier value, violating rows) |
 
-## Running the detectors as Databricks Jobs
+### Running the detectors as Databricks Jobs
 
 `databricks.yml` defines two [Databricks Asset Bundle](https://docs.databricks.com/en/dev-tools/bundles/)
 jobs:
@@ -90,7 +106,7 @@ databricks bundle run run_detection_job -t dev -- --target-tables main.sales.ord
 Or run the equivalent notebooks interactively: `notebooks/01_build_corpus_statistics.py`
 and `notebooks/02_run_detection.py`.
 
-## What "the corpus" means here
+### What "the corpus" means here
 
 The paper's corpus `T` is 100M+ web tables. The natural Unity Catalog
 analogue — and the one this library targets — is **the set of tables an
@@ -100,7 +116,7 @@ of governed tables spanning many domains, which plays the same statistical
 role: a large background sample of "what clean tables look like" to reason
 against. See `unidetect/catalog.py::list_tables_matching`.
 
-## Design
+### Uni-Detect design
 
 - `unidetect.metrics` — the four pure-Python/NumPy metric functions (`UR`,
   `max-MAD`, `MPD`, `FR`), independently unit-tested against the paper's own
@@ -118,6 +134,83 @@ against. See `unidetect/catalog.py::list_tables_matching`.
   method (`BaseDetector.detect`) that wires metric → perturbation →
   featurization → corpus lookup → ranked, explainable output.
 - `unidetect.pipeline.UniDetect` — the public facade.
+
+## Raha (Mahdavi et al., SIGMOD 2019)
+
+Raha is **semi-supervised and single-table**: it needs no background corpus,
+just the dirty table itself and a small labeling budget (≤20 tuples by
+default). It runs an ensemble of error-detection *strategies* (outlier
+detection, pattern violation, rule/FD violation) at many parameter settings
+to build a feature vector per cell, clusters cells of each column by feature
+similarity, samples one tuple per iteration for labeling, propagates that
+label through its cluster, and trains one classifier per column to predict
+the rest.
+
+```bash
+pip install "unidetect[raha]"   # adds scikit-learn + scipy
+```
+
+```python
+import pandas as pd
+from unidetect.algorithms.raha import RahaConfig, RahaDetector, GroundTruthLabeler
+
+dirty = pd.read_csv("dirty.csv")
+detector = RahaDetector(RahaConfig(labeling_budget=20))
+
+# Any Labeler answers "is this cell dirty?" for the tuples Raha samples.
+# GroundTruthLabeler is for evaluation, when a clean reference is available:
+labeler = GroundTruthLabeler(pd.read_csv("clean.csv"))
+# For a real, unlabeled dataset, wire up a person instead:
+#   labeler = CallableLabeler(lambda df, row: ask_a_human(df.loc[row]))
+
+result = detector.detect(dirty, table_id="my_table", labeler=labeler)
+for cell in result.errors():
+    print(cell.table_id, cell.row_index, cell.column_name, cell.score)
+```
+
+Omit `labeler` to fall back to `HeuristicLabeler`, a no-human default that
+lets the pipeline run end-to-end with zero interaction (see its docstring
+for why this is strictly weaker than a real label).
+
+### Raha design
+
+- `unidetect.algorithms.raha.strategies` — the outlier/pattern/rule
+  detection strategy families (Section 4.1), each a parameter grid of
+  strategy functions.
+- `unidetect.algorithms.raha.features` — assembles each column's feature
+  matrix `V_j` from every strategy (Section 4.2).
+- `unidetect.algorithms.raha.clustering` — hierarchical agglomerative
+  clustering per column plus the softmax tuple sampler (Section 4.3,
+  Equation 3).
+- `unidetect.algorithms.raha.labeling` — the pluggable `Labeler` interface,
+  and cluster-based label propagation with homogeneity/majority conflict
+  resolution (Section 4.4).
+- `unidetect.algorithms.raha.classifier` — per-column classifier training +
+  prediction (Section 4.4).
+- `unidetect.algorithms.raha.detector.RahaDetector` — Algorithm 1
+  end-to-end, registered as `"raha"`.
+
+Not implemented: knowledge-base violation detection (needs a live external
+KB like DBpedia — out of scope for a library meant to run offline/on private
+data) and the historical strategy-filtering runtime optimization (Section 5,
+an optional speed-up, not part of the core detection result). Both are
+documented as scope decisions in the relevant module docstrings.
+
+## Adding a new algorithm
+
+`unidetect.algorithms` is a registry (`unidetect/algorithms/registry.py`):
+implement `ErrorDetectionAlgorithm` (`unidetect/algorithms/base.py`),
+returning results as `AlgorithmResult`, then either register it in-tree
+(`register_lazy("my_algo", ...)`) or, for an out-of-tree package, declare it
+as an entry point:
+
+```toml
+[project.entry-points."unidetect.algorithms"]
+my_algorithm = "my_package.module:MyAlgorithmClass"
+```
+
+Installing that package makes `"my_algorithm"` show up in
+`list_algorithms()` automatically — no changes to this repository required.
 
 ## Testing
 
@@ -150,14 +243,22 @@ the baseline.
 
 ## Fidelity notes
 
-Two places in the published paper have PDF-extraction artifacts (a dropped
-comparison operator in the FD formula, in both the paper's own metric
-definition and the `Conforming-pair-ratio` baseline it's compared against —
-a common casualty of academic-PDF math extraction). Where this happens, this
-implementation uses the standard, well-established literature definition
-consistent with the paper's own stated intuition and worked example; the
-exact convention chosen is documented in the relevant module's docstring
-(see `unidetect/metrics/functional_dependency.py`).
+**Uni-Detect.** Two places in the published paper have PDF-extraction
+artifacts (a dropped comparison operator in the FD formula, in both the
+paper's own metric definition and the `Conforming-pair-ratio` baseline it's
+compared against — a common casualty of academic-PDF math extraction). Where
+this happens, this implementation uses the standard, well-established
+literature definition consistent with the paper's own stated intuition and
+worked example; the exact convention chosen is documented in the relevant
+module's docstring (see `unidetect/metrics/functional_dependency.py`).
+
+**Raha.** The histogram outlier strategy's published normalization formula
+has the same kind of extraction artifact; the natural reading (relative
+value frequency) is the one that reproduces the paper's own worked example
+exactly, and is what this implementation uses (see
+`unidetect/algorithms/raha/strategies.py`). Knowledge-base violation
+detection and historical strategy filtering (Sections 2.2 and 5) are out of
+scope, as documented in the Raha design section above.
 
 ## License
 

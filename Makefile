@@ -20,7 +20,7 @@ test:
 	uv run pytest
 
 test-fast:
-	uv run pytest tests/test_metrics.py tests/test_perturbation.py tests/test_featurization.py tests/test_config.py tests/test_text_utils.py tests/test_core_models.py tests/test_strategies.py tests/test_logging_utils.py tests/test_exceptions.py tests/test_catalog.py tests/test_spark_utils.py tests/test_run_detection_job.py tests/test_build_corpus_statistics_job.py tests/test_corpus_builder_helpers.py
+	uv run pytest tests/test_metrics.py tests/test_perturbation.py tests/test_featurization.py tests/test_config.py tests/test_text_utils.py tests/test_core_models.py tests/test_strategies.py tests/test_logging_utils.py tests/test_exceptions.py tests/test_catalog.py tests/test_spark_utils.py tests/test_run_detection_job.py tests/test_build_corpus_statistics_job.py tests/test_corpus_builder_helpers.py tests/test_algorithms_registry.py tests/test_uni_detect_algorithm.py tests/test_raha_strategies.py tests/test_raha_features.py tests/test_raha_clustering.py tests/test_raha_labeling.py tests/test_raha_classifier.py tests/test_raha_detector.py tests/test_package_init.py
 
 cov:
 	uv run pytest --cov=unidetect --cov-report=term-missing --cov-report=html
