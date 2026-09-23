@@ -5,7 +5,7 @@ on:
 
 jobs:
   wiki-subset:
-    runs-on: [self-hosted, Linux, X64]
+    runs-on: ubuntu-latest
     env:
       UV_PYTHON: "3.11"
     steps:
@@ -36,7 +36,7 @@ jobs:
           retention-days: 90
 
   real-world-gov:
-    runs-on: [self-hosted, Linux, X64]
+    runs-on: ubuntu-latest
     env:
       UV_PYTHON: "3.11"
     steps:

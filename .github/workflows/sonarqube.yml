@@ -13,7 +13,7 @@ concurrency:
 jobs:
   sonarqube:
     name: SonarQube Quality Gate
-    runs-on: [self-hosted, Linux, X64]
+    runs-on: ubuntu-latest
     env:
       UV_PYTHON: "3.11"
     steps:
