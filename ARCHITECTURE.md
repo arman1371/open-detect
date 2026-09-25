@@ -276,12 +276,16 @@ which a real scikit-learn classifier can fit) fall back to the labeled
 rows' majority vote rather than raising.
 
 `RahaDetector.detect` then assembles the final `AlgorithmResult`: a directly
-labeled or propagated cell keeps that exact label (`score` 1.0/0.0), while
-every other cell gets the classifier's prediction and probability, each
-tagged with `evidence.source` (`"user_label"` / `"propagated"` /
-`"classifier"`) and `evidence.fired_strategies` (which strategies flagged
-that specific cell) for explainability, in the same spirit as Uni-Detect's
-`evidence_json` (Section 7 above).
+user-labeled cell keeps that exact label (`score` 1.0/0.0); every other
+cell -- including propagated-only ones -- gets the classifier's prediction
+and probability over the *full* column matrix (`train_and_predict` predicts
+every row, not just the unlabeled ones). Propagated labels are training
+signal for `m_j` only, per Section 4.4 (`L' = {user labels} U {propagated}`
+is the training set, not re-emitted output) -- they are never emitted
+verbatim as a cell's result. Each cell is tagged with `evidence.source`
+(`"user_label"` / `"classifier"`) and `evidence.fired_strategies` (which
+strategies flagged that specific cell) for explainability, in the same
+spirit as Uni-Detect's `evidence_json` (Section 7 above).
 
 ## 12. Deviations from a literal reading of the paper, and why
 

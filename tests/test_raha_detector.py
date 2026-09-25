@@ -65,6 +65,27 @@ def test_runs_end_to_end_with_default_heuristic_labeler():
         assert 0.0 <= cell.score <= 1.0
 
 
+def test_propagated_only_cells_emit_classifier_source_not_propagated():
+    # A budget smaller than the table guarantees some cells are resolved
+    # only by cluster propagation (never directly labeled). Per the paper
+    # (Section 4.4), propagation output is training signal for the
+    # per-column classifier, not a scored result in its own right -- so no
+    # cell should ever surface evidence.source == "propagated".
+    config = RahaConfig(labeling_budget=2, random_state=0)
+    detector = RahaDetector(config)
+    labeler = GroundTruthLabeler(CLEAN)
+
+    result = detector.detect(DIRTY, table_id="lotr", labeler=labeler)
+
+    sources = {c.evidence["source"] for c in result}
+    assert "propagated" not in sources
+    assert sources <= {"user_label", "classifier"}
+    # With only 2 of 6 rows directly labeled, most cells must have fallen
+    # through to the classifier tier -- otherwise this test would not be
+    # exercising the propagated-only path at all.
+    assert "classifier" in sources
+
+
 def test_result_to_pandas_matches_shared_schema():
     detector = RahaDetector(RahaConfig(labeling_budget=6, random_state=0))
     result = detector.detect(DIRTY, table_id="lotr", labeler=GroundTruthLabeler(CLEAN))
