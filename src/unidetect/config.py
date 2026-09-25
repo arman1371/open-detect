@@ -51,10 +51,20 @@ class UniDetectConfig:
         detection-result tables live.
     epsilon:
         Maximum perturbation size, expressed as a *fraction* of rows
-        (``0 < epsilon <= 1``) for row-level error types (FD), or interpreted
-        as "drop at most one offending value/row" for the column-level types
-        (uniqueness, outliers, spelling), consistent with the paper's
-        single-perturbation worked examples. See Definition 2.
+        (``0 < epsilon <= 1``). See Definition 2. Honored differently per
+        error type:
+
+        - FD and uniqueness: fraction-based, multi-drop. Up to
+          ``max(1, ceil(epsilon * n))`` rows/values are removed (see
+          ``perturbation._max_drop``). At the default ``epsilon=0.01``, a
+          uniqueness column with >= 100 rows can drop more than one
+          duplicate value.
+        - outliers and spelling: ``epsilon`` is accepted for interface
+          uniformity but currently has no effect. Both always drop exactly
+          one value (the single most outlying value by MAD-score, or one
+          value from the closest edit-distance pair), matching the paper's
+          single-perturbation worked examples for these two error types
+          (Sections 3.1/3.2).
     alpha:
         Significance level for the likelihood-ratio test (Definition 3). A
         candidate is flagged when ``lr_ratio <= alpha``.
