@@ -117,10 +117,6 @@ class RahaDetector(ErrorDetectionAlgorithm):
                         source = "user_label"
                         is_error = per_column_labels[col][position]
                         score = 1.0 if is_error else 0.0
-                    elif position in propagated:
-                        source = "propagated"
-                        is_error = propagated[position]
-                        score = 1.0 if is_error else 0.0
                     else:
                         source = "classifier"
                         is_error = bool(predictions.is_error[position])
