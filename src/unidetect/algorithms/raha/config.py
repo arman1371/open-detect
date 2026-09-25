@@ -22,11 +22,21 @@ DEFAULT_TF_THRESHOLDS: tuple[float, ...] = (0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0
 DEFAULT_DIST_THRESHOLDS: tuple[float, ...] = (1, 1.3, 1.5, 1.7, 2, 2.3, 2.5, 2.7, 3)
 
 
-def _default_classifier_factory() -> ClassifierMixin:
+def _default_classifier_factory(random_state: int) -> ClassifierMixin:
     """The paper's default classifier (Section 6.1: "We use Gradient Boosting")."""
     from sklearn.ensemble import GradientBoostingClassifier
 
-    return GradientBoostingClassifier()
+    return GradientBoostingClassifier(random_state=random_state)
+
+
+def _unbound_default_classifier_factory() -> ClassifierMixin:
+    """Sentinel ``classifier_factory`` default, replaced in ``__post_init__``.
+
+    A dataclass ``default_factory`` can't see sibling fields, so it can't
+    seed the classifier with ``random_state`` directly -- ``__post_init__``
+    swaps this placeholder out for a seeded closure. Never called itself.
+    """
+    raise AssertionError("unreachable: RahaConfig.__post_init__ always replaces this")
 
 
 @dataclass(frozen=True)
@@ -57,10 +67,14 @@ class RahaConfig:
     classifier_factory:
         Zero-argument callable returning a fresh, unfitted scikit-learn
         classifier, called once per column. Defaults to
-        ``GradientBoostingClassifier``, the paper's own default.
+        ``GradientBoostingClassifier(random_state=random_state)``, the
+        paper's own default classifier, seeded per below.
     random_state:
-        Seeds clustering and the probabilistic tuple sampler (Equation 3) for
-        reproducible runs.
+        Seeds clustering, the probabilistic tuple sampler (Equation 3), and
+        -- when ``classifier_factory`` is left at its default -- the
+        classifier itself, for reproducible runs. A custom
+        ``classifier_factory`` is responsible for its own seeding; this
+        value is not threaded into it.
     """
 
     labeling_budget: int = 20
@@ -69,11 +83,18 @@ class RahaConfig:
     conflict_resolution: str = "majority"
     max_pattern_characters: int = 128
     classifier_factory: Callable[[], ClassifierMixin] = field(
-        default_factory=lambda: _default_classifier_factory
+        default_factory=lambda: _unbound_default_classifier_factory
     )
     random_state: int = 0
 
     def __post_init__(self) -> None:
+        if self.classifier_factory is _unbound_default_classifier_factory:
+            random_state = self.random_state
+            object.__setattr__(
+                self,
+                "classifier_factory",
+                lambda: _default_classifier_factory(random_state),
+            )
         if self.labeling_budget < 1:
             raise ConfigurationError(f"labeling_budget must be >= 1, got {self.labeling_budget}")
         if not self.tf_thresholds or any(not 0 < t < 1 for t in self.tf_thresholds):
