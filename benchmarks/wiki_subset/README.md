@@ -238,31 +238,30 @@ results rather than failing the whole run. GitHub Actions runs this under
 JDK 17 (see `.github/workflows/benchmark.yml`).
 
 > **Provenance of the currently checked-in `baseline.json`/`REPORT.md`:**
-> `uni_detect`'s numbers were produced in an environment (this dataset's own
-> redesign) that only had JDK 21 available, and (as above) PySpark 3.5's
-> bundled Arrow cannot be made to work there -- confirmed by direct
-> reproduction, not just the JDK-version check. Those numbers were instead
-> produced by a pure-Python harness that calls the exact same production
-> `unidetect.metrics` / `unidetect.perturbation` / `unidetect.featurization`
-> functions the real detectors call, and replicates
-> `corpus/store.py::batch_score`'s join-plus-conditional-count formula
-> verbatim in pandas (`algorithms.uni_detect.generation_method` in
-> `baseline.json` records this). That harness was cross-checked against the
-> *previous* dataset's Spark-produced `baseline.json` first and reproduced
-> every `lr_ratio` exactly before being trusted for this one; it is not part
-> of the checked-in benchmark tooling. Treat those figures as
-> believed-correct but pending confirmation from an actual
-> `uv run python benchmarks/wiki_subset/run_benchmark.py --update-baseline`
-> run on JDK 17 (e.g. via the `Benchmark` GitHub Actions workflow) before
-> leaning on them for a real version-over-version comparison. Because that
-> environment constraint (JDK 21 only) still held when `raha` was added,
-> `uni_detect`'s `targets`/`metrics` in the current `baseline.json` are those
-> same already-computed figures reused verbatim (not re-run), and its
-> `duration_seconds` is `null` -- a real Uni-Detect duration needs an actual
-> JDK 17 run, same as its targets/metrics do. `raha`'s figures, including
-> its `duration_seconds`, come from a genuine `run_raha()` call in that same
-> JDK-21-only environment -- Raha has no JDK dependency, so nothing about it
-> was approximated.
+> both algorithms' figures now come from a single genuine
+> `uv run python benchmarks/wiki_subset/run_benchmark.py` run on **JDK 17**
+> (Temurin 17.0.20.1, Python 3.11, PySpark 3.5.9 resolved from the committed
+> `uv.lock`), against `main` at commit `5d5c2f2`. `uni_detect` therefore
+> exercised the real Spark/Delta path end to end, and its `duration_seconds`
+> is a real measured duration (~1028s) rather than `null`.
+>
+> This replaces an earlier, explicitly-provisional state worth recording
+> because it is why some `uni_detect` numbers moved without any Uni-Detect
+> code changing: until this refresh, `uni_detect`'s `targets`/`metrics` had
+> never been produced by Spark at all. They came from a benchmarks-internal
+> pure-Python harness (recorded at the time in
+> `algorithms.uni_detect.generation_method`), used because that environment
+> only had JDK 21, where PySpark 3.5's bundled Arrow cannot be made to work.
+> That harness called the same production `unidetect.metrics` /
+> `unidetect.perturbation` / `unidetect.featurization` functions and
+> replicated `corpus/store.py::batch_score`'s join-plus-conditional-count
+> formula in pandas, and it was close -- but not exact: the real Spark run
+> moved pooled `uni_detect` F1 from 0.7848 to 0.8052 (`uniqueness` 0.7368 ->
+> 0.8235). Treat any pre-`5d5c2f2` `uni_detect` figure in this file's history
+> as a simulator preview, not a Spark measurement.
+>
+> `raha`'s figures, then and now, come from a genuine `run_raha()` call --
+> Raha has no JDK dependency, so nothing about it was ever approximated.
 
 ## Comparing across versions
 

@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-09-22T12:14:09.629140+00:00",
-  "git_commit": "61f6703",
+  "generated_at": "2026-09-25T23:20:31.561347+00:00",
+  "git_commit": "5d5c2f2",
   "dataset": "wiki_subset",
   "algorithms": {
     "raha": {
@@ -666,25 +666,25 @@
         "overall": {
           "n": 5983,
           "true_positive": 70,
-          "false_positive": 91,
+          "false_positive": 90,
           "false_negative": 42,
-          "true_negative": 5780,
-          "precision": 0.4348,
+          "true_negative": 5781,
+          "precision": 0.4375,
           "recall": 0.625,
-          "f1": 0.5128,
-          "accuracy": 0.9778
+          "f1": 0.5147,
+          "accuracy": 0.9779
         },
         "by_error_type": {
           "uniqueness": {
             "n": 1862,
             "true_positive": 16,
-            "false_positive": 76,
+            "false_positive": 75,
             "false_negative": 30,
-            "true_negative": 1740,
-            "precision": 0.1739,
+            "true_negative": 1741,
+            "precision": 0.1758,
             "recall": 0.3478,
-            "f1": 0.2319,
-            "accuracy": 0.9431
+            "f1": 0.2336,
+            "accuracy": 0.9436
           },
           "numeric_outlier": {
             "n": 126,
@@ -746,13 +746,13 @@
           "moderate": {
             "n": 1222,
             "true_positive": 21,
-            "false_positive": 28,
+            "false_positive": 27,
             "false_negative": 9,
-            "true_negative": 1164,
-            "precision": 0.4286,
+            "true_negative": 1165,
+            "precision": 0.4375,
             "recall": 0.7,
-            "f1": 0.5316,
-            "accuracy": 0.9697
+            "f1": 0.5385,
+            "accuracy": 0.9705
           },
           "subtle": {
             "n": 1193,
@@ -778,7 +778,7 @@
           }
         }
       },
-      "duration_seconds": 3.1089790940000057,
+      "duration_seconds": 4.593040267000106,
       "duration_note": null
     },
     "uni_detect": {
@@ -816,8 +816,8 @@
           "severity": "clean",
           "description": "A 'notable people' list drawn from only 8 common surnames -- natural collisions expected, not a data error.",
           "expected_significant": false,
-          "predicted_significant": true,
-          "lr_ratio": 0.111111
+          "predicted_significant": false,
+          "lr_ratio": 1.0
         },
         {
           "id": "uniqueness_fp_surname_pool10_03",
@@ -825,8 +825,8 @@
           "severity": "clean",
           "description": "A 'notable people' list drawn from only 10 common surnames -- natural collisions expected, not a data error.",
           "expected_significant": false,
-          "predicted_significant": true,
-          "lr_ratio": 0.2
+          "predicted_significant": false,
+          "lr_ratio": 1.0
         },
         {
           "id": "uniqueness_tp_part_number_paper_example",
@@ -835,7 +835,7 @@
           "description": "Paper Figure 6-style: a 'Part No.' column with one exact duplicate alphanumeric code -- codes like this are expected to always be unique.",
           "expected_significant": true,
           "predicted_significant": true,
-          "lr_ratio": 0.166667
+          "lr_ratio": 0.16666666666666666
         },
         {
           "id": "uniqueness_tp_subtle_00",
@@ -844,7 +844,7 @@
           "description": "An airport/ISO-code-style ID column (subtle corruption: 1 injected duplicate(s)) -- codes like this are expected to always be unique.",
           "expected_significant": true,
           "predicted_significant": true,
-          "lr_ratio": 0.083333
+          "lr_ratio": 0.08333333333333333
         },
         {
           "id": "uniqueness_tp_subtle_01",
@@ -853,7 +853,7 @@
           "description": "An airport/ISO-code-style ID column (subtle corruption: 1 injected duplicate(s)) -- codes like this are expected to always be unique.",
           "expected_significant": true,
           "predicted_significant": true,
-          "lr_ratio": 0.083333
+          "lr_ratio": 0.08333333333333333
         },
         {
           "id": "uniqueness_tp_subtle_02",
@@ -862,7 +862,7 @@
           "description": "An airport/ISO-code-style ID column (subtle corruption: 1 injected duplicate(s)) -- codes like this are expected to always be unique.",
           "expected_significant": true,
           "predicted_significant": true,
-          "lr_ratio": 0.083333
+          "lr_ratio": 0.08333333333333333
         },
         {
           "id": "uniqueness_tp_moderate_00",
@@ -871,7 +871,7 @@
           "description": "An airport/ISO-code-style ID column (moderate corruption: 4 injected duplicate(s)) -- codes like this are expected to always be unique.",
           "expected_significant": true,
           "predicted_significant": true,
-          "lr_ratio": 0.083333
+          "lr_ratio": 0.08333333333333333
         },
         {
           "id": "uniqueness_tp_moderate_01",
@@ -880,7 +880,7 @@
           "description": "An airport/ISO-code-style ID column (moderate corruption: 4 injected duplicate(s)) -- codes like this are expected to always be unique.",
           "expected_significant": true,
           "predicted_significant": true,
-          "lr_ratio": 0.083333
+          "lr_ratio": 0.08333333333333333
         },
         {
           "id": "uniqueness_tp_moderate_02",
@@ -889,7 +889,7 @@
           "description": "An airport/ISO-code-style ID column (moderate corruption: 4 injected duplicate(s)) -- codes like this are expected to always be unique.",
           "expected_significant": true,
           "predicted_significant": true,
-          "lr_ratio": 0.083333
+          "lr_ratio": 0.08333333333333333
         },
         {
           "id": "uniqueness_tp_obvious_00",
@@ -925,7 +925,7 @@
           "description": "Election vote shares: many small candidates plus one legitimately larger winner (paper's own 'C-' false-positive worked example).",
           "expected_significant": false,
           "predicted_significant": false,
-          "lr_ratio": 0.833333
+          "lr_ratio": 0.8333333333333334
         },
         {
           "id": "outlier_fp_election_margin18_00",
@@ -952,7 +952,7 @@
           "description": "Election vote shares with a legitimate ~38% winner among many small candidates -- not a data error.",
           "expected_significant": false,
           "predicted_significant": true,
-          "lr_ratio": 0.052632
+          "lr_ratio": 0.05263157894736842
         },
         {
           "id": "outlier_fp_election_margin52_03",
@@ -961,7 +961,7 @@
           "description": "Election vote shares with a legitimate ~52% winner among many small candidates -- not a data error.",
           "expected_significant": false,
           "predicted_significant": true,
-          "lr_ratio": 0.066667
+          "lr_ratio": 0.06666666666666667
         },
         {
           "id": "outlier_tp_population_typo_paper_example",
@@ -970,7 +970,7 @@
           "description": "Population figures (thousands) with a decimal-point typo ('8.716' instead of '8716') -- paper's own 'C+' true-positive example.",
           "expected_significant": true,
           "predicted_significant": true,
-          "lr_ratio": 0.166667
+          "lr_ratio": 0.16666666666666666
         },
         {
           "id": "outlier_tp_subtle_00",
@@ -979,7 +979,7 @@
           "description": "Population figures (thousands) with a subtle decimal-point error injected into one value.",
           "expected_significant": true,
           "predicted_significant": true,
-          "lr_ratio": 0.071429
+          "lr_ratio": 0.07142857142857142
         },
         {
           "id": "outlier_tp_subtle_01",
@@ -988,7 +988,7 @@
           "description": "Population figures (thousands) with a subtle decimal-point error injected into one value.",
           "expected_significant": true,
           "predicted_significant": true,
-          "lr_ratio": 0.111111
+          "lr_ratio": 0.1111111111111111
         },
         {
           "id": "outlier_tp_subtle_02",
@@ -1015,7 +1015,7 @@
           "description": "Population figures (thousands) with a moderate decimal-point error injected into one value.",
           "expected_significant": true,
           "predicted_significant": true,
-          "lr_ratio": 0.142857
+          "lr_ratio": 0.14285714285714285
         },
         {
           "id": "outlier_tp_moderate_02",
@@ -1024,7 +1024,7 @@
           "description": "Population figures (thousands) with a moderate decimal-point error injected into one value.",
           "expected_significant": true,
           "predicted_significant": true,
-          "lr_ratio": 0.058824
+          "lr_ratio": 0.058823529411764705
         },
         {
           "id": "outlier_tp_obvious_00",
@@ -1033,7 +1033,7 @@
           "description": "Population figures (thousands) with an obvious decimal-point error injected into one value.",
           "expected_significant": true,
           "predicted_significant": true,
-          "lr_ratio": 0.071429
+          "lr_ratio": 0.07142857142857142
         },
         {
           "id": "outlier_tp_obvious_01",
@@ -1042,7 +1042,7 @@
           "description": "Population figures (thousands) with an obvious decimal-point error injected into one value.",
           "expected_significant": true,
           "predicted_significant": true,
-          "lr_ratio": 0.071429
+          "lr_ratio": 0.07142857142857142
         },
         {
           "id": "outlier_tp_obvious_02",
@@ -1105,7 +1105,7 @@
           "description": "One genuine misspelling ('Doeling' for 'Dowling') among unrelated long biography names -- paper's own true-positive example.",
           "expected_significant": true,
           "predicted_significant": true,
-          "lr_ratio": 0.105263
+          "lr_ratio": 0.1
         },
         {
           "id": "spelling_tp_subtle_00",
@@ -1114,7 +1114,7 @@
           "description": "One genuine misspelling ('Doeling' for 'Dowling') among long biography names, subtle corruption (diluted by one legitimate distractor pair 2 edits apart).",
           "expected_significant": true,
           "predicted_significant": false,
-          "lr_ratio": 0.666667
+          "lr_ratio": 0.5
         },
         {
           "id": "spelling_tp_subtle_01",
@@ -1123,7 +1123,7 @@
           "description": "One genuine misspelling ('Doeling' for 'Dowling') among long biography names, subtle corruption (diluted by one legitimate distractor pair 2 edits apart).",
           "expected_significant": true,
           "predicted_significant": false,
-          "lr_ratio": 0.666667
+          "lr_ratio": 0.5
         },
         {
           "id": "spelling_tp_subtle_02",
@@ -1132,7 +1132,7 @@
           "description": "One genuine misspelling ('Doeling' for 'Dowling') among long biography names, subtle corruption (diluted by one legitimate distractor pair 2 edits apart).",
           "expected_significant": true,
           "predicted_significant": false,
-          "lr_ratio": 0.666667
+          "lr_ratio": 0.5
         },
         {
           "id": "spelling_tp_moderate_00",
@@ -1141,7 +1141,7 @@
           "description": "One genuine misspelling ('Doeling' for 'Dowling') among long biography names, moderate corruption (diluted by one legitimate distractor pair 4 edits apart).",
           "expected_significant": true,
           "predicted_significant": true,
-          "lr_ratio": 0.166667
+          "lr_ratio": 0.15384615384615385
         },
         {
           "id": "spelling_tp_moderate_01",
@@ -1150,7 +1150,7 @@
           "description": "One genuine misspelling ('Doeling' for 'Dowling') among long biography names, moderate corruption (diluted by one legitimate distractor pair 4 edits apart).",
           "expected_significant": true,
           "predicted_significant": true,
-          "lr_ratio": 0.166667
+          "lr_ratio": 0.15384615384615385
         },
         {
           "id": "spelling_tp_moderate_02",
@@ -1159,7 +1159,7 @@
           "description": "One genuine misspelling ('Doeling' for 'Dowling') among long biography names, moderate corruption (diluted by one legitimate distractor pair 4 edits apart).",
           "expected_significant": true,
           "predicted_significant": true,
-          "lr_ratio": 0.166667
+          "lr_ratio": 0.15384615384615385
         },
         {
           "id": "spelling_tp_obvious_00",
@@ -1168,7 +1168,7 @@
           "description": "One genuine misspelling ('Doeling' for 'Dowling') among long biography names, obvious corruption (no distractor pair).",
           "expected_significant": true,
           "predicted_significant": true,
-          "lr_ratio": 0.083333
+          "lr_ratio": 0.08
         },
         {
           "id": "spelling_tp_obvious_01",
@@ -1177,7 +1177,7 @@
           "description": "One genuine misspelling ('Doeling' for 'Dowling') among long biography names, obvious corruption (no distractor pair).",
           "expected_significant": true,
           "predicted_significant": true,
-          "lr_ratio": 0.083333
+          "lr_ratio": 0.08
         },
         {
           "id": "spelling_tp_obvious_02",
@@ -1186,7 +1186,7 @@
           "description": "One genuine misspelling ('Doeling' for 'Dowling') among long biography names, obvious corruption (no distractor pair).",
           "expected_significant": true,
           "predicted_significant": true,
-          "lr_ratio": 0.083333
+          "lr_ratio": 0.08
         },
         {
           "id": "fd_fp_pageviews_vs_edits",
@@ -1213,7 +1213,7 @@
           "description": "Two independent columns drawn from a 0-250 integer domain -- no real dependency, not a data error.",
           "expected_significant": false,
           "predicted_significant": true,
-          "lr_ratio": 0.071429
+          "lr_ratio": 0.0625
         },
         {
           "id": "fd_fp_unrelated_domain450_02",
@@ -1222,7 +1222,7 @@
           "description": "Two independent columns drawn from a 0-450 integer domain -- no real dependency, not a data error.",
           "expected_significant": false,
           "predicted_significant": true,
-          "lr_ratio": 0.2
+          "lr_ratio": 0.05555555555555555
         },
         {
           "id": "fd_fp_unrelated_domain700_03",
@@ -1231,7 +1231,7 @@
           "description": "Two independent columns drawn from a 0-700 integer domain -- no real dependency, not a data error.",
           "expected_significant": false,
           "predicted_significant": true,
-          "lr_ratio": 0.2
+          "lr_ratio": 0.05555555555555555
         },
         {
           "id": "fd_tp_country_code_violation_paper_example",
@@ -1240,7 +1240,7 @@
           "description": "ISO code -> country name table (a hard functional dependency on Wikipedia) with one injected violating row.",
           "expected_significant": true,
           "predicted_significant": true,
-          "lr_ratio": 0.058824
+          "lr_ratio": 0.058823529411764705
         },
         {
           "id": "fd_tp_subtle_00",
@@ -1249,7 +1249,7 @@
           "description": "ISO code -> country name table with subtle corruption (1 injected violating rows).",
           "expected_significant": true,
           "predicted_significant": true,
-          "lr_ratio": 0.058824
+          "lr_ratio": 0.058823529411764705
         },
         {
           "id": "fd_tp_subtle_01",
@@ -1258,7 +1258,7 @@
           "description": "ISO code -> country name table with subtle corruption (1 injected violating rows).",
           "expected_significant": true,
           "predicted_significant": true,
-          "lr_ratio": 0.058824
+          "lr_ratio": 0.058823529411764705
         },
         {
           "id": "fd_tp_subtle_02",
@@ -1267,7 +1267,7 @@
           "description": "ISO code -> country name table with subtle corruption (1 injected violating rows).",
           "expected_significant": true,
           "predicted_significant": true,
-          "lr_ratio": 0.058824
+          "lr_ratio": 0.058823529411764705
         },
         {
           "id": "fd_tp_moderate_00",
@@ -1276,7 +1276,7 @@
           "description": "ISO code -> country name table with moderate corruption (4 injected violating rows).",
           "expected_significant": true,
           "predicted_significant": true,
-          "lr_ratio": 0.058824
+          "lr_ratio": 0.058823529411764705
         },
         {
           "id": "fd_tp_moderate_01",
@@ -1285,7 +1285,7 @@
           "description": "ISO code -> country name table with moderate corruption (4 injected violating rows).",
           "expected_significant": true,
           "predicted_significant": true,
-          "lr_ratio": 0.058824
+          "lr_ratio": 0.058823529411764705
         },
         {
           "id": "fd_tp_moderate_02",
@@ -1294,7 +1294,7 @@
           "description": "ISO code -> country name table with moderate corruption (4 injected violating rows).",
           "expected_significant": true,
           "predicted_significant": true,
-          "lr_ratio": 0.058824
+          "lr_ratio": 0.058823529411764705
         },
         {
           "id": "fd_tp_obvious_00",
@@ -1328,25 +1328,25 @@
         "overall": {
           "n": 60,
           "true_positive": 31,
-          "false_positive": 8,
+          "false_positive": 6,
           "false_negative": 9,
-          "true_negative": 12,
-          "precision": 0.7949,
+          "true_negative": 14,
+          "precision": 0.8378,
           "recall": 0.775,
-          "f1": 0.7848,
-          "accuracy": 0.7167
+          "f1": 0.8052,
+          "accuracy": 0.75
         },
         "by_error_type": {
           "uniqueness": {
             "n": 15,
             "true_positive": 7,
-            "false_positive": 2,
+            "false_positive": 0,
             "false_negative": 3,
-            "true_negative": 3,
-            "precision": 0.7778,
+            "true_negative": 5,
+            "precision": 1.0,
             "recall": 0.7,
-            "f1": 0.7368,
-            "accuracy": 0.6667
+            "f1": 0.8235,
+            "accuracy": 0.8
           },
           "numeric_outlier": {
             "n": 15,
@@ -1430,41 +1430,40 @@
           "clean": {
             "n": 16,
             "true_positive": 0,
-            "false_positive": 7,
+            "false_positive": 5,
             "false_negative": 0,
-            "true_negative": 9,
+            "true_negative": 11,
             "precision": 0.0,
             "recall": 0.0,
             "f1": 0.0,
-            "accuracy": 0.5625
+            "accuracy": 0.6875
           }
         },
         "ranking": {
           "uniqueness": {
-            "true_positive_lr_ratio": 0.166667,
+            "true_positive_lr_ratio": 0.16666666666666666,
             "false_positive_lr_ratio": 1.0,
             "correctly_ranked": true
           },
           "numeric_outlier": {
-            "true_positive_lr_ratio": 0.166667,
-            "false_positive_lr_ratio": 0.833333,
+            "true_positive_lr_ratio": 0.16666666666666666,
+            "false_positive_lr_ratio": 0.8333333333333334,
             "correctly_ranked": true
           },
           "spelling": {
-            "true_positive_lr_ratio": 0.105263,
+            "true_positive_lr_ratio": 0.1,
             "false_positive_lr_ratio": 1.0,
             "correctly_ranked": true
           },
           "functional_dependency": {
-            "true_positive_lr_ratio": 0.058824,
+            "true_positive_lr_ratio": 0.058823529411764705,
             "false_positive_lr_ratio": 0.1,
             "correctly_ranked": true
           }
         }
       },
-      "generation_method": "PREVIEW: computed via benchmarks-internal pure-Python simulator (same production metric/perturbation/featurization code, no Spark), because this environment's JDK 21 is incompatible with PySpark 3.5's bundled Arrow. Cross-validated against the previous dataset's Spark-run baseline.json (exact match) before being trusted. Re-run `uv run python benchmarks/run_benchmark.py --update-baseline` on JDK 17 to get a Spark-confirmed refresh.",
-      "duration_seconds": null,
-      "duration_note": "Not measured in this session's environment: only JDK 21 is available, and Uni-Detect's Spark/Arrow path requires JDK 17 (see README). These precision/recall/F1/accuracy figures are reused verbatim from a prior run (git f99a32d, computed via the pure-Python provenance harness documented in README.md -- see generation_method) rather than fabricated; a fresh run on JDK 17 would also fill in a real duration_seconds here."
+      "duration_seconds": 1028.263668687,
+      "duration_note": null
     }
   }
 }

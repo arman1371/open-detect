@@ -27,7 +27,7 @@
 <path d="M 452.032,125.5 Q 452.032,121.5 456.032,121.5 L 550.3679999999999,121.5 Q 554.3679999999999,121.5 554.3679999999999,125.5 L 554.3679999999999,324.0 L 452.032,324.0 Z" fill="#1baf7a"/>
 <text x="503.2" y="116.5" font-size="10.5" fill="#52514e" text-anchor="middle">0.75</text>
 <text x="503.2" y="342.0" font-size="11" fill="#52514e" text-anchor="middle">subtle corruption</text>
-<path d="M 583.232,176.125 Q 583.232,172.125 587.232,172.125 L 681.568,172.125 Q 685.568,172.125 685.568,176.125 L 685.568,324.0 L 583.232,324.0 Z" fill="#1baf7a"/>
-<text x="634.4" y="167.1" font-size="10.5" fill="#52514e" text-anchor="middle">0.56</text>
+<path d="M 583.232,142.375 Q 583.232,138.375 587.232,138.375 L 681.568,138.375 Q 685.568,138.375 685.568,142.375 L 685.568,324.0 L 583.232,324.0 Z" fill="#1baf7a"/>
+<text x="634.4" y="133.4" font-size="10.5" fill="#52514e" text-anchor="middle">0.69</text>
 <text x="634.4" y="342.0" font-size="11" fill="#52514e" text-anchor="middle">clean (no injection)</text>
 </svg>

@@ -279,6 +279,19 @@ machine the Spark/Delta session either fails to start or fails partway
 through with an Arrow/JDK incompatibility; `run_benchmark.py` catches this
 and still reports `raha`'s results rather than failing the whole run.
 
+> **Known issue -- the `uni_detect` half of this suite does not currently
+> finish.** On JDK 17 it runs for ~31 minutes, reaches roughly Spark stage
+> 6525, and then stops making progress (stage pinned at `0 of 7` tasks
+> complete) rather than erroring out. A thread dump shows task deserialization
+> buried in a deeply nested `scala.collection.immutable.List` graph, i.e. the
+> serialized plan carried with each task has grown pathologically across the
+> per-target loop. `wiki_subset` on the same toolchain completes in ~17
+> minutes, so this is specific to this suite. Until it is fixed, a run here
+> yields **`raha` only**; that is a real defect being tracked, not a
+> configuration mistake on your side, and it is why this suite's
+> `baseline.json` has not been refreshed alongside `wiki_subset`'s. `raha`
+> itself is unaffected and completes in ~10s.
+
 > **Provenance of the currently checked-in `baseline.json`/`REPORT.md`:**
 > `uni_detect`'s numbers were produced in an environment with only JDK 21
 > available (see above), so -- following the exact precedent
