@@ -4,7 +4,11 @@ from __future__ import annotations
 
 import numpy as np
 
-from unidetect.algorithms.raha.clustering import cluster_column, sample_tuple
+from unidetect.algorithms.raha.clustering import (
+    build_column_cluster_state,
+    cluster_column,
+    sample_tuple,
+)
 
 
 class TestClusterColumn:
@@ -43,6 +47,67 @@ class TestClusterColumn:
         matrix = np.array([[0.0, 0.0], [1.0, 0.0], [0.0, 0.0]])
         labels = cluster_column(matrix, k=2)
         assert not np.isnan(labels).any()
+
+
+class TestBuildColumnClusterState:
+    """Covers OPE-22: dense pairwise-distance clustering is O(n^2) memory
+    and crashed on realistically-sized tables (149GiB for a 200,000-row
+    column). ``dense_clustering_row_limit`` is exercised here at a tiny
+    threshold so the sub-quadratic fallback path is reached deterministically
+    and cheaply, without needing an actual 200,000-row fixture.
+    """
+
+    def test_matches_hierarchical_result_below_the_limit(self):
+        # Below the limit, build+cut must reproduce exact cluster_column
+        # output bit-for-bit -- no behavior change for any table this
+        # package currently benchmarks (all far below the 5,000-row default).
+        matrix = np.array(
+            [
+                [1.0, 0.0, 0.0],
+                [1.0, 0.0, 0.0],
+                [0.0, 1.0, 0.0],
+                [0.0, 1.0, 0.0],
+            ]
+        )
+        state = build_column_cluster_state(matrix, dense_clustering_row_limit=5000)
+        assert list(state.cut(2)) == list(cluster_column(matrix, k=2))
+
+    def test_falls_back_above_the_limit_without_crashing(self):
+        rng = np.random.default_rng(0)
+        # Two well-separated blobs, large enough to trigger the fallback
+        # at a small test-only limit but tiny next to the 200,000-row
+        # dataset that crashed the old dense-pdist implementation.
+        block_a = rng.normal(loc=0.0, scale=0.01, size=(30, 4)) + np.array([1.0, 0.0, 0.0, 0.0])
+        block_b = rng.normal(loc=0.0, scale=0.01, size=(30, 4)) + np.array([0.0, 1.0, 0.0, 0.0])
+        matrix = np.vstack([block_a, block_b])
+
+        state = build_column_cluster_state(matrix, dense_clustering_row_limit=10, random_state=0)
+        labels = state.cut(2)
+
+        assert labels.shape == (60,)
+        assert not np.isnan(labels).any()
+        # The two blobs should land in different clusters far more often
+        # than not -- this is an approximation, not an exactness guarantee.
+        assert (labels[:30] == labels[0]).mean() > 0.8
+        assert (labels[30:] == labels[30]).mean() > 0.8
+        assert labels[0] != labels[30]
+
+    def test_reused_state_answers_increasing_k_without_rebuilding(self):
+        # Mirrors RahaDetector.detect's loop: build once, cut at k=2,3,4,...
+        matrix = np.eye(5)
+        state = build_column_cluster_state(matrix, dense_clustering_row_limit=5000)
+        for k in (2, 3, 4, 5):
+            labels = state.cut(k)
+            assert labels.shape == (5,)
+            assert len(set(labels.tolist())) <= k
+
+    def test_empty_and_singleton_columns_ignore_the_limit(self):
+        assert build_column_cluster_state(np.zeros((0, 3)), dense_clustering_row_limit=1).cut(
+            2
+        ).shape == (0,)
+        assert list(
+            build_column_cluster_state(np.array([[1.0, 0.0]]), dense_clustering_row_limit=1).cut(2)
+        ) == [0]
 
 
 class TestSampleTuple:
