@@ -64,6 +64,16 @@ class RahaConfig:
         column, which is unbounded for free-text columns. The most frequent
         characters are kept, since a rare character already tends to be
         exposed by the histogram outlier strategies on the whole value.
+    dense_clustering_row_limit:
+        Row-count ceiling for exact cosine-distance, average-linkage
+        clustering (Section 4.3's stated default). Above this many rows,
+        clustering falls back to a sub-quadratic spherical-k-means
+        approximation instead of building a dense O(n^2)-memory pairwise
+        distance array -- see ``unidetect.algorithms.raha.clustering`` for
+        the equivalence argument. The default (5,000 rows, ~100MB of
+        pairwise distances) covers every table in this package's benchmark
+        suite exactly as before; it only changes behavior for tables larger
+        than any currently benchmarked dataset.
     classifier_factory:
         Zero-argument callable returning a fresh, unfitted scikit-learn
         classifier, called once per column. Defaults to
@@ -82,6 +92,7 @@ class RahaConfig:
     dist_thresholds: tuple[float, ...] = field(default_factory=lambda: DEFAULT_DIST_THRESHOLDS)
     conflict_resolution: str = "majority"
     max_pattern_characters: int = 128
+    dense_clustering_row_limit: int = 5000
     classifier_factory: Callable[[], ClassifierMixin] = field(
         default_factory=lambda: _unbound_default_classifier_factory
     )
@@ -108,3 +119,7 @@ class RahaConfig:
             )
         if self.max_pattern_characters < 1:
             raise ConfigurationError("max_pattern_characters must be >= 1")
+        if self.dense_clustering_row_limit < 1:
+            raise ConfigurationError(
+                f"dense_clustering_row_limit must be >= 1, got {self.dense_clustering_row_limit}"
+            )

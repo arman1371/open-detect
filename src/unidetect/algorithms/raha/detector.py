@@ -20,7 +20,7 @@ import numpy as np
 
 from unidetect.algorithms.base import AlgorithmResult, CellResult, ErrorDetectionAlgorithm
 from unidetect.algorithms.raha.classifier import train_and_predict
-from unidetect.algorithms.raha.clustering import cluster_column, sample_tuple
+from unidetect.algorithms.raha.clustering import build_column_cluster_state, sample_tuple
 from unidetect.algorithms.raha.config import RahaConfig
 from unidetect.algorithms.raha.features import build_all_features
 from unidetect.algorithms.raha.labeling import HeuristicLabeler, Labeler, propagate_labels
@@ -82,10 +82,22 @@ class RahaDetector(ErrorDetectionAlgorithm):
             k = 2
             cluster_ids_by_column: dict[str, np.ndarray] = {}
 
+            # Built once per column: a column's feature matrix never changes
+            # across the loop, only k does, so re-deriving the whole
+            # clustering (dense pairwise distances included) on every
+            # iteration would multiply an already O(n^2) cost by up to
+            # `budget` -- see `clustering.build_column_cluster_state`.
+            cluster_states = {
+                col: build_column_cluster_state(
+                    column_features[col].matrix,
+                    dense_clustering_row_limit=self.config.dense_clustering_row_limit,
+                    random_state=self.config.random_state,
+                )
+                for col in df.columns
+            }
+
             while len(labeled_rows) < budget:
-                cluster_ids_by_column = {
-                    col: cluster_column(column_features[col].matrix, k) for col in df.columns
-                }
+                cluster_ids_by_column = {col: cluster_states[col].cut(k) for col in df.columns}
                 label_counts: dict[tuple[str, int], int] = {}
                 for col, ids in cluster_ids_by_column.items():
                     for row, _label in per_column_labels[col].items():

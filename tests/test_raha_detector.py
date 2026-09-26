@@ -4,10 +4,13 @@
 
 from __future__ import annotations
 
+import numpy as np
 import pandas as pd
+import pytest
 
 from unidetect.algorithms import get_algorithm
 from unidetect.algorithms.raha import GroundTruthLabeler, RahaConfig, RahaDetector
+from unidetect.exceptions import ConfigurationError
 
 DIRTY = pd.DataFrame(
     {
@@ -100,3 +103,36 @@ def test_result_to_pandas_matches_shared_schema():
         "evidence",
     ]
     assert len(frame) == DIRTY.size
+
+
+def test_runs_past_the_dense_clustering_row_limit_without_crashing():
+    # Regression test for OPE-22: RahaDetector.detect used to build a dense
+    # O(n^2)-memory pairwise-distance array for every column on every
+    # labeling iteration, which crashed with ArrayMemoryError on
+    # realistically-sized tables (149GiB at 200,000 rows). Setting
+    # `dense_clustering_row_limit` far below this fixture's row count
+    # forces the sub-quadratic fallback path deterministically, without
+    # needing an actual 200,000-row table to prove the crash is gone.
+    rng = np.random.default_rng(0)
+    n = 40
+    dirty = pd.DataFrame(
+        {
+            "value": rng.integers(0, 5, size=n).astype(str),
+            "flag": rng.choice(["yes", "no"], size=n),
+        }
+    )
+    config = RahaConfig(labeling_budget=5, random_state=0, dense_clustering_row_limit=10)
+    detector = RahaDetector(config)
+
+    result = detector.detect(dirty, table_id="scale")
+
+    assert len(result) == dirty.size
+    for cell in result:
+        assert isinstance(cell.is_error, bool)
+        assert 0.0 <= cell.score <= 1.0
+        assert not np.isnan(cell.score)
+
+
+def test_dense_clustering_row_limit_rejects_non_positive_values():
+    with pytest.raises(ConfigurationError):
+        RahaConfig(dense_clustering_row_limit=0)
