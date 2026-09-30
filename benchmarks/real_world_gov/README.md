@@ -12,11 +12,11 @@ This benchmark runs **every registered algorithm** (see
 [`unidetect.algorithms`](../../ARCHITECTURE.md)) against the same 5 datasets
 and reports a head-to-head comparison -- effectiveness (precision/recall/F1/
 accuracy) and wall-clock duration -- rather than one algorithm's numbers in
-isolation. `uni_detect` and `raha` are covered today; a third algorithm
-added later picks this up automatically (see "Adding a new algorithm" in the
-top-level [`README.md`](../../README.md)) as long as its `run_benchmark.py`
-integration follows the same `algorithms: {name: {targets, metrics,
-duration_seconds, duration_note}}` results shape documented below.
+isolation. `uni_detect`, `raha` and `auto_validate` are covered today; a
+further algorithm added later picks this up automatically (see "Adding a new
+algorithm" in the top-level [`README.md`](../../README.md)) as long as its
+`run_benchmark.py` integration follows the same `algorithms: {name: {targets,
+metrics, duration_seconds, duration_note}}` results shape documented below.
 
 ## Source
 
@@ -96,11 +96,13 @@ benchmarks/real_world_gov/
 ```
 
 `run_benchmark.py` runs `raha` (pure pandas, no external dependency beyond
-`scikit-learn`/`scipy`) and `uni_detect` (Spark/Delta, requires JDK 17)
-independently -- either can be skipped (with a printed message) if its
-dependencies aren't installed, or in `uni_detect`'s case if a local
-Delta-enabled Spark session can't be started at all, and the benchmark still
-reports whichever algorithm(s) did run.
+`scikit-learn`/`scipy`), `auto_validate` (pure pandas -- **no** Spark,
+`scikit-learn`, or JDK dependency at all, so it runs even when those are
+missing) and `uni_detect` (Spark/Delta, requires JDK 17) independently -- any
+of them can be skipped (with a printed message) if its dependencies aren't
+installed, or in `uni_detect`'s case if a local Delta-enabled Spark session
+can't be started at all, and the benchmark still reports whichever
+algorithm(s) did run.
 
 ## Methodology: uni_detect -- mapping real dirty data onto its four error types
 
@@ -188,6 +190,76 @@ use), so it maps onto Raha's actual input/output shape directly:
 The two granularities tell different stories on purpose -- see "Reading the
 results" below for why the column-level number alone would be misleading.
 
+## Methodology: auto_validate
+
+Auto-Validate (Song & He, SIGMOD 2021) is the one algorithm here whose
+operating model *requires* a background corpus `T` -- it cannot infer a
+validation pattern without one, and there is deliberately no
+self-as-corpus fallback (that would be training on the test set). This
+benchmark mirrors `run_uni_detect`'s corpus choice exactly:
+
+1. **Corpus (`T`) = the 5 datasets' `clean.csv` tables**, one
+   `build_index()` call over all of them together, read as strings
+   (`dtype=str`) -- 47 columns in total. This is the same background data
+   `uni_detect`'s `build_corpus_statistics` gets, in the same
+   "all 5 clean tables at once, across all error types" shape, so the two
+   algorithms are compared against an identically-scoped background.
+
+   **Note on self-inclusion:** because the index is built over *all five*
+   clean tables rather than leave-one-out, a given dataset's own clean table
+   **is** part of `T` when its own dirty table is being scored. That is
+   deliberate and is exactly what `uni_detect` does here (same five tables,
+   same call), so the two stay comparable -- but it means neither algorithm
+   gets a "held-out" background for this benchmark, which is a real
+   limitation of a 5-table corpus rather than a modeling choice. No *dirty*
+   table, and no `clean_changes.csv` ground truth, is ever passed into
+   `build_index()`.
+2. **Eval targets (`D`) = the 5 datasets' `dirty.csv` tables**, scored with
+   `auto_validate.detect(df, table_id=...)` against the shared index.
+3. **Two granularities**, the same split as Raha's above: **column-level**
+   ("was *any* cell flagged") for the apples-to-apples comparison table, and
+   **cell-level** (precision/recall/F1 against `clean_changes.csv` directly)
+   as Auto-Validate's native per-cell granularity.
+4. **Scoring** uses the same `common.metrics.confusion_metrics` every other
+   algorithm and both granularities use here.
+
+### The `m` override
+
+The library's `m` (coverage threshold: how many corpus columns must match a
+pattern before it's trusted) defaults to the paper's recommended **100**,
+which the paper calibrates against a **7.2M-column** web-scale corpus
+(Section 6.2). This benchmark's corpus has **47 columns**. At `m=100`, every
+single pattern in the index is by construction infeasible (`Cov_T(p)` can
+never reach 100 out of 47 columns), so every column would come back
+`no_feasible_pattern` and the algorithm would score a meaningless all-zero.
+
+`m` is therefore set to **3**, derived mechanically from corpus size as
+`m = max(1, floor(47 * 0.05))` -- "a pattern needs corroboration from at least
+5% of the corpus". This is the same scale-a-knob-to-your-corpus-size
+reasoning (and the same derive-don't-tune discipline) that `_build_config`
+already applies to `prevalence_edges` for `uni_detect` in this same file. The
+value was fixed from the corpus size alone, before looking at any eval
+result.
+
+**No other hyperparameter is overridden.** `r=0.05`, `tau=8`,
+`variant="fmdv_vh"` are the paper's own recommended values, and `theta=0.1`
+is the library default (the paper gives no numeric default) -- all left as
+defaults deliberately.
+
+### Expected weakness: read Auto-Validate's numbers honestly
+
+Auto-Validate is a **string-format-pattern** method: it infers a
+character-class/token-level pattern per column and flags cells whose value
+doesn't match. Real government open-data errors in this corpus are mostly
+*plausible-looking* corruptions -- typos inside otherwise-consistent text,
+transposed digits inside an otherwise-valid code -- and a typo inside a
+mostly-homogeneous text column often still matches the inferred
+`<letter>+`-style pattern. Columns with genuinely mixed shapes (free text
+next to IDs next to numbers) frequently yield **no feasible pattern at all**;
+the report surfaces that as `pattern: null` evidence rather than silently
+scoring it as a clean pass, so low recall here is expected and is reported
+as-is. Nothing was tuned to compensate.
+
 ### Duration methodology
 
 Each algorithm's `duration_seconds` is its own wall-clock time to go from
@@ -196,11 +268,15 @@ for `raha`, the full `RahaDetector.detect(...)` call (feature generation,
 clustering, sampling, labeling, propagation, classifier training and
 prediction) per dataset; for `uni_detect`, `build_corpus_statistics(...)`
 (offline) plus `detect(...)` (online) together, since Raha has no equivalent
-offline/online split to exclude one side of. Both exclude CSV loading and
-(for `uni_detect`) the one-time Spark session startup -- a JVM boot cost
-that would otherwise swamp the actual algorithmic comparison and is highly
-environment-dependent (cold JAR resolution vs. a warm local cache) rather
-than a property of either algorithm.
+offline/online split to exclude one side of; for `auto_validate`, the offline
+`build_index(...)` over the 5 clean tables plus the online `detect(...)` over
+the 5 dirty tables, timed together -- the same offline+online accounting
+`uni_detect` uses, and the same one stated in Auto-Validate's `duration_note`
+in `baseline.json`. All exclude CSV loading and (for `uni_detect`) the
+one-time Spark session startup -- a JVM boot cost that would otherwise swamp
+the actual algorithmic comparison and is highly environment-dependent (cold
+JAR resolution vs. a warm local cache) rather than a property of either
+algorithm.
 
 ## Reading the results
 

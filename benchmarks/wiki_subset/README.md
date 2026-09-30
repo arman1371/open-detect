@@ -25,9 +25,10 @@ See [`../README.md`](../README.md) for how this benchmark relates to the
 other one (`real_world_gov`) and the infrastructure they share.
 
 This benchmark runs **every registered algorithm** (see
-[`unidetect.algorithms`](../../ARCHITECTURE.md) -- `uni_detect` and `raha`
-today) against the same 60 targets and reports a head-to-head comparison --
-effectiveness and wall-clock duration -- see "Reading the results" below.
+[`unidetect.algorithms`](../../ARCHITECTURE.md) -- `uni_detect`, `raha` and
+`auto_validate` today) against the same 60 targets and reports a head-to-head
+comparison -- effectiveness and wall-clock duration -- see "Reading the
+results" below.
 
 ### A note on methodology (read this before trusting the numbers)
 
@@ -89,11 +90,13 @@ benchmarks/wiki_subset/
 ```
 
 `run_benchmark.py` runs `raha` (pure pandas, no external dependency beyond
-`scikit-learn`/`scipy`) and `uni_detect` (Spark/Delta, requires JDK 17)
-independently -- either can be skipped (with a printed message) if its
-dependencies aren't installed, or in `uni_detect`'s case if a local
-Delta-enabled Spark session can't be started at all, and the benchmark still
-reports whichever algorithm(s) did run.
+`scikit-learn`/`scipy`), `auto_validate` (pure pandas -- **no** Spark,
+`scikit-learn`, or JDK dependency at all, so it runs even when those are
+missing) and `uni_detect` (Spark/Delta, requires JDK 17) independently -- any
+of them can be skipped (with a printed message) if its dependencies aren't
+installed, or in `uni_detect`'s case if a local Delta-enabled Spark session
+can't be started at all, and the benchmark still reports whichever
+algorithm(s) did run.
 
 ### The corpus (`data/corpus/`)
 
@@ -169,6 +172,99 @@ the more informative number for judging Raha specifically, since most
 targets here are small enough that one flagged cell out of a handful of
 rows can make a target-level call look better than the underlying per-cell
 classification really is).
+
+### Scoring auto_validate
+
+Auto-Validate (Song & He, SIGMOD 2021) is the one algorithm here with a
+mandatory background-corpus phase baked into the algorithm itself: it
+**cannot** detect anything without a corpus `T`, so there is no
+self-as-corpus fallback and no way to run it standalone. This benchmark
+therefore builds `T` from **exactly the same background corpus `uni_detect`
+uses** -- `data/corpus/<error_type>/*.csv`, read as strings (`dtype=str`),
+one `build_index()` call per error type, from that error type's own category
+directory and nothing else. Detection runs on the eval targets only. No eval
+target, and no target's `injected_row_indices` ground truth, is ever passed
+into `build_index()`.
+
+Scoring works exactly as for `raha` (see "Scoring raha" above) and at the
+same two granularities: **target-level** ("was *any* cell flagged") for the
+apples-to-apples comparison table, and **cell-level** (precision/recall/F1
+against `injected_row_indices` directly) as Auto-Validate's own native
+granularity.
+
+#### The `m` override
+
+The library's `m` (coverage threshold: "how many corpus columns must match a
+pattern before it's trusted enough to use as a validation rule") defaults to
+the paper's own recommended **100**, which the paper explicitly calibrates
+against a **7.2M-column** web-scale corpus (Section 6.2). This benchmark's
+corpus is four orders of magnitude smaller:
+
+| Error type | Corpus columns in `T` | `m` used |
+|---|---|---|
+| `uniqueness` | 39 | **1** |
+| `numeric_outlier` | 72 | **3** |
+| `spelling` | 48 | **2** |
+| `functional_dependency` | 104 | **5** |
+
+`m` is derived mechanically from corpus size, as
+`m = max(1, floor(n_corpus_columns * 0.05))` (i.e. "a pattern needs
+corroboration from at least 5% of the corpus"), with a floor of 1 so a small
+category can still infer *any* pattern. This is the same
+scale-a-knob-to-your-corpus-size reasoning (and the same kind of
+mechanical-derivation-not-tuning discipline) that `_build_config` already
+applies to `prevalence_edges` for `uni_detect` in this same file. The value
+was fixed from the corpus sizes above, before looking at any eval result, and
+is deliberately **not** tuned per-target or against the score.
+
+**No other hyperparameter is overridden.** `r=0.05`, `tau=8`,
+`variant="fmdv_vh"` are all the paper's own recommended values, and
+`theta=0.1` is the library default (the paper gives no numeric default for
+it) -- all left at their defaults deliberately.
+
+#### Expected weakness: read Auto-Validate's low recall honestly
+
+Auto-Validate is a **string-format-pattern** method. It infers a
+character-class/token-level pattern per column (e.g. `<alphanum>{11}`,
+`Amendment <alphanum>+`, `<num>+`) and flags any cell whose value doesn't
+match it. That makes it genuinely good at format/shape violations, and
+structurally unable to catch errors that are *well-formed but wrong*:
+
+- **`numeric_outlier`**: a decimal-point typo (`8716` → `8.716`) is still a
+  perfectly valid `<num>+`. Expect ~zero recall here. This is a property of
+  the method's operating model, not of this benchmark's configuration.
+- **`functional_dependency`**: an FD violation (`USA` → `Nonexistent
+  Country`) is still an ordinary `<letter>+ <letter>+` value in its column.
+  Expect low recall here too. Auto-Validate has no notion of a multi-column
+  constraint at all.
+- **`spelling`**: a genuine typo (`Dowling` → `Doeling`) *can* break a
+  literal/`<letter>{n}`-anchored pattern, but only if the rest of the column
+  is homogeneous enough that the inferred pattern stays specific rather than
+  collapsing to a permissive general form. Columns mixing heterogeneous name
+  lengths often yield no feasible pattern at all -- which the report surfaces
+  as `pattern: null` evidence rather than silently scoring as a clean pass.
+- **`uniqueness`** is Auto-Validate's best case: an exact-duplicate value in
+  an otherwise-unique ID column is exactly the shape a strict per-column
+  format pattern is designed to catch (the second occurrence breaks the
+  inferred literal/`{n}`-anchored pattern the first occurrence supports).
+
+These expectations are why Auto-Validate is expected to score *below*
+`uni_detect` and `raha` on this benchmark's overall F1. That is the honest
+result for a method whose strengths are orthogonal to three of the four error
+types being measured, and no hyperparameter was tuned to paper over it.
+
+#### Timing
+
+`duration_seconds` for `auto_validate` covers **both** the offline
+`build_index()` over all four error-type corpora **and** the online
+`detect()` pass over all 60 targets, timed together (that's stated in the
+`duration_note` in `baseline.json` too). This mirrors how `uni_detect`'s
+duration is measured (`build_corpus_statistics` + `detect` together) and is
+deliberately *not* the same accounting as `raha`'s, which has no corpus phase
+at all -- so the duration column in the comparison table compares "total time
+to go from loaded data to predictions", not "online-phase-only time". It
+excludes reading the corpus CSVs from disk, the same way both other
+algorithms exclude their own data loading.
 
 ## Running the benchmark
 

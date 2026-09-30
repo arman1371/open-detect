@@ -64,6 +64,7 @@ def _algorithm_section(name: str, entry: dict, datasets: list[str]) -> list[str]
     by_dataset = entry["metrics"]["by_dataset"]
     slug = _slug(name)
     is_raha = name == "raha"
+    is_av = name == "auto_validate"
 
     lines: list[str] = []
     lines.append(f"## `{name}`")
@@ -88,11 +89,12 @@ def _algorithm_section(name: str, entry: dict, datasets: list[str]) -> list[str]
 
     lines.append("### By dataset (column-level)")
     lines.append("")
-    if is_raha:
+    if is_raha or is_av:
         lines.append(
             'Column-level: a column is "predicted significant" if *any* of its cells '
             "was flagged -- the same granularity Uni-Detect's own output has, used for the "
-            'apples-to-apples comparison above. See "Cell-level" below for Raha\'s native, '
+            'apples-to-apples comparison above. See "Cell-level" below for '
+            f"{'Raha' if is_raha else 'Auto-Validate' if is_av else 'the algorithm'}'s native, "
             "per-cell granularity (the same one the paper's own Table 5 reports)."
         )
         lines.append("")
@@ -104,18 +106,19 @@ def _algorithm_section(name: str, entry: dict, datasets: list[str]) -> list[str]
             lines.append(_metrics_table_row(f"`{name_}`", by_dataset[name_]))
     lines.append("")
 
-    if is_raha and entry.get("cell_metrics"):
+    if (is_raha or is_av) and entry.get("cell_metrics"):
         cell_overall = entry["cell_metrics"]["overall"]
         cell_by_dataset = entry["cell_metrics"]["by_dataset"]
         lines.append("### By dataset (cell-level)")
         lines.append("")
         lines.append(
             "Precision/recall/F1 over every individual `(row, column)` cell against "
-            "`clean_changes.csv` -- Raha's native evaluation granularity, and typically a "
-            "more informative number than the column-level reduction above, since a real, "
-            "historically-corrupted column in this benchmark often has a double-digit-percent "
-            "error rate: getting the column-level call right only requires flagging *one* of "
-            "many erroneous cells."
+            f"`clean_changes.csv` -- "
+            f"{'Raha' if is_raha else 'Auto-Validate' if is_av else 'the algorithm'}'s "
+            "native evaluation granularity, and typically a more informative number than "
+            "the column-level reduction above, since a real, historically-corrupted column "
+            "in this benchmark often has a double-digit-percent error rate: getting the "
+            "column-level call right only requires flagging *one* of many erroneous cells."
         )
         lines.append("")
         lines.append("| Dataset | n | Precision | Recall | F1 | Accuracy |")
@@ -128,7 +131,7 @@ def _algorithm_section(name: str, entry: dict, datasets: list[str]) -> list[str]
 
     lines.append("### Evaluated columns (column-level)")
     lines.append("")
-    if is_raha:
+    if is_raha or is_av:
         lines.append("| Dataset | Column | Rows | Errors | Expected | Predicted | Score | Result |")
         lines.append("|---|---|---|---|---|---|---|---|")
         for t in entry["targets"]:

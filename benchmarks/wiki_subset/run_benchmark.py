@@ -8,6 +8,11 @@ ground truth.
 - **raha** -- scores each target directly, using the target's own
   ``injected_row_indices`` ground truth (see ``generate_dataset.py``) via a
   local ``KnownIndexLabeler`` (pandas; no Spark/JDK dependency at all).
+- **auto_validate** -- builds a pattern index over the *same* background
+  corpus ``uni_detect`` uses (``data/corpus/<error_type>/*.csv``, one index
+  per error type, read as strings) then scores each target against it
+  (pandas only; no Spark/JDK/scikit-learn dependency at all -- it runs even
+  if those are missing, unlike the other two).
 
 Usage::
 
@@ -66,6 +71,15 @@ SEVERITIES = ["paper_example", "obvious", "moderate", "subtle", "clean"]
 #: it at each target's own row count, so this is effectively "as many labels
 #: as the table has, up to 20" -- full supervision on the smallest targets.
 RAHA_LABELING_BUDGET = 20
+
+#: Auto-Validate's ``m`` override for this benchmark. The paper's own default
+#: is ``100``, calibrated for a 7.2M-column web-scale corpus (Section 6.2).
+#: This benchmark's background corpus is tiny: one ``m`` per error type,
+#: derived from that error type's total number of corpus columns (each CSV
+#: becomes one column per row-count edge), floored at 1. Picking the same
+#: ratio across error types keeps the override uniform rather than tuned
+#: per-target. See the README for the exact corpus size per error type.
+AUTO_VALIDATE_M_RATIO = 0.05  # m = max(1, int(n_corpus_columns * 0.05))
 
 
 def _load_corpus_tables(spark, error_type: str) -> list[str]:
@@ -222,6 +236,131 @@ def run_uni_detect() -> tuple[list[dict], dict, float]:
     )
 
 
+def run_auto_validate() -> tuple[list[dict], dict, dict, float]:
+    """Score every eval target with Auto-Validate.
+
+    Returns ``(targets, column_metrics, cell_metrics, duration_seconds)`` --
+    the same shape ``run_raha`` returns, for the same reason: ``column_metrics``
+    reduces to "was *any* cell of this target flagged" (the same whole-target
+    verdict Uni-Detect's own output is), while ``cell_metrics`` is
+    Auto-Validate's native per-cell granularity, scored against
+    ``generate_dataset.py``'s own ``injected_row_indices`` ground truth via a
+    local :class:`KnownIndexLabeler`.
+
+    The background corpus ``T`` is the same background ``uni_detect`` uses
+    (``data/corpus/<error_type>/*.csv``): one offline pattern index per
+    error type, read as strings (no Spark). Each target is then scored against
+    its error type's index via ``auto_validate.detect(df, table_id=target['id'])``.
+    No target or its ground truth ever leaks into the index build.
+
+    The paper's ``m`` default is 100 (calibrated for a 7.2M-column web-scale
+    corpus); we override it here per error type based on that error type's
+    total number of corpus columns, floored at 1, to avoid the index having
+    effectively zero coverage everywhere on a corpus this size. See the
+    README for the exact value and rationale.
+    """
+    import csv as csv_module
+
+    import pandas as pd
+
+    from unidetect.algorithms.auto_validate import (
+        AutoValidateAlgorithm,
+        AutoValidateConfig,
+    )
+    from unidetect.algorithms.raha.labeling import Labeler
+
+    class KnownIndexLabeler(Labeler):
+        def __init__(self, target_column: str, injected_indices: set[int]) -> None:
+            self._target_column = target_column
+            self._injected_indices = injected_indices
+
+        def label_tuple(self, df, row_index):
+            is_error = row_index in self._injected_indices
+            return {col: (is_error if col == self._target_column else False) for col in df.columns}
+
+    # One index per error type; each CSV becomes one corpus column
+    # (one Series per row of the CSV). This mirrors ``_load_corpus_tables``'s
+    # layout exactly, except we read as strings (pandas only, no Spark).
+    type_index: dict[str, AutoValidateAlgorithm] = {}
+    for error_type in ERROR_TYPES:
+        category_dir = CORPUS_DIR / error_type
+        n_columns = sum(
+            next(csv_module.reader(f.open(newline="", encoding="utf-8"))).__len__()
+            for f in category_dir.glob("*.csv")
+        )
+        m = max(1, int(n_columns * AUTO_VALIDATE_M_RATIO))
+        config = AutoValidateConfig(variant="fmdv_vh", m=m, r=0.05, tau=8, theta=0.1)
+        corpus: list[pd.Series] = []
+        for csv_path in sorted(category_dir.glob("*.csv")):
+            with csv_path.open(newline="", encoding="utf-8") as fh:
+                reader = csv_module.reader(fh)
+                header = next(reader)
+                rows = list(reader)
+            for col_idx in range(len(header)):
+                corpus.append(
+                    pd.Series(
+                        [row[col_idx] if col_idx < len(row) else "" for row in rows], dtype=str
+                    )
+                )
+        algo = AutoValidateAlgorithm(config)
+        algo.build_index(corpus)
+        type_index[error_type] = algo
+
+    targets = json.loads(TARGETS_FILE.read_text())
+    target_rows: list[dict] = []
+    cell_rows: list[dict] = []
+    start = time.perf_counter()
+    for target in targets:
+        error_type = target["error_type"]
+        df = pd.DataFrame(target["rows"], columns=target["columns"])
+        algo = type_index[error_type]
+        result = algo.detect(df, table_id=target["id"])
+
+        # The FD targets' two columns are `[lhs, rhs]`; only the RHS is ever
+        # corrupted (see ``generate_dataset.py``'s ``_target`` docstring).
+        target_column = target["columns"][-1]
+        injected = set(target["injected_row_indices"])
+
+        target_rows.append(
+            {
+                "id": target["id"],
+                "error_type": error_type,
+                "severity": target.get("severity", "unknown"),
+                "description": target["description"],
+                "expected_significant": target["expected_significant"],
+                "predicted_significant": any(cell.is_error for cell in result),
+                "score": max((cell.score for cell in result), default=0.0),
+            }
+        )
+        for cell in result:
+            expected = cell.column_name == target_column and cell.row_index in injected
+            cell_rows.append(
+                {
+                    "error_type": error_type,
+                    "severity": target.get("severity", "unknown"),
+                    "expected_significant": expected,
+                    "predicted_significant": cell.is_error,
+                }
+            )
+    duration = time.perf_counter() - start
+
+    def _metrics(rows: list[dict]) -> dict:
+        return {
+            "overall": confusion_metrics(rows),
+            "by_error_type": {
+                et: confusion_metrics([r for r in rows if r["error_type"] == et])
+                for et in ERROR_TYPES
+            },
+            "by_severity": {
+                s: confusion_metrics([r for r in rows if r["severity"] == s])
+                for s in SEVERITIES
+                if any(r["severity"] == s for r in rows)
+            },
+        }
+
+    return target_rows, _metrics(target_rows), _metrics(cell_rows), duration
+
+
 def run_raha() -> tuple[list[dict], dict, dict, float]:
     """Score every eval target with Raha.
 
@@ -354,6 +493,24 @@ def run() -> dict:
                 "duration_seconds": ud_duration,
                 "duration_note": None,
             }
+
+    try:
+        import pandas as _  # noqa: F401
+    except ImportError:
+        print(
+            "pandas not installed; skipping auto_validate "
+            "(run `uv sync` or `uv pip install unidetect` first).",
+            file=sys.stderr,
+        )
+    else:
+        av_targets, av_column_metrics, av_cell_metrics, av_duration = run_auto_validate()
+        algorithms["auto_validate"] = {
+            "targets": av_targets,
+            "metrics": av_column_metrics,
+            "cell_metrics": av_cell_metrics,
+            "duration_seconds": av_duration,
+            "duration_note": "build_index + detect; m overridden per error type from corpus size (see README)",
+        }
 
     if not algorithms:
         raise RuntimeError("No algorithm could be run -- see the skip messages above.")

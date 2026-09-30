@@ -7,6 +7,11 @@
 - **raha** -- scores each dirty table directly against its own *clean* table
   via :class:`~unidetect.algorithms.raha.GroundTruthLabeler` (pandas; no
   Spark/JDK dependency at all).
+- **auto_validate** -- builds a pattern index over the *same* background
+  corpus ``uni_detect`` uses (the 5 datasets' ``clean.csv`` tables, one
+  index over all of them, read as strings) then scores each *dirty* table
+  against it (pandas only; no Spark/JDK/scikit-learn dependency at all --
+  it runs even if those are missing, unlike the other two).
 
 Usage::
 
@@ -52,6 +57,14 @@ TEST_SCHEMA = "unidetect_benchmark_real"
 #: The paper's own labeling-budget default (Section 6.1); see ``README.md``
 #: for why this benchmark keeps it rather than tuning it per dataset.
 RAHA_LABELING_BUDGET = 20
+
+#: Auto-Validate's ``m`` override for this benchmark. The paper's own default
+#: is ``100``, calibrated for a 7.2M-column web-scale corpus (Section 6.2).
+#: This benchmark's background corpus is the 5 datasets' clean tables --
+#: 47 columns in total -- so we override ``m`` as a fixed fraction of that
+#: corpus size, floored at 1. Picked from the corpus size *before* looking
+#: at any test result. See the README for the exact value and rationale.
+AUTO_VALIDATE_M = 3  # max(1, int(47 corpus columns * 0.05)) = 3
 
 
 def _build_config(uc_location):
@@ -264,6 +277,102 @@ def run_raha(frames: dict[str, dict]) -> tuple[list[dict], dict, dict, float]:
     )
 
 
+def run_auto_validate(frames: dict[str, dict]) -> tuple[list[dict], dict, dict, float]:
+    """Score every dataset's dirty table with Auto-Validate.
+
+    Returns ``(targets, column_metrics, cell_metrics, duration_seconds)`` --
+    the same shape ``run_raha`` returns, for the same reason: ``column_metrics``
+    reduces to "was *any* cell of this column flagged" (the same whole-column
+    verdict Uni-Detect's own output is), while ``cell_metrics`` is
+    Auto-Validate's native per-cell granularity, scored against
+    ``clean_changes.csv``'s cell-level ground truth.
+
+    The background corpus ``T`` is exactly the same one ``run_uni_detect``
+    builds its corpus statistics from -- the 5 datasets' ``clean.csv``
+    tables, one index over all of them. Each dataset's *dirty* table is then
+    scored against it via ``auto_validate.detect(df, table_id=...)``. No dirty
+    table or its ground truth ever leaks into the index build, and unlike
+    Raha there is no per-dataset training phase: the index is shared.
+    """
+    import pandas as pd
+
+    from unidetect.algorithms.auto_validate import (
+        AutoValidateAlgorithm,
+        AutoValidateConfig,
+    )
+    from unidetect.algorithms.raha.strategies import NULL_SENTINEL, normalize_to_str
+
+    config = AutoValidateConfig(variant="fmdv_vh", m=AUTO_VALIDATE_M, r=0.05, tau=8, theta=0.1)
+    algo = AutoValidateAlgorithm(config)
+
+    # Build T from the clean tables only -- the same frames ``run_uni_detect``
+    # registers as its corpus. Each column of each clean table is one corpus
+    # column, read as strings (no Spark).
+    corpus: list[pd.Series] = []
+    for frame in frames.values():
+        clean_df = pd.DataFrame(frame["clean_rows"], columns=frame["header"])
+        for col in clean_df.columns:
+            corpus.append(clean_df[col].astype(str))
+
+    start = time.perf_counter()
+    algo.build_index(corpus)
+
+    targets: list[dict] = []
+    cell_rows: list[dict] = []
+    for name, frame in frames.items():
+        header = frame["header"]
+        dirty_df = pd.DataFrame(frame["dirty_rows"], columns=header)
+        result = algo.detect(dirty_df, table_id=name)
+
+        dirty_norm = normalize_to_str(dirty_df)
+        clean_norm = normalize_to_str(pd.DataFrame(frame["clean_rows"], columns=header))
+        by_column: dict[str, list] = defaultdict(list)
+        for cell in result:
+            by_column[cell.column_name].append(cell)
+            expected = dirty_norm.loc[cell.row_index, cell.column_name] != clean_norm.get(
+                cell.column_name, {}
+            ).get(cell.row_index, NULL_SENTINEL)
+            cell_rows.append(
+                {
+                    "dataset": name,
+                    "expected_significant": bool(expected),
+                    "predicted_significant": cell.is_error,
+                }
+            )
+
+        for col in header:
+            cells = by_column.get(col, [])
+            error_count = frame["error_counts"].get(col, 0)
+            targets.append(
+                {
+                    "id": f"{name}::{col}",
+                    "dataset": name,
+                    "column": col,
+                    "num_rows": len(frame["clean_rows"]),
+                    "error_count": error_count,
+                    "expected_significant": error_count > 0,
+                    "predicted_significant": any(c.is_error for c in cells),
+                    "score": max((c.score for c in cells), default=0.0),
+                }
+            )
+    duration = time.perf_counter() - start
+
+    column_overall = confusion_metrics(targets)
+    column_by_dataset = {
+        name: confusion_metrics([t for t in targets if t["dataset"] == name]) for name in DATASETS
+    }
+    cell_overall = confusion_metrics(cell_rows)
+    cell_by_dataset = {
+        name: confusion_metrics([r for r in cell_rows if r["dataset"] == name]) for name in DATASETS
+    }
+    return (
+        targets,
+        {"overall": column_overall, "by_dataset": column_by_dataset},
+        {"overall": cell_overall, "by_dataset": cell_by_dataset},
+        duration,
+    )
+
+
 def run() -> dict:
     frames = _dataset_frames()
     algorithms: dict[str, dict] = {}
@@ -284,6 +393,24 @@ def run() -> dict:
             "cell_metrics": raha_cell_metrics,
             "duration_seconds": raha_duration,
             "duration_note": None,
+        }
+
+    try:
+        import pandas as _  # noqa: F401
+    except ImportError:
+        print(
+            "pandas not installed; skipping auto_validate "
+            "(run `uv sync` or `uv pip install unidetect` first).",
+            file=sys.stderr,
+        )
+    else:
+        av_targets, av_column_metrics, av_cell_metrics, av_duration = run_auto_validate(frames)
+        algorithms["auto_validate"] = {
+            "targets": av_targets,
+            "metrics": av_column_metrics,
+            "cell_metrics": av_cell_metrics,
+            "duration_seconds": av_duration,
+            "duration_note": "build_index + detect; m overridden from corpus size (see README)",
         }
 
     try:
