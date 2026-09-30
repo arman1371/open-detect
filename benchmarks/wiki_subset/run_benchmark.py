@@ -243,15 +243,21 @@ def run_auto_validate() -> tuple[list[dict], dict, dict, float]:
     the same shape ``run_raha`` returns, for the same reason: ``column_metrics``
     reduces to "was *any* cell of this target flagged" (the same whole-target
     verdict Uni-Detect's own output is), while ``cell_metrics`` is
-    Auto-Validate's native per-cell granularity, scored against
-    ``generate_dataset.py``'s own ``injected_row_indices`` ground truth via a
-    local :class:`KnownIndexLabeler`.
+    Auto-Validate's native per-cell granularity, scored directly against
+    ``generate_dataset.py``'s own ``injected_row_indices`` (Auto-Validate
+    takes no ``labeler`` argument the way Raha does, so the same ground truth
+    is compared here without a ``Labeler`` shim).
 
     The background corpus ``T`` is the same background ``uni_detect`` uses
     (``data/corpus/<error_type>/*.csv``): one offline pattern index per
     error type, read as strings (no Spark). Each target is then scored against
     its error type's index via ``auto_validate.detect(df, table_id=target['id'])``.
     No target or its ground truth ever leaks into the index build.
+
+    ``duration_seconds`` covers the offline ``build_index`` calls *and* the
+    online ``detect`` pass, timed together -- the same offline+online
+    accounting ``run_uni_detect`` uses. Reading the corpus CSVs from disk is
+    excluded, as it is for the other algorithms.
 
     The paper's ``m`` default is 100 (calibrated for a 7.2M-column web-scale
     corpus); we override it here per error type based on that error type's
@@ -267,49 +273,51 @@ def run_auto_validate() -> tuple[list[dict], dict, dict, float]:
         AutoValidateAlgorithm,
         AutoValidateConfig,
     )
-    from unidetect.algorithms.raha.labeling import Labeler
 
-    class KnownIndexLabeler(Labeler):
-        def __init__(self, target_column: str, injected_indices: set[int]) -> None:
-            self._target_column = target_column
-            self._injected_indices = injected_indices
+    def _corpus_columns(category_dir: Path) -> list[pd.Series]:
+        """Every column of every CSV in ``category_dir`` as a string Series.
 
-        def label_tuple(self, df, row_index):
-            is_error = row_index in self._injected_indices
-            return {col: (is_error if col == self._target_column else False) for col in df.columns}
-
-    # One index per error type; each CSV becomes one corpus column
-    # (one Series per row of the CSV). This mirrors ``_load_corpus_tables``'s
-    # layout exactly, except we read as strings (pandas only, no Spark).
-    type_index: dict[str, AutoValidateAlgorithm] = {}
-    for error_type in ERROR_TYPES:
-        category_dir = CORPUS_DIR / error_type
-        n_columns = sum(
-            next(csv_module.reader(f.open(newline="", encoding="utf-8"))).__len__()
-            for f in category_dir.glob("*.csv")
-        )
-        m = max(1, int(n_columns * AUTO_VALIDATE_M_RATIO))
-        config = AutoValidateConfig(variant="fmdv_vh", m=m, r=0.05, tau=8, theta=0.1)
-        corpus: list[pd.Series] = []
+        Mirrors ``_load_corpus_tables``'s layout -- one corpus column per CSV
+        column -- but reads with pandas instead of Spark.
+        """
+        columns: list[pd.Series] = []
         for csv_path in sorted(category_dir.glob("*.csv")):
             with csv_path.open(newline="", encoding="utf-8") as fh:
                 reader = csv_module.reader(fh)
                 header = next(reader)
                 rows = list(reader)
             for col_idx in range(len(header)):
-                corpus.append(
+                columns.append(
                     pd.Series(
                         [row[col_idx] if col_idx < len(row) else "" for row in rows], dtype=str
                     )
                 )
+        return columns
+
+    # `m` is fixed from each category's own corpus size, before any target is
+    # scored, so it cannot be tuned against the results.
+    m_by_type = {
+        error_type: max(
+            1, int(len(_corpus_columns(CORPUS_DIR / error_type)) * AUTO_VALIDATE_M_RATIO)
+        )
+        for error_type in ERROR_TYPES
+    }
+
+    # One index per error type. Timed together with `detect` below, matching
+    # `run_uni_detect`'s offline+online accounting.
+    start = time.perf_counter()
+    type_index: dict[str, AutoValidateAlgorithm] = {}
+    for error_type in ERROR_TYPES:
+        config = AutoValidateConfig(
+            variant="fmdv_vh", m=m_by_type[error_type], r=0.05, tau=8, theta=0.1
+        )
         algo = AutoValidateAlgorithm(config)
-        algo.build_index(corpus)
+        algo.build_index(_corpus_columns(CORPUS_DIR / error_type))
         type_index[error_type] = algo
 
     targets = json.loads(TARGETS_FILE.read_text())
     target_rows: list[dict] = []
     cell_rows: list[dict] = []
-    start = time.perf_counter()
     for target in targets:
         error_type = target["error_type"]
         df = pd.DataFrame(target["rows"], columns=target["columns"])

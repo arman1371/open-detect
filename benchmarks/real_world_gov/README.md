@@ -233,7 +233,7 @@ single pattern in the index is by construction infeasible (`Cov_T(p)` can
 never reach 100 out of 47 columns), so every column would come back
 `no_feasible_pattern` and the algorithm would score a meaningless all-zero.
 
-`m` is therefore set to **3**, derived mechanically from corpus size as
+`m` is therefore set to **2**, derived mechanically from corpus size as
 `m = max(1, floor(47 * 0.05))` -- "a pattern needs corroboration from at least
 5% of the corpus". This is the same scale-a-knob-to-your-corpus-size
 reasoning (and the same derive-don't-tune discipline) that `_build_config`

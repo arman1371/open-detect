@@ -64,7 +64,7 @@ RAHA_LABELING_BUDGET = 20
 #: 47 columns in total -- so we override ``m`` as a fixed fraction of that
 #: corpus size, floored at 1. Picked from the corpus size *before* looking
 #: at any test result. See the README for the exact value and rationale.
-AUTO_VALIDATE_M = 3  # max(1, int(47 corpus columns * 0.05)) = 3
+AUTO_VALIDATE_M = 2  # max(1, int(47 corpus columns * 0.05)) = 2
 
 
 def _build_config(uc_location):
@@ -293,6 +293,10 @@ def run_auto_validate(frames: dict[str, dict]) -> tuple[list[dict], dict, dict, 
     scored against it via ``auto_validate.detect(df, table_id=...)``. No dirty
     table or its ground truth ever leaks into the index build, and unlike
     Raha there is no per-dataset training phase: the index is shared.
+
+    ``duration_seconds`` covers the offline ``build_index`` call *and* the
+    online ``detect`` passes, timed together -- the same offline+online
+    accounting ``run_uni_detect`` uses.
     """
     import pandas as pd
 
