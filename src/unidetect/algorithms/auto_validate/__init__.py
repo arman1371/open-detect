@@ -22,7 +22,11 @@ built on top of these in later modules.
 from __future__ import annotations
 
 from unidetect.algorithms.auto_validate.config import VARIANTS, AutoValidateConfig
+from unidetect.algorithms.auto_validate.detector import AutoValidateAlgorithm
+from unidetect.algorithms.auto_validate.drift import DriftResult, check_drift
 from unidetect.algorithms.auto_validate.exceptions import IndexNotBuiltError
+from unidetect.algorithms.auto_validate.fmdv import InferredPattern
+from unidetect.algorithms.auto_validate.fmdv_v import fmdv_v, fmdv_vh
 from unidetect.algorithms.auto_validate.hierarchy import matches, token_count, tokenize
 from unidetect.algorithms.auto_validate.index import PatternIndex, build_pattern_index
 from unidetect.algorithms.auto_validate.metrics import fpr_column, impurity
@@ -30,10 +34,16 @@ from unidetect.algorithms.auto_validate.patterns import patterns_of, sorted_patt
 
 __all__ = [
     "VARIANTS",
+    "AutoValidateAlgorithm",
     "AutoValidateConfig",
+    "DriftResult",
     "IndexNotBuiltError",
+    "InferredPattern",
     "PatternIndex",
     "build_pattern_index",
+    "check_drift",
+    "fmdv_v",
+    "fmdv_vh",
     "fpr_column",
     "impurity",
     "matches",
