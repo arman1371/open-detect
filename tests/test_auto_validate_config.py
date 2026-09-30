@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from dataclasses import FrozenInstanceError
+
 import pytest
 
 from unidetect.algorithms.auto_validate.config import AutoValidateConfig
@@ -20,7 +22,7 @@ class TestDefaults:
 
     def test_is_frozen(self):
         config = AutoValidateConfig()
-        with pytest.raises(Exception):  # noqa: B017 - dataclasses raise FrozenInstanceError
+        with pytest.raises(FrozenInstanceError, match="cannot assign to field"):
             config.r = 0.5  # type: ignore[misc]
 
     @pytest.mark.parametrize(

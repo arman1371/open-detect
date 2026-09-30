@@ -28,6 +28,7 @@ class DriftResult:
     theta_train: float
     theta_test: float
     p_value: float
+    odds_ratio: float
     drifted: bool
 
 
@@ -72,7 +73,9 @@ def _fisher_two_tailed(
     n_train = len(train_clean)
     n_test = len(test_clean)
     if n_train == 0 or n_test == 0:
-        return DriftResult(theta_train=0.0, theta_test=0.0, p_value=1.0, drifted=False)
+        return DriftResult(
+            theta_train=0.0, theta_test=0.0, p_value=1.0, odds_ratio=1.0, drifted=False
+        )
 
     pat = pattern.pattern
     pat_str = pat if isinstance(pat, str) else pat[0]
@@ -92,6 +95,7 @@ def _fisher_two_tailed(
         theta_train=theta_train,
         theta_test=theta_test,
         p_value=float(p_value),
+        odds_ratio=float(oddsratio),
         drifted=bool(p_value < significance),
     )
 

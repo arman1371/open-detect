@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from dataclasses import FrozenInstanceError
+
 import pandas as pd
 import pytest
 
@@ -125,13 +127,13 @@ class TestPatternIndex:
 
     def test_is_immutable_after_build(self):
         index = build_pattern_index([["10:00:00"]], AutoValidateConfig(tau=8, m=1))
-        with pytest.raises(TypeError):
+        with pytest.raises(TypeError, match="mappingproxy"):
             index._entries["x"] = (0.0, 0)  # type: ignore[index]
 
     def test_is_hashable_value_object(self):
         index = build_pattern_index([["10:00:00"]], AutoValidateConfig(tau=8, m=1))
         assert isinstance(index, PatternIndex)
-        with pytest.raises(Exception):  # noqa: B017 - frozen dataclass
+        with pytest.raises(FrozenInstanceError, match="cannot assign to field"):
             index.n_columns = 99  # type: ignore[misc]
 
 

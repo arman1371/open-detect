@@ -25,7 +25,7 @@ compare against when scanning a single table. See the fidelity notes in
 from __future__ import annotations
 
 from collections.abc import Iterable
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
 import pandas as pd
 
@@ -33,12 +33,9 @@ from unidetect.algorithms.auto_validate.config import AutoValidateConfig
 from unidetect.algorithms.auto_validate.exceptions import IndexNotBuiltError
 from unidetect.algorithms.auto_validate.fmdv import fmdv, fmdv_h
 from unidetect.algorithms.auto_validate.fmdv_v import fmdv_v, fmdv_vh
-from unidetect.algorithms.auto_validate.index import build_pattern_index
+from unidetect.algorithms.auto_validate.hierarchy import matches
+from unidetect.algorithms.auto_validate.index import PatternIndex, build_pattern_index
 from unidetect.algorithms.base import AlgorithmResult, CellResult, ErrorDetectionAlgorithm
-
-if TYPE_CHECKING:
-    from unidetect.algorithms.auto_validate.index import PatternIndex
-
 
 #: Mapping from config.variant to the pattern-inference function.
 _DISPATCH: dict[str, Any] = {
@@ -130,38 +127,17 @@ class AutoValidateAlgorithm(ErrorDetectionAlgorithm):
             pattern, fpr_t, cov_t, theta_c, reason = self.infer_pattern(series)
             if pattern is None:
                 # Infeasible column: no flags, explainable evidence.
-                for idx, value in series.items():
-                    if value is None:
-                        continue
-                    try:
-                        if pd.isna(value):
-                            continue
-                    except (TypeError, ValueError):
-                        pass
-                    text = value if isinstance(value, str) else str(value)
-                    if not text:
-                        continue
-                    cells.append(
-                        CellResult(
-                            table_id=table_id,
-                            row_index=idx,
-                            column_name=col,
-                            algorithm=self.name,
-                            is_error=False,
-                            score=0.0,
-                            evidence={
-                                "pattern": None,
-                                "reason": reason or "no_feasible_pattern",
-                                "fpr_t": 0.0,
-                                "cov_t": 0,
-                                "theta_c": 0.0,
-                                "variant": self.config.variant,
-                                "r": self.config.r,
-                                "m": self.config.m,
-                                "tau": self.config.tau,
-                            },
-                        )
+                cells.extend(
+                    _non_null_cells(
+                        series,
+                        table_id,
+                        col,
+                        self.name,
+                        is_error=False,
+                        score=0.0,
+                        evidence=_infeasible_evidence(self.config, reason),
                     )
+                )
                 continue
             n_total = len(series) - sum(1 for v in series if _is_null(v))
             score = 1.0 - fpr_t if n_total > 0 else 0.0
@@ -177,16 +153,7 @@ class AutoValidateAlgorithm(ErrorDetectionAlgorithm):
                         algorithm=self.name,
                         is_error=is_error,
                         score=score if is_error else 0.0,
-                        evidence={
-                            "pattern": pattern,
-                            "fpr_t": fpr_t,
-                            "cov_t": cov_t,
-                            "theta_c": theta_c,
-                            "variant": self.config.variant,
-                            "r": self.config.r,
-                            "m": self.config.m,
-                            "tau": self.config.tau,
-                        },
+                        evidence=_feasible_evidence(self.config, pattern, fpr_t, cov_t, theta_c),
                     )
                 )
         return AlgorithmResult(algorithm=self.name, cells=tuple(cells))
@@ -209,6 +176,71 @@ def _value_matches(pattern: str, value: Any) -> bool:
     text = value if isinstance(value, str) else str(value)
     if not text:
         return False
-    from unidetect.algorithms.auto_validate.hierarchy import matches
-
     return matches(pattern, text)
+
+
+def _non_null_cells(
+    series: pd.Series,
+    table_id: str,
+    col: str,
+    algorithm: str,
+    *,
+    is_error: bool,
+    score: float,
+    evidence: dict[str, Any],
+) -> list[CellResult]:
+    """Emit one ``CellResult`` per non-null cell of ``series``."""
+    cells: list[CellResult] = []
+    for idx, value in series.items():
+        if _is_null(value):
+            continue
+        text = value if isinstance(value, str) else str(value)
+        if not text:
+            continue
+        cells.append(
+            CellResult(
+                table_id=table_id,
+                row_index=idx,
+                column_name=col,
+                algorithm=algorithm,
+                is_error=is_error,
+                score=score,
+                evidence=evidence,
+            )
+        )
+    return cells
+
+
+def _infeasible_evidence(config: AutoValidateConfig, reason: str | None) -> dict[str, Any]:
+    """Evidence dict for a column with no feasible pattern."""
+    return {
+        "pattern": None,
+        "reason": reason or "no_feasible_pattern",
+        "fpr_t": 0.0,
+        "cov_t": 0,
+        "theta_c": 0.0,
+        "variant": config.variant,
+        "r": config.r,
+        "m": config.m,
+        "tau": config.tau,
+    }
+
+
+def _feasible_evidence(
+    config: AutoValidateConfig,
+    pattern: str,
+    fpr_t: float,
+    cov_t: int,
+    theta_c: float,
+) -> dict[str, Any]:
+    """Evidence dict for a column with an inferred pattern."""
+    return {
+        "pattern": pattern,
+        "fpr_t": fpr_t,
+        "cov_t": cov_t,
+        "theta_c": theta_c,
+        "variant": config.variant,
+        "r": config.r,
+        "m": config.m,
+        "tau": config.tau,
+    }

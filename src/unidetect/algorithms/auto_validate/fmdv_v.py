@@ -32,7 +32,7 @@ and an approximation otherwise.  Documented as a fidelity note.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from collections.abc import Callable
 
 import pandas as pd
 
@@ -41,9 +41,6 @@ from unidetect.algorithms.auto_validate.fmdv import InferredPattern, _clean
 from unidetect.algorithms.auto_validate.hierarchy import matches
 from unidetect.algorithms.auto_validate.index import PatternIndex
 from unidetect.algorithms.auto_validate.patterns import patterns_of, sorted_patterns
-
-if TYPE_CHECKING:
-    pass
 
 
 def fmdv_v(
@@ -142,19 +139,23 @@ def _coarse_class(ch: str) -> str:
     return "<symbol>"
 
 
-def _segment_fmdv_v(
+def _segment_dp(
     values: list[str],
     index: PatternIndex,
     config: AutoValidateConfig,
+    variant: str,
+    solve_segment: Callable[[list[str], PatternIndex, AutoValidateConfig], InferredPattern | None],
 ) -> InferredPattern | None:
-    """Run FMDV-V on a single coarse-signature group via DP."""
+    """Run the shared vertical-cut DP and aggregate the chosen segments.
+
+    ``solve_segment`` is the per-segment FMDV variant (single-segment FMDV for
+    ``fmdv_v``; FMDV-H for ``fmdv_vh``).  Returns ``None`` when no feasible
+    segmentation exists.
+    """
     n = len(values)
     if n == 0:
         return None
 
-    # DP bottom-up: dp[i][j] = min FPR sum for values[i:j+1].
-    # Infinity sentinel: use a float large enough that it cannot be a real
-    # FPR sum.  Max FPR per segment is 1.0, max segments n, so n+1 is safe.
     INF = float("inf")
     dp: list[list[float]] = [[INF] * n for _ in range(n)]
     parent: list[list[int | None]] = [[None] * n for _ in range(n)]
@@ -162,26 +163,20 @@ def _segment_fmdv_v(
     for length in range(1, n + 1):
         for i in range(0, n - length + 1):
             j = i + length - 1
-            # Case 1: no split — use the whole segment as one group.
-            seg_vals = values[i : j + 1]
-            seg = _fmdv_single_segment(seg_vals, index, config)
+            seg = solve_segment(values[i : j + 1], index, config)
             best_cost = seg.fpr_t if seg else INF
 
-            # Case 2: split at every possible t.
             for t in range(i, j):
                 left = dp[i][t]
                 right = dp[t + 1][j]
-                if left < INF and right < INF:
-                    cost = left + right
-                    if cost < best_cost:
-                        best_cost = cost
-                        parent[i][j] = t
+                if left < INF and right < INF and left + right < best_cost:
+                    best_cost = left + right
+                    parent[i][j] = t
             dp[i][j] = best_cost
 
     if dp[0][n - 1] >= INF:
         return None
 
-    # Reconstruct segments.
     segments: list[list[str]] = []
     i, j = 0, n - 1
     while i <= j:
@@ -193,12 +188,11 @@ def _segment_fmdv_v(
             segments.append(values[i : p + 1])
             i = p + 1
 
-    # Compute aggregate from segments.
     total_fpr = 0.0
     total_cov = 0
     best_segments: list[InferredPattern] = []
     for seg_vals in segments:
-        seg = _fmdv_single_segment(seg_vals, index, config)
+        seg = solve_segment(seg_vals, index, config)
         if seg is None:
             return None
         total_fpr += seg.fpr_t
@@ -212,8 +206,17 @@ def _segment_fmdv_v(
         fpr_t=total_fpr,
         cov_t=total_cov,
         theta_c=theta_c,
-        variant="fmdv_v",
+        variant=variant,
     )
+
+
+def _segment_fmdv_v(
+    values: list[str],
+    index: PatternIndex,
+    config: AutoValidateConfig,
+) -> InferredPattern | None:
+    """Run FMDV-V on a single coarse-signature group via DP."""
+    return _segment_dp(values, index, config, "fmdv_v", _fmdv_single_segment)
 
 
 def _segment_fmdv_vh(
@@ -222,66 +225,7 @@ def _segment_fmdv_vh(
     config: AutoValidateConfig,
 ) -> InferredPattern | None:
     """FMDV-VH within a single coarse-signature group: horizontal first, then DP."""
-    n = len(values)
-    if n == 0:
-        return None
-
-    INF = float("inf")
-    dp: list[list[float]] = [[INF] * n for _ in range(n)]
-    parent: list[list[int | None]] = [[None] * n for _ in range(n)]
-
-    for length in range(1, n + 1):
-        for i in range(0, n - length + 1):
-            j = i + length - 1
-            # No split: solve FMDV-H on the whole segment.
-            seg = _fmdv_h_single(values[i : j + 1], index, config)
-            best_cost = seg.fpr_t if seg else INF
-
-            # Split.
-            for t in range(i, j):
-                left = dp[i][t]
-                right = dp[t + 1][j]
-                if left < INF and right < INF:
-                    cost = left + right
-                    if cost < best_cost:
-                        best_cost = cost
-                        parent[i][j] = t
-            dp[i][j] = best_cost
-
-    if dp[0][n - 1] >= INF:
-        return None
-
-    segments: list[list[str]] = []
-    i, j = 0, n - 1
-    while i <= j:
-        p = parent[i][j]
-        if p is None:
-            segments.append(values[i : j + 1])
-            i = j + 1
-        else:
-            segments.append(values[i : p + 1])
-            i = p + 1
-
-    total_fpr = 0.0
-    total_cov = 0
-    best_segments: list[InferredPattern] = []
-    for seg_vals in segments:
-        seg = _fmdv_h_single(seg_vals, index, config)
-        if seg is None:
-            return None
-        total_fpr += seg.fpr_t
-        total_cov += seg.cov_t
-        best_segments.append(seg)
-
-    theta_c = sum(s.theta_c * s.cov_t for s in best_segments) / total_cov if total_cov else 0.0
-    patterns = [s.pattern for s in best_segments]
-    return InferredPattern(
-        pattern=patterns[0] if len(patterns) == 1 else patterns,  # type: ignore[arg-type]
-        fpr_t=total_fpr,
-        cov_t=total_cov,
-        theta_c=theta_c,
-        variant="fmdv_vh",
-    )
+    return _segment_dp(values, index, config, "fmdv_vh", _fmdv_h_single)
 
 
 def _fmdv_single_segment(
@@ -382,8 +326,6 @@ def _infer_cmp(a: InferredPattern, b: InferredPattern) -> int:
         return -1
     if a.theta_c > b.theta_c:
         return 1
-    if a.cov_t > b.cov_t:
-        return -1
-    if a.cov_t < b.cov_t:
-        return 1
+    if a.cov_t != b.cov_t:
+        return -1 if a.cov_t > b.cov_t else 1
     return -1 if a.variant < b.variant else (1 if a.variant > b.variant else 0)

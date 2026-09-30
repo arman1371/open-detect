@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
-
 import pandas as pd
 import pytest
 
@@ -11,9 +9,6 @@ from unidetect.algorithms import get_algorithm, get_algorithm_class, list_algori
 from unidetect.algorithms.auto_validate.config import AutoValidateConfig
 from unidetect.algorithms.auto_validate.detector import AutoValidateAlgorithm
 from unidetect.algorithms.auto_validate.exceptions import IndexNotBuiltError
-
-if TYPE_CHECKING:
-    pass
 
 
 def _make_tiny_corpus() -> list[pd.Series]:
@@ -66,8 +61,9 @@ class TestAutoValidateDetector:
 
     def test_infer_pattern_without_build_raises(self):
         detector = AutoValidateAlgorithm()
+        column = pd.Series(["10:00:00"])
         with pytest.raises(IndexNotBuiltError):
-            detector.infer_pattern(pd.Series(["10:00:00"]))
+            detector.infer_pattern(column)
 
     def test_null_cells_never_flagged(self):
         """Null values should produce no CellResult."""
