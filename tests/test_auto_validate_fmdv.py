@@ -125,6 +125,19 @@ class TestFmdvH:
         result = fmdv_h(values, index, AutoValidateConfig(m=1, tau=16, theta=0.1))
         assert result is None
 
+    def test_ceil_theta_rounding(self):
+        """Paper Eqn 16 uses ceiling: ceil((1-theta)|C|), not truncation.
+
+        3 values, 2 matching + 1 outlier, theta=0.1 -> ceil(0.9 * 3) = 3
+        conforming required, so the 1 outlier makes it infeasible.  Truncation
+        would have accepted it (int(0.9*3) = 2 <= 2 matches).
+        """
+        corpus, config = _tiny_corpus(m_val=1)
+        index = _build_index(corpus, config)
+        values = pd.Series(["10:00:00", "11:00:00", "N/A"])
+        result = fmdv_h(values, index, AutoValidateConfig(m=1, tau=16, theta=0.1))
+        assert result is None
+
     def test_deterministic_tie_break(self):
         """Same inputs give the same result across runs."""
         corpus, config = _tiny_corpus(m_val=1)

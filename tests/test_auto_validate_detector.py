@@ -9,6 +9,8 @@ from unidetect.algorithms import get_algorithm, get_algorithm_class, list_algori
 from unidetect.algorithms.auto_validate.config import AutoValidateConfig
 from unidetect.algorithms.auto_validate.detector import AutoValidateAlgorithm
 from unidetect.algorithms.auto_validate.exceptions import IndexNotBuiltError
+from unidetect.algorithms.auto_validate.fmdv import InferredPattern
+from unidetect.algorithms.auto_validate.index import PatternIndex
 
 
 def _make_tiny_corpus() -> list[pd.Series]:
@@ -200,3 +202,29 @@ class TestAutoValidateDetector:
 
     def test_list_algorithms_contains_auto_validate(self):
         assert "auto_validate" in list_algorithms()
+
+    def test_build_index_returns_pattern_index(self):
+        detector = AutoValidateAlgorithm(AutoValidateConfig(m=1, tau=16))
+        corpus = [pd.Series(["2024-01-15", "2024-02-20"])]
+        result = detector.build_index(corpus)
+        assert isinstance(result, PatternIndex)
+        assert result is detector.index
+
+    def test_infer_pattern_returns_inferred_pattern(self):
+        detector = AutoValidateAlgorithm(AutoValidateConfig(m=1, tau=16))
+        corpus = [pd.Series(["2024-01-15", "2024-02-20"])]
+        detector.build_index(corpus)
+        column = pd.Series(["2024-01-15"])
+        result = detector.infer_pattern(column)
+        assert isinstance(result, InferredPattern)
+        assert result.variant == "fmdv_vh"
+        assert result.fpr_t >= 0.0
+        assert result.cov_t >= 1
+
+    def test_infer_pattern_returns_none_when_infeasible(self):
+        detector = AutoValidateAlgorithm(AutoValidateConfig(m=100, tau=16))
+        corpus = [pd.Series(["a", "b"])]
+        detector.build_index(corpus)
+        # m=100 far exceeds the tiny corpus — no pattern can satisfy it.
+        result = detector.infer_pattern(pd.Series(["x", "y"]))
+        assert result is None

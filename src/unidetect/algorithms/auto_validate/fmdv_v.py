@@ -32,6 +32,7 @@ and an approximation otherwise.  Documented as a fidelity note.
 
 from __future__ import annotations
 
+import math
 from collections.abc import Callable
 
 import pandas as pd
@@ -160,7 +161,15 @@ def _segment_dp(
     dp: list[list[float]] = [[INF] * n for _ in range(n)]
     parent: list[list[int | None]] = [[None] * n for _ in range(n)]
 
+    # Paper Def. 2 enforces e_i - s_i < tau (strict), so the widest admissible
+    # segment is tau-1 tokens.  A segment of exactly tau tokens is not
+    # permitted; skip both the no-split leaf and any split candidate wider
+    # than tau-1.
+    max_width = config.tau - 1
+
     for length in range(1, n + 1):
+        if length > max_width:
+            continue
         for i in range(0, n - length + 1):
             j = i + length - 1
             seg = solve_segment(values[i : j + 1], index, config)
@@ -275,7 +284,8 @@ def _fmdv_h_single(
     """FMDV-H over a single segment (with horizontal theta tolerance)."""
     if not values:
         return None
-    min_conforming = int((1.0 - config.theta) * len(values))
+    # Paper Eqn 16: h must match at least ceil((1-theta)|C|) values.
+    min_conforming = math.ceil((1.0 - config.theta) * len(values))
 
     candidate_set: set[str] = set()
     for v in values:

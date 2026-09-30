@@ -20,6 +20,7 @@ FMDV-V and FMDV-VH (vertical cuts, horizontal-then-vertical) are in
 
 from __future__ import annotations
 
+import math
 from collections.abc import Sequence
 from dataclasses import dataclass
 from typing import Any
@@ -112,7 +113,10 @@ def fmdv_h(
     if not clean:
         return None
 
-    min_conforming = int((1.0 - config.theta) * len(clean))
+    # Paper Eqn 16: h must match at least ceil((1-theta)|C|) values.  Ceiling
+    # (not truncation) is required so that e.g. theta=0.1 over 3 values needs
+    # all 3 matches, not merely 2.
+    min_conforming = math.ceil((1.0 - config.theta) * len(clean))
 
     candidate_set: set[str] = set()
     for v in clean:

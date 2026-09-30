@@ -31,7 +31,7 @@ import pandas as pd
 
 from unidetect.algorithms.auto_validate.config import AutoValidateConfig
 from unidetect.algorithms.auto_validate.exceptions import IndexNotBuiltError
-from unidetect.algorithms.auto_validate.fmdv import fmdv, fmdv_h
+from unidetect.algorithms.auto_validate.fmdv import InferredPattern, fmdv, fmdv_h
 from unidetect.algorithms.auto_validate.fmdv_v import fmdv_v, fmdv_vh
 from unidetect.algorithms.auto_validate.hierarchy import matches
 from unidetect.algorithms.auto_validate.index import PatternIndex, build_pattern_index
@@ -79,21 +79,18 @@ class AutoValidateAlgorithm(ErrorDetectionAlgorithm):
         self._index = build_pattern_index(corpus, self.config)
         return self._index
 
-    def infer_pattern(self, column: pd.Series) -> tuple[str | None, float, int, float, str | None]:
+    def infer_pattern(self, column: pd.Series) -> InferredPattern | None:
         """Infer the validation pattern for a single column.
 
-        Returns ``(pattern, fpr_t, cov_t, theta_c, reason)`` where ``reason``
-        is ``None`` on success and an explanation string when no feasible
-        pattern is found.
+        Dispatches the configured FMDV variant against the offline index and
+        returns the :class:`InferredPattern`, or ``None`` when no feasible
+        pattern exists (e.g. the variant is unknown or the column cannot be
+        satisfied under ``r``/``m``/``theta``).
         """
         infer_fn = _DISPATCH.get(self.config.variant)
         if infer_fn is None:
-            return None, 0.0, 0, 0.0, f"unknown variant {self.config.variant!r}"
-        result = infer_fn(column, self.index, self.config)
-        if result is None:
-            return None, 0.0, 0, 0.0, "no_feasible_pattern"
-        pat = result.pattern if isinstance(result.pattern, str) else result.pattern[0]
-        return pat, result.fpr_t, result.cov_t, result.theta_c, None
+            return None
+        return infer_fn(column, self.index, self.config)
 
     def detect(
         self,
@@ -124,8 +121,8 @@ class AutoValidateAlgorithm(ErrorDetectionAlgorithm):
             if col not in data.columns:
                 continue
             series = data[col]
-            pattern, fpr_t, cov_t, theta_c, reason = self.infer_pattern(series)
-            if pattern is None:
+            inferred = self.infer_pattern(series)
+            if inferred is None:
                 # Infeasible column: no flags, explainable evidence.
                 cells.extend(
                     _non_null_cells(
@@ -135,10 +132,12 @@ class AutoValidateAlgorithm(ErrorDetectionAlgorithm):
                         self.name,
                         is_error=False,
                         score=0.0,
-                        evidence=_infeasible_evidence(self.config, reason),
+                        evidence=_infeasible_evidence(self.config, None),
                     )
                 )
                 continue
+            pattern = inferred.pattern if isinstance(inferred.pattern, str) else inferred.pattern[0]
+            fpr_t, cov_t, theta_c = inferred.fpr_t, inferred.cov_t, inferred.theta_c
             n_total = len(series) - sum(1 for v in series if _is_null(v))
             score = 1.0 - fpr_t if n_total > 0 else 0.0
             for idx, value in series.items():

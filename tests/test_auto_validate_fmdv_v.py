@@ -115,3 +115,22 @@ class TestFmdvVh:
         values = pd.Series(["10:00:00", "11:00:00"])
         result = fmdv_vh(values, index, AutoValidateConfig(m=1, tau=16))
         assert result is not None
+
+    def test_tau_boundary_segment_width_strict(self):
+        """Def. 2 enforces e_i - s_i < tau (strict): a segment of exactly tau
+        tokens is not permitted.  With tau=3 the max admissible segment width
+        is 2 tokens, so 3 single-char values (each 1 token) in one coarse
+        group should return None; with tau=4 they should succeed."""
+        # Single-char values share the "<letter>" coarse signature.
+        corpus = [["a", "b", "c"]]
+        cfg_tau3 = AutoValidateConfig(m=1, tau=3)
+        index_tau3 = build_pattern_index(corpus, cfg_tau3)
+        values = pd.Series(["a", "b", "c"])
+        # 3 tokens > max_width tau-1=2 => infeasible as a single segment.
+        assert fmdv_v(values, index_tau3, cfg_tau3) is None
+        # With tau=4, max_width=3 allows the segment.
+        cfg_tau4 = AutoValidateConfig(m=1, tau=4)
+        index_tau4 = build_pattern_index(corpus, cfg_tau4)
+        result = fmdv_v(values, index_tau4, cfg_tau4)
+        assert result is not None
+        assert result.variant == "fmdv_v"
