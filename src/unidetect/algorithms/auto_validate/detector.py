@@ -34,7 +34,7 @@ from unidetect.algorithms.auto_validate.exceptions import IndexNotBuiltError
 from unidetect.algorithms.auto_validate.fmdv import fmdv, fmdv_h
 from unidetect.algorithms.auto_validate.fmdv_v import fmdv_v, fmdv_vh
 from unidetect.algorithms.auto_validate.index import build_pattern_index
-from unidetect.algorithms.base import AlgorithmResult, CellResult
+from unidetect.algorithms.base import AlgorithmResult, CellResult, ErrorDetectionAlgorithm
 
 if TYPE_CHECKING:
     from unidetect.algorithms.auto_validate.index import PatternIndex
@@ -49,7 +49,7 @@ _DISPATCH: dict[str, Any] = {
 }
 
 
-class AutoValidateAlgorithm:
+class AutoValidateAlgorithm(ErrorDetectionAlgorithm):
     """Registered as ``"auto_validate"`` in :mod:`unidetect.algorithms`."""
 
     name = "auto_validate"
