@@ -1,17 +1,17 @@
 # Graph Report - open-detect  (2026-09-30)
 
 ## Corpus Check
-- 131 files · ~104,014 words
+- 131 files · ~104,015 words
 - Verdict: corpus is large enough that graph structure adds value.
 - Unclassified: 232 file(s) not represented in the graph (top: .csv 226, (none) 3, .properties 1)
 
 ## Summary
-- 1373 nodes · 3135 edges · 70 communities (52 shown, 18 thin omitted)
+- 1373 nodes · 3137 edges · 66 communities (48 shown, 18 thin omitted)
 - Extraction: 92% EXTRACTED · 8% INFERRED · 0% AMBIGUOUS · INFERRED: 258 edges (avg confidence: 0.93)
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `28e38ab0`
+- Built from commit: `900c1dc8`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -66,21 +66,17 @@
 - infer_column_data_type
 - .detect
 - features.py
-- confusion_metrics
+- spark_session.py
 - quickstart.py
 - _build_index
 - real_world_gov/generate_report.py
 - _build_index
 - CorpusStatsBuilder
 - is_integer_like
-- `raha`
 - FeatureBucket
-- README.md — Uni-Detect overview
-- `raha`
 - Detection
 - drop_nulls
 - perturb_numeric_outlier
-- FD metric deviation from literal paper formula
 
 ## God Nodes (most connected - your core abstractions)
 1. `AutoValidateConfig` - 78 edges
@@ -90,7 +86,7 @@
 5. `UniDetect` - 34 edges
 6. `RahaConfig` - 30 edges
 7. `PatternIndex` - 29 edges
-8. `AutoValidateAlgorithm` - 27 edges
+8. `AutoValidateAlgorithm` - 28 edges
 9. `UnityCatalogLocation` - 26 edges
 10. `ARCHITECTURE.md — Uni-Detect paper-to-code map` - 26 edges
 
@@ -103,8 +99,8 @@
   benchmarks/real_world_gov/README.md → src/unidetect/corpus/builder.py
 - `Scoring raha` --references--> `GroundTruthLabeler`  [INFERRED]
   benchmarks/wiki_subset/README.md → src/unidetect/algorithms/raha/labeling.py
-- `WIKI-subset benchmark methodology redesign` --semantically_similar_to--> `functional_dependency metric (FR, Section 3.4)`  [INFERRED] [semantically similar]
-  benchmarks/README.md → ARCHITECTURE.md
+- `README.md — Uni-Detect overview` --references--> `CI workflow: Benchmark (wiki-subset, workflow_dispatch)`  [AMBIGUOUS]
+  README.md → .github/workflows/benchmark.yml
 
 ## Import Cycles
 - None detected.
@@ -113,7 +109,7 @@
 - **graphify Skill Reference Documentation Set** — _claude_skills_graphify_skill, _claude_skills_graphify_references_add_watch, _claude_skills_graphify_references_exports, _claude_skills_graphify_references_extraction_spec, _claude_skills_graphify_references_github_and_merge, _claude_skills_graphify_references_hooks, _claude_skills_graphify_references_query, _claude_skills_graphify_references_transcribe, _claude_skills_graphify_references_update [EXTRACTED 1.00]
 - **Uni-Detect paper-to-code mapping table** — architecture, paper_unidetect, unidetect_detectors_base_basedetector, unidetect_corpus_builder_corpusstatsbuilder, unidetect_corpus_store_corpusstatsstore [EXTRACTED 1.00]
 
-## Communities (70 total, 18 thin omitted)
+## Communities (66 total, 18 thin omitted)
 
 ### Community 0 - "ErrorType"
 Cohesion: 0.13
@@ -129,11 +125,11 @@ Nodes (14): get_algorithm(), get_algorithm_class(), list_algorithms(), _load_ent
 
 ### Community 3 - "real_world_gov/run_benchmark.py"
 Cohesion: 0.13
-Nodes (12): canonical_column(), dataset_paths(), load_changes(), load_csv(), Source, _build_config(), _dataset_frames(), main() (+4 more)
+Nodes (11): git_commit(), dataset_paths(), load_changes(), load_csv(), _build_config(), _dataset_frames(), main(), _print_comparison() (+3 more)
 
 ### Community 4 - "ARCHITECTURE.md — Uni-Detect paper-to-code map"
-Cohesion: 0.15
-Nodes (15): ARCHITECTURE.md — Uni-Detect paper-to-code map, ErrorType enum (Definition 1), CorpusStatsBuilder (offline learning phase), CorpusStatsStore.batch_score (LR test / online lookup), BaseDetector template method (Definition 4), functional_dependency detector, numeric_outlier detector, spelling detector (+7 more)
+Cohesion: 0.05
+Nodes (45): CI workflow: Benchmark (wiki-subset, workflow_dispatch), CI workflow: CI (lint/test/type-check), ARCHITECTURE.md — Uni-Detect paper-to-code map, benchmarks/README.md — WIKI-subset benchmark, Algorithm comparison, By dataset (cell-level), By dataset (column-level), By dataset (column-level) (+37 more)
 
 ### Community 5 - "generate_dataset.py"
 Cohesion: 0.20
@@ -160,8 +156,8 @@ Cohesion: 0.12
 Nodes (10): duplicate_value_indices(), _max_drop(), perturb_functional_dependency(), perturb_spelling(), perturb_uniqueness(), PerturbationOutcome, TestDuplicateValueIndices, TestPerturbFunctionalDependency (+2 more)
 
 ### Community 11 - "wiki_subset/generate_report.py"
-Cohesion: 0.19
-Nodes (14): grouped_bar_chart(), _nice_ceiling(), _rounded_top_rect(), _algorithm_section(), _by_error_type_section(), _f1_by_error_type_chart(), _fmt_pct(), main() (+6 more)
+Cohesion: 0.17
+Nodes (15): grouped_bar_chart(), _nice_ceiling(), _rounded_top_rect(), comparison_charts(), _algorithm_section(), _by_error_type_section(), _f1_by_error_type_chart(), _fmt_pct() (+7 more)
 
 ### Community 12 - "min_pairwise_edit_distance"
 Cohesion: 0.21
@@ -237,7 +233,7 @@ Nodes (17): Running the benchmark, A note on methodology (read this before trust
 
 ### Community 36 - "wiki_subset/run_benchmark.py"
 Cohesion: 0.12
-Nodes (10): git_commit(), spark_session(), SparkUnavailable, _build_config(), _load_corpus_tables(), _load_targets(), main(), _print_comparison() (+2 more)
+Nodes (11): comparison_table_markdown(), confusion_metrics(), _build_config(), _load_corpus_tables(), _load_targets(), main(), _print_comparison(), run() (+3 more)
 
 ### Community 37 - "AutoValidateAlgorithm"
 Cohesion: 0.10
@@ -276,8 +272,8 @@ Cohesion: 0.17
 Nodes (8): ErrorDetectionAlgorithm, _load_auto_validate(), _load_raha(), _load_uni_detect(), UniDetectAlgorithm, _config(), _row(), TestUniDetectAlgorithm
 
 ### Community 47 - "Benchmark: real_world_gov"
-Cohesion: 0.29
-Nodes (7): Benchmark: real_world_gov, Comparing across versions, Duration methodology, Layout, Methodology: raha, Reading the results, Which 5 datasets, and why
+Cohesion: 0.20
+Nodes (9): canonical_column(), Benchmark: real_world_gov, Comparing across versions, Duration methodology, Layout, Methodology: raha, Reading the results, Source (+1 more)
 
 ### Community 48 - "featurization.py"
 Cohesion: 0.16
@@ -291,17 +287,13 @@ Nodes (4): clean_column(), _is_null(), _iter_corpus_columns(), TestCleanColumn
 Cohesion: 0.23
 Nodes (6): build_all_features(), build_column_features(), test_build_all_features_covers_every_column(), test_drops_constant_features(), test_feature_values_are_binary(), test_keeps_informative_features()
 
-### Community 53 - "confusion_metrics"
-Cohesion: 0.25
-Nodes (3): confusion_metrics(), run_raha(), _metrics()
-
 ### Community 55 - "_build_index"
 Cohesion: 0.16
 Nodes (4): _build_index(), TestFmdvBasic, TestFmdvH, _tiny_corpus()
 
 ### Community 56 - "real_world_gov/generate_report.py"
-Cohesion: 0.20
-Nodes (11): comparison_charts(), comparison_table_markdown(), _algorithm_section(), _by_dataset_chart(), _fmt_pct(), main(), _metrics_table_row(), render_markdown() (+3 more)
+Cohesion: 0.32
+Nodes (9): _algorithm_section(), _by_dataset_chart(), _fmt_pct(), main(), _metrics_table_row(), render_markdown(), _short_name(), _slug() (+1 more)
 
 ### Community 57 - "_build_index"
 Cohesion: 0.16
@@ -310,18 +302,6 @@ Nodes (4): _build_index(), TestFmdvV, TestFmdvVh, _time_corpus()
 ### Community 58 - "CorpusStatsBuilder"
 Cohesion: 0.21
 Nodes (4): CorpusStatsBuilder, compute(), _stats_schema_without_error_type(), TestStatsSchemaWithoutErrorType
-
-### Community 60 - "`raha`"
-Cohesion: 0.15
-Nodes (12): Algorithm comparison, By corruption severity, By corruption severity (target-level), By error type, By error type (cell-level), By error type (target-level), Evaluation targets, Evaluation targets (+4 more)
-
-### Community 62 - "README.md — Uni-Detect overview"
-Cohesion: 0.31
-Nodes (8): CI workflow: Benchmark (wiki-subset, workflow_dispatch), CI workflow: CI (lint/test/type-check), benchmarks/README.md — WIKI-subset benchmark, databricks.yml — Databricks Asset Bundle, Wang & He, "Uni-Detect" (SIGMOD 2019), README.md — Uni-Detect overview, catalog.list_tables_matching, UniDetect pipeline facade
-
-### Community 63 - "`raha`"
-Cohesion: 0.20
-Nodes (9): Algorithm comparison, By dataset (cell-level), By dataset (column-level), By dataset (column-level), Evaluated columns (column-level), Evaluated columns (column-level), `raha`, real_world_gov benchmark results (+1 more)
 
 ## Ambiguous Edges - Review These
 - `CI workflow: Benchmark (wiki-subset, workflow_dispatch)` → `README.md — Uni-Detect overview`  [AMBIGUOUS]
@@ -338,9 +318,9 @@ _Questions this graph is uniquely positioned to answer:_
 - **What is the exact relationship between `CI workflow: Benchmark (wiki-subset, workflow_dispatch)` and `README.md — Uni-Detect overview`?**
   _Edge tagged AMBIGUOUS (relation: references) - confidence is low._
 - **Why does `ErrorType` connect `ErrorType` to `Detection`, `UniDetectConfig`, `real_world_gov/run_benchmark.py`, `wiki_subset/run_benchmark.py`, `CorpusStatsStore`, `build_corpus_statistics.py`, `builder.py`, `UniDetect`, `algorithms/__init__.py`, `featurization.py`, `pipeline.py`, `unidetect/__init__.py`, `quickstart.py`, `enums.py`, `CorpusStatsBuilder`, `FeatureBucket`, `AlgorithmResult`?**
-  _High betweenness centrality (0.107) - this node is a cross-community bridge._
+  _High betweenness centrality (0.108) - this node is a cross-community bridge._
 - **Why does `AutoValidateConfig` connect `AutoValidateConfig` to `UniDetectConfig`, `AutoValidateAlgorithm`, `PatternIndex`, `check_drift`, `_build_index`, `index.py`, `_build_index`?**
-  _High betweenness centrality (0.102) - this node is a cross-community bridge._
+  _High betweenness centrality (0.101) - this node is a cross-community bridge._
 - **Why does `UniDetectConfig` connect `UniDetectConfig` to `ErrorType`, `real_world_gov/run_benchmark.py`, `wiki_subset/run_benchmark.py`, `CorpusStatsStore`, `build_corpus_statistics.py`, `builder.py`, `UniDetect`, `algorithms/__init__.py`, `pipeline.py`, `unidetect/__init__.py`, `quickstart.py`, `enums.py`, `CorpusStatsBuilder`?**
   _High betweenness centrality (0.066) - this node is a cross-community bridge._
 - **Are the 22 inferred relationships involving `AutoValidateConfig` (e.g. with `ConfigurationError` and `AutoValidateAlgorithm`) actually correct?**
