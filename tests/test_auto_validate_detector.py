@@ -33,11 +33,13 @@ class TestAutoValidateDetector:
         detector = AutoValidateAlgorithm(config)
         detector.build_index(corpus)
 
-        dirty = pd.DataFrame({
-            "date": ["2024-01-15", "2024-02-20", "NOT-A-DATE", None],
-            "email": ["john@example.com", "invalid-email", "admin@site.net", "user@test.com"],
-            "city": ["New York", "London", "Tokyo", "Paris"],
-        })
+        dirty = pd.DataFrame(
+            {
+                "date": ["2024-01-15", "2024-02-20", "NOT-A-DATE", None],
+                "email": ["john@example.com", "invalid-email", "admin@site.net", "user@test.com"],
+                "city": ["New York", "London", "Tokyo", "Paris"],
+            }
+        )
         result = detector.detect(dirty, table_id="t1")
         assert result.algorithm == "auto_validate"
 
@@ -74,12 +76,16 @@ class TestAutoValidateDetector:
         detector = AutoValidateAlgorithm(config)
         detector.build_index(corpus)
 
-        dirty = pd.DataFrame({
-            "date": [None, "2024-01-15", None, "2024-02-20"],
-            "email": ["a@b.com", "x@y.com", "m@n.com", "p@q.com"],
-        })
+        dirty = pd.DataFrame(
+            {
+                "date": [None, "2024-01-15", None, "2024-02-20"],
+                "email": ["a@b.com", "x@y.com", "m@n.com", "p@q.com"],
+            }
+        )
         result = detector.detect(dirty, table_id="t1")
-        assert all(cell.column_name == "date" or cell.column_name == "email" for cell in result.cells)
+        assert all(
+            cell.column_name == "date" or cell.column_name == "email" for cell in result.cells
+        )
         assert all(not cell.is_error for cell in result.cells)
         # Only 2 non-null date cells + 4 email cells
         assert len(result.cells) == 6
@@ -105,9 +111,11 @@ class TestAutoValidateDetector:
         detector = AutoValidateAlgorithm(config)
         detector.build_index(corpus)
 
-        dirty = pd.DataFrame({
-            "email": ["invalid-email", "valid@test.com"],
-        })
+        dirty = pd.DataFrame(
+            {
+                "email": ["invalid-email", "valid@test.com"],
+            }
+        )
         result = detector.detect(dirty, table_id="t1")
         error_cells = [c for c in result.cells if c.is_error]
         assert len(error_cells) == 1
@@ -134,10 +142,12 @@ class TestAutoValidateDetector:
         detector = AutoValidateAlgorithm(config)
         detector.build_index(corpus)
 
-        dirty = pd.DataFrame({
-            "date": ["NOT-A-DATE"],
-            "email": ["invalid"],
-        })
+        dirty = pd.DataFrame(
+            {
+                "date": ["NOT-A-DATE"],
+                "email": ["invalid"],
+            }
+        )
         result = detector.detect(dirty, table_id="t1", columns=["date"])
         assert all(cell.column_name == "date" for cell in result.cells)
 
@@ -179,10 +189,12 @@ class TestAutoValidateDetector:
         detector = AutoValidateAlgorithm(config)
         detector.build_index(corpus)
 
-        dirty = pd.DataFrame({
-            "date": ["NOT-A-DATE", "ALSO-BAD"],
-            "email": ["a@b.com", "c@d.com"],
-        })
+        dirty = pd.DataFrame(
+            {
+                "date": ["NOT-A-DATE", "ALSO-BAD"],
+                "email": ["a@b.com", "c@d.com"],
+            }
+        )
         result = detector.detect(dirty, table_id="t1")
         # date column: 2 cells, both no flags (infeasible)
         date_cells = [c for c in result.cells if c.column_name == "date"]
