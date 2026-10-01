@@ -30,3 +30,6 @@ graphify-out/cache
 graphify-out/.graphify_*
 graphify-out/manifest.json
 graphify-out/[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]/
+
+# Machine-local Claude Code settings
+.claude/settings.local.json

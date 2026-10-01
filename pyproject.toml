@@ -44,6 +44,9 @@ raha = [
   "scikit-learn>=1.3",
   "scipy>=1.10",
 ]
+auto_validate = [
+  "scipy>=1.10",
+]
 [project.urls]
 Homepage = "https://github.com/arman1371/open-detect"
 Repository = "https://github.com/arman1371/open-detect"

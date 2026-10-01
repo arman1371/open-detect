@@ -139,6 +139,7 @@ def _algorithm_section(name: str, entry: dict) -> list[str]:
     overall = entry["metrics"]["overall"]
     slug = _slug(name)
     is_raha = name == "raha"
+    is_av = name == "auto_validate"
 
     lines: list[str] = []
     lines.append(f"## `{name}`")
@@ -163,12 +164,12 @@ def _algorithm_section(name: str, entry: dict) -> list[str]:
         'Column/target-level: a target is "predicted significant" if *any* of its '
         "cells was flagged -- the same granularity Uni-Detect's own output has, used "
         'for the apples-to-apples comparison above. See "Cell-level" below for '
-        "Raha's native, per-cell granularity (the same one the paper's own Table 5 "
-        "reports)."
-        if is_raha
+        "Raha's/Auto-Validate's native, per-cell granularity (the same one the paper's "
+        "own Table 5 reports)."
+        if is_raha or is_av
         else None
     )
-    heading = "By error type (target-level)" if is_raha else "By error type"
+    heading = "By error type (target-level)" if is_raha or is_av else "By error type"
     if granularity_note:
         lines.append(granularity_note)
         lines.append("")
@@ -202,14 +203,17 @@ def _algorithm_section(name: str, entry: dict) -> list[str]:
         lines.append(f"![Accuracy by corruption severity](charts/severity_accuracy_{slug}.svg)")
         lines.append("")
 
-    if is_raha and entry.get("cell_metrics"):
+    if (is_raha or is_av) and entry.get("cell_metrics"):
         lines.append("### By error type (cell-level)")
         lines.append("")
         lines.append(
             "Precision/recall/F1 over every individual `(row, column)` cell against "
-            "`generate_dataset.py`'s own `injected_row_indices` ground truth -- Raha's "
+            "`generate_dataset.py`'s own `injected_row_indices` ground truth -- "
+            f"{'Raha' if is_raha else 'Auto-Validate' if is_av else 'the algorithm'}'s "
             "native evaluation granularity, and typically a more informative number "
-            "than the target-level reduction above for judging Raha specifically."
+            "than the target-level reduction above for judging "
+            f"{'Raha' if is_raha else 'Auto-Validate' if is_av else 'the algorithm'} "
+            "specifically."
         )
         lines.append("")
         cell_overall = entry["cell_metrics"]["overall"]
@@ -248,7 +252,7 @@ def _algorithm_section(name: str, entry: dict) -> list[str]:
 
     lines.append("### Evaluation targets")
     lines.append("")
-    if is_raha:
+    if is_raha or is_av:
         lines.append(
             "| Target | Error type | Severity | Expected | Predicted | Score | Result | "
             "Description |"
