@@ -33,3 +33,7 @@ graphify-out/[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]/
 
 # Machine-local Claude Code settings
 .claude/settings.local.json
+
+# Machine-local JDK 17 used to run the uni_detect (Spark/Delta) half of the
+# benchmarks locally; not portable, not part of the repo's contract.
+.jdk/
