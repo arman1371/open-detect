@@ -66,6 +66,15 @@ RAHA_LABELING_BUDGET = 20
 #: at any test result. See the README for the exact value and rationale.
 AUTO_VALIDATE_M = 2  # max(1, int(47 corpus columns * 0.05)) = 2
 
+#: Auto-Validate's ``tau`` override for this benchmark. The paper's default
+#: is ``8``, but the real_world_gov corpus contains high-cardinality text
+#: columns (addresses, phone numbers) that generate millions of patterns at
+#: tau=8, causing combinatorial explosion. We reduce tau to 4 to filter out
+#: values with >4 tokens while preserving meaningful patterns for short
+#: categorical columns (names, codes, dates). This is a benchmark-specific
+#: configuration override, not an algorithm change.
+AUTO_VALIDATE_TAU = 4
+
 
 def _build_config(uc_location):
     from unidetect.config import UniDetectConfig
@@ -115,7 +124,7 @@ def run_uni_detect(frames: dict[str, dict]) -> tuple[list[dict], dict, float]:
     config = _build_config(uc_location)
 
     start = time.perf_counter()
-    with spark_session(TEST_CATALOG, TEST_SCHEMA) as spark:
+    with spark_session(TEST_CATALOG, TEST_SCHEMA, driver_memory="8g") as spark:
         ud = UniDetect(config, spark=spark)
 
         clean_fqns: dict[str, str] = {}
@@ -306,7 +315,9 @@ def run_auto_validate(frames: dict[str, dict]) -> tuple[list[dict], dict, dict, 
     )
     from unidetect.algorithms.raha.strategies import NULL_SENTINEL, normalize_to_str
 
-    config = AutoValidateConfig(variant="fmdv_vh", m=AUTO_VALIDATE_M, r=0.05, tau=8, theta=0.1)
+    config = AutoValidateConfig(
+        variant="fmdv_vh", m=AUTO_VALIDATE_M, r=0.05, tau=AUTO_VALIDATE_TAU, theta=0.1
+    )
     algo = AutoValidateAlgorithm(config)
 
     # Build T from the clean tables only -- the same frames ``run_uni_detect``
@@ -414,7 +425,7 @@ def run() -> dict:
             "metrics": av_column_metrics,
             "cell_metrics": av_cell_metrics,
             "duration_seconds": av_duration,
-            "duration_note": "build_index + detect; m overridden from corpus size (see README)",
+            "duration_note": "build_index + detect; m and tau overridden from corpus size (see README)",
         }
 
     try:

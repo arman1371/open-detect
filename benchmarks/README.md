@@ -45,8 +45,28 @@ Two notes on how the comparison should be read:
   infeasible. Each benchmark therefore overrides `m` as a documented fraction
   of *its own* corpus size, decided from corpus size alone before looking at
   any result -- see each benchmark's README for the exact value and
-  reasoning. No other hyperparameter (`r`, `tau`, `theta`, `variant`) is
-  overridden; those keep their paper/library defaults.
+  reasoning.
+- **`real_world_gov` additionally overrides `tau` to 4.** The paper's default
+  `tau=8` (max token count per value) makes `build_index` take unreasonably
+  long on this corpus: its high-cardinality text columns (addresses, phone
+  numbers) generate millions of patterns at `tau=8` (verified: `build_index`
+  does not finish within 5 minutes at `tau=8` on the checked-in clean tables,
+  vs ~3 minutes at `tau=4`). `tau=4` filters out long tokenized values while
+  keeping patterns for short categorical columns. `wiki_subset` keeps the
+  paper's `tau=8` -- its corpus values are short (codes, IDs, numbers), so
+  the default is not a problem there. This is a benchmark-specific
+  configuration override to make the algorithm runnable, not an algorithm
+  change; `r`, `theta` and `variant` keep their paper/library defaults in
+  both benchmarks.
+- **`real_world_gov`'s `uni_detect` figures are real Spark/Delta measurements,
+  not placeholders.** The previous `baseline.json` for this benchmark was
+  produced on JDK 21, where the Spark/Arrow path cannot run; its `uni_detect`
+  numbers came from a pure-Python provenance harness and its
+  `duration_seconds` was `null`. The checked-in baseline was regenerated on
+  **JDK 17** (Temurin 17.0.20.1, the version PySpark 3.5's bundled Arrow
+  requires), so `uni_detect`'s `duration_seconds` is a genuine wall-clock
+  measurement. The two baselines must not be compared against each other --
+  this one supersedes the previous one.
 - **Timing is not apples-to-apples across all three.** `uni_detect` and
   `auto_validate` both have a corpus-build phase folded into
   `duration_seconds`; `raha` has none. Each benchmark's README documents
