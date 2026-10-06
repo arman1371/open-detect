@@ -145,10 +145,13 @@ def _algorithm_section(name: str, entry: dict) -> list[str]:
     lines.append(f"## `{name}`")
     lines.append("")
     duration = entry.get("duration_seconds")
+    duration_note = entry.get("duration_note")
     if duration is not None:
         lines.append(f"**Duration:** {duration:.2f}s  ")
-    elif entry.get("duration_note"):
-        lines.append(f"**Duration:** not measured -- {entry['duration_note']}  ")
+        if duration_note:
+            lines.append(f"({duration_note})  ")
+    elif duration_note:
+        lines.append(f"**Duration:** not measured -- {duration_note}  ")
     lines.append("")
 
     lines.append("| Metric | Value |")

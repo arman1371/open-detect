@@ -5,20 +5,23 @@
 <line x1="44" y1="324.0" x2="700" y2="324.0" stroke="#e1e0d9" stroke-width="1"/>
 <text x="36" y="327.5" font-size="10.5" fill="#898781" text-anchor="end">0.00</text>
 <line x1="44" y1="270.0" x2="700" y2="270.0" stroke="#e1e0d9" stroke-width="1"/>
-<text x="36" y="273.5" font-size="10.5" fill="#898781" text-anchor="end">40.40</text>
+<text x="36" y="273.5" font-size="10.5" fill="#898781" text-anchor="end">97.00</text>
 <line x1="44" y1="216.0" x2="700" y2="216.0" stroke="#e1e0d9" stroke-width="1"/>
-<text x="36" y="219.5" font-size="10.5" fill="#898781" text-anchor="end">80.80</text>
+<text x="36" y="219.5" font-size="10.5" fill="#898781" text-anchor="end">194.00</text>
 <line x1="44" y1="162.0" x2="700" y2="162.0" stroke="#e1e0d9" stroke-width="1"/>
-<text x="36" y="165.5" font-size="10.5" fill="#898781" text-anchor="end">121.20</text>
+<text x="36" y="165.5" font-size="10.5" fill="#898781" text-anchor="end">291.00</text>
 <line x1="44" y1="108.0" x2="700" y2="108.0" stroke="#e1e0d9" stroke-width="1"/>
-<text x="36" y="111.5" font-size="10.5" fill="#898781" text-anchor="end">161.60</text>
+<text x="36" y="111.5" font-size="10.5" fill="#898781" text-anchor="end">388.00</text>
 <line x1="44" y1="54.0" x2="700" y2="54.0" stroke="#e1e0d9" stroke-width="1"/>
-<text x="36" y="57.5" font-size="10.5" fill="#898781" text-anchor="end">202.00</text>
+<text x="36" y="57.5" font-size="10.5" fill="#898781" text-anchor="end">485.00</text>
 <line x1="44" y1="324.0" x2="700" y2="324.0" stroke="#c3c2b7" stroke-width="1.25"/>
-<path d="M 80.08,314.2332880948002 Q 80.08,310.2332880948002 84.08,310.2332880948002 L 331.92,310.2332880948002 Q 335.92,310.2332880948002 335.92,314.2332880948002 L 335.92,324.0 L 80.08,324.0 Z" fill="#2a78d6"/>
-<text x="208.0" y="305.2" font-size="10.5" fill="#52514e" text-anchor="middle">10.3s</text>
-<text x="208.0" y="342.0" font-size="11" fill="#52514e" text-anchor="middle">`raha`</text>
-<path d="M 408.08,58.461761403649064 Q 408.08,54.461761403649064 412.08,54.461761403649064 L 659.92,54.461761403649064 Q 663.92,54.461761403649064 663.92,58.461761403649064 L 663.92,324.0 L 408.08,324.0 Z" fill="#2a78d6"/>
-<text x="536.0" y="49.5" font-size="10.5" fill="#52514e" text-anchor="middle">201.7s</text>
-<text x="536.0" y="342.0" font-size="11" fill="#52514e" text-anchor="middle">`auto_validate`</text>
+<path d="M 68.05333333333333,324.0 Q 68.05333333333333,320.8391360586186 71.21419727471478,320.8391360586186 L 235.4524693919519,320.8391360586186 Q 238.61333333333334,320.8391360586186 238.61333333333334,324.0 L 238.61333333333334,324.0 L 68.05333333333333,324.0 Z" fill="#2a78d6"/>
+<text x="153.3" y="315.8" font-size="10.5" fill="#52514e" text-anchor="middle">5.7s</text>
+<text x="153.3" y="342.0" font-size="11" fill="#52514e" text-anchor="middle">`raha`</text>
+<path d="M 286.71999999999997,242.6420612172165 Q 286.71999999999997,238.6420612172165 290.71999999999997,238.6420612172165 L 453.28,238.6420612172165 Q 457.28,238.6420612172165 457.28,242.6420612172165 L 457.28,324.0 L 286.71999999999997,324.0 Z" fill="#2a78d6"/>
+<text x="372.0" y="233.6" font-size="10.5" fill="#52514e" text-anchor="middle">153.3s</text>
+<text x="372.0" y="342.0" font-size="11" fill="#52514e" text-anchor="middle">`auto_validate`</text>
+<path d="M 505.38666666666666,58.51514104265982 Q 505.38666666666666,54.51514104265982 509.38666666666666,54.51514104265982 L 671.9466666666667,54.51514104265982 Q 675.9466666666667,54.51514104265982 675.9466666666667,58.51514104265982 L 675.9466666666667,324.0 L 505.38666666666666,324.0 Z" fill="#2a78d6"/>
+<text x="590.7" y="49.5" font-size="10.5" fill="#52514e" text-anchor="middle">484.1s</text>
+<text x="590.7" y="342.0" font-size="11" fill="#52514e" text-anchor="middle">`uni_detect`</text>
 </svg>
