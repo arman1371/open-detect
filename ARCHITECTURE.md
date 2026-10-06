@@ -394,7 +394,14 @@ algorithm is actually constructed.
    then vertical".  Our interpretation: partition values by coarse signature
    into vertical groups, then within each group apply FMDV-H (theta
    tolerance), then DP across groups.  The per-group H-cut tolerates
-   outliers before vertical segmentation.
+   outliers before vertical segmentation.  At detection time a value is
+   valid if it matches **its own coarse-signature group's** pattern.
+   `_value_matches` (`detector.py`) therefore treats a list pattern
+   (multi-group `fmdv_v`/`fmdv_vh`) as a **disjunction over groups**; because
+   the coarse-signature groups partition the column, per-group match is the
+   correct combined-validation semantics (paper Eqns 8-10).  This was a
+   detection-time bug fix in commit 5976e33 (previously only `pattern[0]`
+   was consulted, so values in every other group were falsely flagged).
 5. **No corpus-free fallback.**  `fmdv`/`fmdv_h`/`fmdv_v`/`fmdv_vh` require
    a `PatternIndex`; without one, callers must raise `IndexNotBuiltError`.
    This follows from the paper's requirement that `T` be a background
