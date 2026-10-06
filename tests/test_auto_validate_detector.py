@@ -221,6 +221,33 @@ class TestAutoValidateDetector:
         assert result.fpr_t >= 0.0
         assert result.cov_t >= 1
 
+    def test_multi_group_pattern_is_a_disjunction(self):
+        """fmdv_v/vh infer one pattern per coarse-signature group; a value is
+        valid if it matches *any* of them, not just the first.
+
+        A column mixing two token-class signatures (e.g. ``2024-01-15`` and
+        ``Jan 5``) used to flag every value from the second group as an error
+        because only ``inferred.pattern[0]`` was consulted.  With the fix, all
+        values match their own group's pattern and are left unflagged.
+        """
+        config = AutoValidateConfig(m=1, tau=16)
+        corpus = [
+            pd.Series(["2024-01-15", "2024-02-20", "2024-03-10"]),
+            pd.Series(["Jan 5", "Feb 10", "Mar 3"]),
+        ]
+        detector = AutoValidateAlgorithm(config)
+        detector.build_index(corpus)
+
+        col = pd.Series(["2024-01-15", "Jan 5", "2024-02-20", "Feb 10"])
+        inferred = detector.infer_pattern(col)
+        assert isinstance(inferred.pattern, list)
+        assert len(inferred.pattern) >= 2
+
+        result = detector.detect(pd.DataFrame({"mixed": col}), table_id="t1")
+        assert len(result.cells) == 4
+        assert all(not cell.is_error for cell in result.cells)
+        assert all(isinstance(cell.evidence["pattern"], list) for cell in result.cells)
+
     def test_infer_pattern_returns_none_when_infeasible(self):
         detector = AutoValidateAlgorithm(AutoValidateConfig(m=100, tau=16))
         corpus = [pd.Series(["a", "b"])]

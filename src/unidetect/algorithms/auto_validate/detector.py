@@ -24,7 +24,7 @@ compare against when scanning a single table. See the fidelity notes in
 
 from __future__ import annotations
 
-from collections.abc import Iterable
+from collections.abc import Iterable, Sequence
 from typing import Any
 
 import pandas as pd
@@ -136,7 +136,7 @@ class AutoValidateAlgorithm(ErrorDetectionAlgorithm):
                     )
                 )
                 continue
-            pattern = inferred.pattern if isinstance(inferred.pattern, str) else inferred.pattern[0]
+            pattern = inferred.pattern
             fpr_t, cov_t, theta_c = inferred.fpr_t, inferred.cov_t, inferred.theta_c
             n_total = len(series) - sum(1 for v in series if _is_null(v))
             score = 1.0 - fpr_t if n_total > 0 else 0.0
@@ -168,14 +168,23 @@ def _is_null(value: Any) -> bool:
         return False
 
 
-def _value_matches(pattern: str, value: Any) -> bool:
-    """Whether ``value`` matches ``pattern`` (nulls return False)."""
+def _value_matches(pattern: str | Sequence[str], value: Any) -> bool:
+    """Whether ``value`` matches ``pattern`` (nulls return False).
+
+    ``pattern`` is the inferred validation pattern: a single string for the
+    single-pattern FMDV variants, or a disjunction of one pattern per coarse
+    signature group for ``fmdv_v``/``fmdv_vh``.  A value is valid if it matches
+    **any** of them -- the groups are a partition of the column, so each value
+    belongs to exactly one group and must satisfy that group's pattern.
+    """
     if _is_null(value):
         return False
     text = value if isinstance(value, str) else str(value)
     if not text:
         return False
-    return matches(pattern, text)
+    if isinstance(pattern, str):
+        return matches(pattern, text)
+    return any(matches(p, text) for p in pattern)
 
 
 def _non_null_cells(
@@ -227,7 +236,7 @@ def _infeasible_evidence(config: AutoValidateConfig, reason: str | None) -> dict
 
 def _feasible_evidence(
     config: AutoValidateConfig,
-    pattern: str,
+    pattern: str | Sequence[str],
     fpr_t: float,
     cov_t: int,
     theta_c: float,
