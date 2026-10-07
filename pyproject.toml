@@ -50,6 +50,7 @@ auto_validate = [
 [project.urls]
 Homepage = "https://github.com/arman1371/open-detect"
 Repository = "https://github.com/arman1371/open-detect"
+Documentation = "https://arman1371.github.io/open-detect/"
 
 [project.scripts]
 build_corpus_statistics_job = "unidetect.jobs.build_corpus_statistics:main"

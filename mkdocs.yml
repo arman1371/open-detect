@@ -1,0 +1,123 @@
+site_name: unidetect
+site_description: Pluggable, paper-backed error detection algorithms for tabular data (Uni-Detect, Raha, Auto-Validate).
+site_url: https://arman1371.github.io/open-detect/
+repo_url: https://github.com/arman1371/open-detect
+repo_name: arman1371/open-detect
+edit_uri: edit/main/docs/
+exclude_docs: |
+  requirements.txt
+copyright: Apache-2.0 licensed. Built by the open-detect contributors.
+
+theme:
+  name: material
+  features:
+    - navigation.tabs
+    - navigation.sections
+    - navigation.top
+    - navigation.footer
+    - navigation.indexes
+    - search.suggest
+    - search.highlight
+    - content.code.copy
+    - content.code.annotate
+    - content.tabs.link
+    - toc.follow
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/weather-night
+        name: Switch to dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/weather-sunny
+        name: Switch to light mode
+  icon:
+    repo: fontawesome/brands/github
+
+plugins:
+  - search
+  - mkdocstrings:
+      handlers:
+        python:
+          paths: [src]
+          options:
+            docstring_style: numpy
+            show_source: false
+            show_root_heading: true
+            show_root_full_path: false
+            show_symbol_type_heading: true
+            members_order: source
+            separate_signature: true
+            show_signature_annotations: true
+            signature_crossrefs: true
+            merge_init_into_class: true
+            filters: ["!^_"]
+
+markdown_extensions:
+  - admonition
+  - attr_list
+  - def_list
+  - md_in_html
+  - tables
+  - toc:
+      permalink: true
+  - pymdownx.details
+  - pymdownx.emoji:
+      emoji_index: !!python/name:material.extensions.emoji.twemoji
+      emoji_generator: !!python/name:material.extensions.emoji.to_svg
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.inlinehilite
+  - pymdownx.snippets:
+      base_path: [.]
+      check_paths: true
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
+  - pymdownx.tabbed:
+      alternate_style: true
+
+nav:
+  - Home: index.md
+  - Getting started:
+      - getting-started/index.md
+      - Installation: getting-started/installation.md
+      - Quickstart: getting-started/quickstart.md
+  - Concepts:
+      - concepts.md
+  - Algorithms:
+      - algorithms/index.md
+      - Raha: algorithms/raha.md
+      - Auto-Validate: algorithms/auto-validate.md
+      - Uni-Detect: algorithms/uni-detect.md
+  - Guides:
+      - Choosing an algorithm: guides/choosing-an-algorithm.md
+      - Comparing algorithms: guides/comparing-algorithms.md
+      - Custom labelers (Raha): guides/custom-labelers.md
+      - Running on Databricks: guides/databricks-jobs.md
+      - Writing your own algorithm: guides/writing-an-algorithm.md
+  - API reference:
+      - reference/index.md
+      - Registry and results: reference/algorithms.md
+      - Raha: reference/raha.md
+      - Auto-Validate: reference/auto-validate.md
+      - Uni-Detect: reference/uni-detect.md
+      - Errors: reference/exceptions.md
+  - Project:
+      - Benchmarks: benchmarks.md
+      - Architecture: architecture.md
+      - Contributing: contributing.md
+
+validation:
+  omitted_files: warn
+  absolute_links: warn
+  unrecognized_links: warn
+  anchors: warn
