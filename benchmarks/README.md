@@ -12,11 +12,65 @@ than being copy-pasted:
 | **[`real_world_gov`](real_world_gov/README.md)** | Real government open-data tables with real, historically-injected errors and independently-produced ground truth. | 5 datasets sampled from [LUH-DBS/Matelda](https://github.com/LUH-DBS/Matelda)'s `DGov_NTR` corpus, checked in. |
 
 Both benchmarks score **every registered algorithm** (see
-[`unidetect.algorithms`](../ARCHITECTURE.md) -- `uni_detect` and `raha`
-today) against the same targets and render a side-by-side comparison table
--- precision/recall/F1/accuracy *and* wall-clock duration -- rather than one
-algorithm's numbers reported in isolation. See each benchmark's
-`results/REPORT.md` for the current comparison.
+[`unidetect.algorithms`](../ARCHITECTURE.md) -- `uni_detect`, `raha` and
+`auto_validate` today) against the same targets and render a side-by-side
+comparison table -- precision/recall/F1/accuracy *and* wall-clock duration --
+rather than one algorithm's numbers reported in isolation. See each
+benchmark's `results/REPORT.md` for the current comparison.
+
+## The three algorithms, and what they each bring
+
+| Algorithm | Operating model | Extra deps |
+|---|---|---|
+| `uni_detect` | Per-column/pair "how surprising is this relative to corpus `T`", via a likelihood ratio. Offline corpus-statistics build + online scoring. | Spark + Delta (**JDK 17**) |
+| `raha` | Per-cell classification from sampled human labels, one classifier per column. No corpus phase. | `scikit-learn`, `scipy` |
+| `auto_validate` | Per-cell "does this value match the validation pattern inferred from corpus `T`" (Song & He, SIGMOD 2021). Offline pattern-index build + online pattern inference + cell matching. | `pandas` only |
+
+Two notes on how the comparison should be read:
+
+- **`auto_validate` is a string-format-pattern method.** It infers a pattern
+  per *column* (character-class/token-level: `<alphanum>{11}`, `Amendment
+  <alphanum>+`, ...) and flags cells that don't match. That makes it a good
+  fit for format/shape errors and a poor fit for errors that are perfectly
+  well-formatted but wrong: a numeric outlier (`8716` → `8.716`) still matches
+  `<num>+`, and a functional-dependency violation (`USA` → `Nonexistent
+  Country`) is still a perfectly ordinary `<letter>+ <letter>+` value. Low
+  recall on `numeric_outlier` / `functional_dependency` in both benchmarks'
+  reports is therefore the *expected* result, not a misconfiguration -- it is
+  reported as-is and no hyperparameter was tuned to compensate.
+- **Each benchmark overrides Auto-Validate's `m`.** The library default `m=100`
+  is the paper's, calibrated for a 7.2M-column web-scale corpus. These
+  benchmarks' corpora are 39-104 columns (`wiki_subset`) and 47 columns
+  (`real_world_gov`), where `m=100` would make every single pattern
+  infeasible. Each benchmark therefore overrides `m` as a documented fraction
+  of *its own* corpus size, decided from corpus size alone before looking at
+  any result -- see each benchmark's README for the exact value and
+  reasoning.
+- **`real_world_gov` additionally overrides `tau` to 4.** The paper's default
+  `tau=8` (max token count per value) makes `build_index` take unreasonably
+  long on this corpus: its high-cardinality text columns (addresses, phone
+  numbers) generate millions of patterns at `tau=8` (verified: `build_index`
+  does not finish within 5 minutes at `tau=8` on the checked-in clean tables,
+  vs ~3 minutes at `tau=4`). `tau=4` filters out long tokenized values while
+  keeping patterns for short categorical columns. `wiki_subset` keeps the
+  paper's `tau=8` -- its corpus values are short (codes, IDs, numbers), so
+  the default is not a problem there. This is a benchmark-specific
+  configuration override to make the algorithm runnable, not an algorithm
+  change; `r`, `theta` and `variant` keep their paper/library defaults in
+  both benchmarks.
+- **`real_world_gov`'s `uni_detect` figures are real Spark/Delta measurements,
+  not placeholders.** The previous `baseline.json` for this benchmark was
+  produced on JDK 21, where the Spark/Arrow path cannot run; its `uni_detect`
+  numbers came from a pure-Python provenance harness and its
+  `duration_seconds` was `null`. The checked-in baseline was regenerated on
+  **JDK 17** (Temurin 17.0.20.1, the version PySpark 3.5's bundled Arrow
+  requires), so `uni_detect`'s `duration_seconds` is a genuine wall-clock
+  measurement. The two baselines must not be compared against each other --
+  this one supersedes the previous one.
+- **Timing is not apples-to-apples across all three.** `uni_detect` and
+  `auto_validate` both have a corpus-build phase folded into
+  `duration_seconds`; `raha` has none. Each benchmark's README documents
+  exactly what its own `duration_seconds` covers.
 
 ```
 benchmarks/

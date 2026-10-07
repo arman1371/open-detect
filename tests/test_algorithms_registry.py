@@ -15,7 +15,7 @@ from unidetect.algorithms.registry import (
 
 
 def test_builtin_algorithms_are_registered():
-    assert {"raha", "uni_detect"} <= set(list_algorithms())
+    assert {"auto_validate", "raha", "uni_detect"} <= set(list_algorithms())
 
 
 def test_unknown_algorithm_raises():

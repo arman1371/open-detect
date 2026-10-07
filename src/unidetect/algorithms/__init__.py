@@ -25,6 +25,12 @@ from unidetect.algorithms.registry import (
 )
 
 
+def _load_auto_validate() -> type[ErrorDetectionAlgorithm]:
+    from unidetect.algorithms.auto_validate.detector import AutoValidateAlgorithm
+
+    return AutoValidateAlgorithm
+
+
 def _load_raha() -> type[ErrorDetectionAlgorithm]:
     from unidetect.algorithms.raha.detector import RahaDetector
 
@@ -37,6 +43,7 @@ def _load_uni_detect() -> type[ErrorDetectionAlgorithm]:
     return UniDetectAlgorithm
 
 
+register_lazy("auto_validate", _load_auto_validate)
 register_lazy("raha", _load_raha)
 register_lazy("uni_detect", _load_uni_detect)
 

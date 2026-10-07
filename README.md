@@ -9,6 +9,7 @@ run several and compare) without learning a new API per paper:
 |---|---|---|
 | `uni_detect` | Wang & He, *Uni-Detect*, SIGMOD 2019 | Corpus-driven, unsupervised, Spark/Unity Catalog-native |
 | `raha` | Mahdavi et al., *Raha*, SIGMOD 2019 | Semi-supervised (≤20 labels), single-table, pandas-native |
+| `auto_validate` | Song & He, *Auto-Validate*, SIGMOD 2021 | Corpus-driven, unsupervised, single-table, pandas-native |
 
 ```python
 from unidetect.algorithms import get_algorithm
@@ -259,6 +260,39 @@ exactly, and is what this implementation uses (see
 `unidetect/algorithms/raha/strategies.py`). Knowledge-base violation
 detection and historical strategy filtering (Sections 2.2 and 5) are out of
 scope, as documented in the Raha design section above.
+
+## Auto-Validate (Song & He, SIGMOD 2021)
+
+Auto-Validate infers a pattern per column from a background corpus ``T`` and
+flags cells that do not match the inferred pattern.  It has four variants:
+``fmdv`` (basic), ``fmdv_h`` (horizontal cuts), ``fmdv_v`` (vertical cuts),
+and ``fmdv_vh`` (the paper's best, combining both).
+
+```python
+from unidetect.algorithms.auto_validate import (
+    AutoValidateAlgorithm,
+    AutoValidateConfig,
+    IndexNotBuiltError,
+)
+
+# Option A: use the end-to-end detector (recommended).
+config = AutoValidateConfig(m=10, tau=8)  # m must match your corpus size
+detector = AutoValidateAlgorithm(config)
+detector.build_index([train_df["col_a"], train_df["col_b"]])
+result = detector.detect(test_df, table_id="orders")
+for cell in result.errors():
+    print(f"{cell.column_name}[{cell.row_index}]: {cell.evidence['pattern']}")
+
+# Option B: use the parts directly.
+from unidetect.algorithms.auto_validate import build_pattern_index, fmdv_vh
+from unidetect.algorithms.auto_validate.drift import check_drift
+
+index = build_pattern_index(corpus, config)
+pattern = fmdv_vh(test_df["col_a"], index, config)
+drift = check_drift(train_df["col_a"], future_df["col_a"], pattern)
+```
+
+See `ARCHITECTURE.md` for the full paper-to-code mapping and fidelity notes.
 
 ## License
 

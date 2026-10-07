@@ -25,9 +25,10 @@ See [`../README.md`](../README.md) for how this benchmark relates to the
 other one (`real_world_gov`) and the infrastructure they share.
 
 This benchmark runs **every registered algorithm** (see
-[`unidetect.algorithms`](../../ARCHITECTURE.md) -- `uni_detect` and `raha`
-today) against the same 60 targets and reports a head-to-head comparison --
-effectiveness and wall-clock duration -- see "Reading the results" below.
+[`unidetect.algorithms`](../../ARCHITECTURE.md) -- `uni_detect`, `raha` and
+`auto_validate` today) against the same 60 targets and reports a head-to-head
+comparison -- effectiveness and wall-clock duration -- see "Reading the
+results" below.
 
 ### A note on methodology (read this before trusting the numbers)
 
@@ -89,11 +90,13 @@ benchmarks/wiki_subset/
 ```
 
 `run_benchmark.py` runs `raha` (pure pandas, no external dependency beyond
-`scikit-learn`/`scipy`) and `uni_detect` (Spark/Delta, requires JDK 17)
-independently -- either can be skipped (with a printed message) if its
-dependencies aren't installed, or in `uni_detect`'s case if a local
-Delta-enabled Spark session can't be started at all, and the benchmark still
-reports whichever algorithm(s) did run.
+`scikit-learn`/`scipy`), `auto_validate` (pure pandas -- **no** Spark,
+`scikit-learn`, or JDK dependency at all, so it runs even when those are
+missing) and `uni_detect` (Spark/Delta, requires JDK 17) independently -- any
+of them can be skipped (with a printed message) if its dependencies aren't
+installed, or in `uni_detect`'s case if a local Delta-enabled Spark session
+can't be started at all, and the benchmark still reports whichever
+algorithm(s) did run.
 
 ### The corpus (`data/corpus/`)
 
@@ -170,6 +173,99 @@ targets here are small enough that one flagged cell out of a handful of
 rows can make a target-level call look better than the underlying per-cell
 classification really is).
 
+### Scoring auto_validate
+
+Auto-Validate (Song & He, SIGMOD 2021) is the one algorithm here with a
+mandatory background-corpus phase baked into the algorithm itself: it
+**cannot** detect anything without a corpus `T`, so there is no
+self-as-corpus fallback and no way to run it standalone. This benchmark
+therefore builds `T` from **exactly the same background corpus `uni_detect`
+uses** -- `data/corpus/<error_type>/*.csv`, read as strings (`dtype=str`),
+one `build_index()` call per error type, from that error type's own category
+directory and nothing else. Detection runs on the eval targets only. No eval
+target, and no target's `injected_row_indices` ground truth, is ever passed
+into `build_index()`.
+
+Scoring works exactly as for `raha` (see "Scoring raha" above) and at the
+same two granularities: **target-level** ("was *any* cell flagged") for the
+apples-to-apples comparison table, and **cell-level** (precision/recall/F1
+against `injected_row_indices` directly) as Auto-Validate's own native
+granularity.
+
+#### The `m` override
+
+The library's `m` (coverage threshold: "how many corpus columns must match a
+pattern before it's trusted enough to use as a validation rule") defaults to
+the paper's own recommended **100**, which the paper explicitly calibrates
+against a **7.2M-column** web-scale corpus (Section 6.2). This benchmark's
+corpus is four orders of magnitude smaller:
+
+| Error type | Corpus columns in `T` | `m` used |
+|---|---|---|
+| `uniqueness` | 39 | **1** |
+| `numeric_outlier` | 72 | **3** |
+| `spelling` | 48 | **2** |
+| `functional_dependency` | 104 | **5** |
+
+`m` is derived mechanically from corpus size, as
+`m = max(1, floor(n_corpus_columns * 0.05))` (i.e. "a pattern needs
+corroboration from at least 5% of the corpus"), with a floor of 1 so a small
+category can still infer *any* pattern. This is the same
+scale-a-knob-to-your-corpus-size reasoning (and the same kind of
+mechanical-derivation-not-tuning discipline) that `_build_config` already
+applies to `prevalence_edges` for `uni_detect` in this same file. The value
+was fixed from the corpus sizes above, before looking at any eval result, and
+is deliberately **not** tuned per-target or against the score.
+
+**No other hyperparameter is overridden.** `r=0.05`, `tau=8`,
+`variant="fmdv_vh"` are all the paper's own recommended values, and
+`theta=0.1` is the library default (the paper gives no numeric default for
+it) -- all left at their defaults deliberately.
+
+#### Expected weakness: read Auto-Validate's low recall honestly
+
+Auto-Validate is a **string-format-pattern** method. It infers a
+character-class/token-level pattern per column (e.g. `<alphanum>{11}`,
+`Amendment <alphanum>+`, `<num>+`) and flags any cell whose value doesn't
+match it. That makes it genuinely good at format/shape violations, and
+structurally unable to catch errors that are *well-formed but wrong*:
+
+- **`numeric_outlier`**: a decimal-point typo (`8716` → `8.716`) is still a
+  perfectly valid `<num>+`. Expect ~zero recall here. This is a property of
+  the method's operating model, not of this benchmark's configuration.
+- **`functional_dependency`**: an FD violation (`USA` → `Nonexistent
+  Country`) is still an ordinary `<letter>+ <letter>+` value in its column.
+  Expect low recall here too. Auto-Validate has no notion of a multi-column
+  constraint at all.
+- **`spelling`**: a genuine typo (`Dowling` → `Doeling`) *can* break a
+  literal/`<letter>{n}`-anchored pattern, but only if the rest of the column
+  is homogeneous enough that the inferred pattern stays specific rather than
+  collapsing to a permissive general form. Columns mixing heterogeneous name
+  lengths often yield no feasible pattern at all -- which the report surfaces
+  as `pattern: null` evidence rather than silently scoring as a clean pass.
+- **`uniqueness`** is Auto-Validate's best case: an exact-duplicate value in
+  an otherwise-unique ID column is exactly the shape a strict per-column
+  format pattern is designed to catch (the second occurrence breaks the
+  inferred literal/`{n}`-anchored pattern the first occurrence supports).
+
+These expectations are why Auto-Validate is expected to score *below*
+`uni_detect` and `raha` on this benchmark's overall F1. That is the honest
+result for a method whose strengths are orthogonal to three of the four error
+types being measured, and no hyperparameter was tuned to paper over it.
+
+#### Timing
+
+`duration_seconds` for `auto_validate` covers **both** the offline
+`build_index()` over all four error-type corpora **and** the online
+`detect()` pass over all 60 targets, timed together (that's stated in the
+`duration_note` in `baseline.json` too). This mirrors how `uni_detect`'s
+duration is measured (`build_corpus_statistics` + `detect` together) and is
+deliberately *not* the same accounting as `raha`'s, which has no corpus phase
+at all -- so the duration column in the comparison table compares "total time
+to go from loaded data to predictions", not "online-phase-only time". It
+excludes reading the corpus CSVs from disk, the same way both other
+algorithms exclude their own data loading.
+
 ## Running the benchmark
 
 ```bash
@@ -238,31 +334,21 @@ results rather than failing the whole run. GitHub Actions runs this under
 JDK 17 (see `.github/workflows/benchmark.yml`).
 
 > **Provenance of the currently checked-in `baseline.json`/`REPORT.md`:**
-> `uni_detect`'s numbers were produced in an environment (this dataset's own
-> redesign) that only had JDK 21 available, and (as above) PySpark 3.5's
-> bundled Arrow cannot be made to work there -- confirmed by direct
-> reproduction, not just the JDK-version check. Those numbers were instead
-> produced by a pure-Python harness that calls the exact same production
-> `unidetect.metrics` / `unidetect.perturbation` / `unidetect.featurization`
-> functions the real detectors call, and replicates
-> `corpus/store.py::batch_score`'s join-plus-conditional-count formula
-> verbatim in pandas (`algorithms.uni_detect.generation_method` in
-> `baseline.json` records this). That harness was cross-checked against the
-> *previous* dataset's Spark-produced `baseline.json` first and reproduced
-> every `lr_ratio` exactly before being trusted for this one; it is not part
-> of the checked-in benchmark tooling. Treat those figures as
-> believed-correct but pending confirmation from an actual
+> All three algorithms' figures come from a single genuine
 > `uv run python benchmarks/wiki_subset/run_benchmark.py --update-baseline`
-> run on JDK 17 (e.g. via the `Benchmark` GitHub Actions workflow) before
-> leaning on them for a real version-over-version comparison. Because that
-> environment constraint (JDK 21 only) still held when `raha` was added,
-> `uni_detect`'s `targets`/`metrics` in the current `baseline.json` are those
-> same already-computed figures reused verbatim (not re-run), and its
-> `duration_seconds` is `null` -- a real Uni-Detect duration needs an actual
-> JDK 17 run, same as its targets/metrics do. `raha`'s figures, including
-> its `duration_seconds`, come from a genuine `run_raha()` call in that same
-> JDK-21-only environment -- Raha has no JDK dependency, so nothing about it
-> was approximated.
+> run on **JDK 17** (Temurin 17.0.20.1, the version PySpark 3.5's bundled
+> Arrow requires), so `uni_detect`'s `duration_seconds` is a real
+> Spark/Delta wall-clock measurement rather than a placeholder. The
+> *previous* baseline (git `61f6703`) had been produced in a JDK-21-only
+> environment where the Spark/Arrow path cannot run; its `uni_detect`
+> figures were approximated by a pure-Python provenance harness (recorded in
+> that baseline's `algorithms.uni_detect.generation_method`) and its
+> `duration_seconds` was `null`. Refreshing the baseline on JDK 17 moved
+> `uni_detect`'s numbers -- most visibly `uniqueness` precision, from
+> `0.778` (harness) to `1.000` (real run) -- so the old figures must not be
+> used for version-over-version comparison; this baseline supersedes them.
+> `raha` and `auto_validate` have no JDK dependency and were re-run in the
+> same pass.
 
 ## Comparing across versions
 
