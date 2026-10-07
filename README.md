@@ -1,5 +1,7 @@
 # unidetect
 
+[**Documentation**](https://arman1371.github.io/open-detect/) · [Quickstart](https://arman1371.github.io/open-detect/getting-started/quickstart/) · [API reference](https://arman1371.github.io/open-detect/reference/)
+
 A library of pluggable, paper-backed **error detection algorithms** for
 tabular data. Each algorithm is a faithful implementation of a published
 error-detection paper, registered under a short name so you can pick one (or
