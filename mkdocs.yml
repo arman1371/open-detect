@@ -114,6 +114,7 @@ nav:
   - Project:
       - Benchmarks: benchmarks.md
       - Architecture: architecture.md
+      - Changelog: changelog.md
       - Contributing: contributing.md
 
 validation:
