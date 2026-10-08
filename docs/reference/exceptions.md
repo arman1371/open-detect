@@ -1,18 +1,18 @@
 # Errors
 
-Every exception raised deliberately by the library derives from `UniDetectError`.
+Every exception raised deliberately by the library derives from `OpenDetectError`.
 
-::: unidetect.exceptions
+::: open_detect.exceptions
     options:
       heading_level: 3
       show_root_heading: false
       show_root_toc_entry: false
 
-::: unidetect.algorithms.auto_validate.exceptions
+::: open_detect.algorithms.auto_validate.exceptions
     options:
       heading_level: 3
       show_root_heading: false
       show_root_toc_entry: false
 
-`UnknownAlgorithmError` (from `unidetect.algorithms`) is raised by `get_algorithm` for an
+`UnknownAlgorithmError` (from `open_detect.algorithms`) is raised by `get_algorithm` for an
 unregistered name.

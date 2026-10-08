@@ -1,4 +1,4 @@
-# Databricks Asset Bundle for unidetect.
+# Databricks Asset Bundle for open-detect.
 #
 # Deploy with:
 #   databricks bundle deploy -t dev
@@ -8,21 +8,21 @@
 # See https://docs.databricks.com/en/dev-tools/bundles/ for the DAB reference.
 
 bundle:
-  name: unidetect
+  name: open-detect
 
 variables:
-  unidetect_catalog:
-    description: Unity Catalog catalog that will hold unidetect's own tables.
+  open_detect_catalog:
+    description: Unity Catalog catalog that will hold open-detect's own tables.
     default: main
-  unidetect_schema:
-    description: Unity Catalog schema that will hold unidetect's own tables.
+  open_detect_schema:
+    description: Unity Catalog schema that will hold open-detect's own tables.
     default: data_quality
   corpus_catalog:
     description: Catalog to scan for the background corpus T.
     default: main
 
 artifacts:
-  unidetect_wheel:
+  open_detect_wheel:
     type: whl
     build: python -m build --wheel
     path: .
@@ -30,26 +30,26 @@ artifacts:
 resources:
   jobs:
     build_corpus_statistics_job:
-      name: "[${bundle.target}] unidetect - build corpus statistics"
+      name: "[${bundle.target}] open-detect - build corpus statistics"
       tags:
-        project: unidetect
+        project: open-detect
       tasks:
         - task_key: build_corpus_statistics
-          job_cluster_key: unidetect_cluster
+          job_cluster_key: open-detect_cluster
           python_wheel_task:
-            package_name: unidetect
+            package_name: open-detect
             entry_point: build_corpus_statistics_job
             parameters:
               - "--catalog"
-              - ${var.unidetect_catalog}
+              - ${var.open_detect_catalog}
               - "--schema"
-              - ${var.unidetect_schema}
+              - ${var.open_detect_schema}
               - "--corpus-catalog"
               - ${var.corpus_catalog}
           libraries:
             - whl: ./dist/*.whl
       job_clusters:
-        - job_cluster_key: unidetect_cluster
+        - job_cluster_key: open-detect_cluster
           new_cluster:
             spark_version: "15.4.x-scala2.12"
             node_type_id: "i3.xlarge"
@@ -61,27 +61,27 @@ resources:
         pause_status: PAUSED
 
     run_detection_job:
-      name: "[${bundle.target}] unidetect - run detection"
+      name: "[${bundle.target}] open-detect - run detection"
       tags:
-        project: unidetect
+        project: open-detect
       tasks:
         - task_key: run_detection
-          job_cluster_key: unidetect_cluster
+          job_cluster_key: open-detect_cluster
           python_wheel_task:
-            package_name: unidetect
+            package_name: open-detect
             entry_point: run_detection_job
             parameters:
               - "--catalog"
-              - ${var.unidetect_catalog}
+              - ${var.open_detect_catalog}
               - "--schema"
-              - ${var.unidetect_schema}
+              - ${var.open_detect_schema}
               - "--target-tables"
               - "REPLACE_ME_WITH_COMMA_SEPARATED_TABLES"
               - "--write-results"
           libraries:
             - whl: ./dist/*.whl
       job_clusters:
-        - job_cluster_key: unidetect_cluster
+        - job_cluster_key: open-detect_cluster
           new_cluster:
             spark_version: "15.4.x-scala2.12"
             node_type_id: "i3.xlarge"

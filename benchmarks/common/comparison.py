@@ -1,9 +1,9 @@
 """Cross-algorithm comparison table + chart rendering.
 
 Shared by every benchmark that scores more than one registered
-``unidetect.algorithms`` algorithm against the same targets -- which is
+``open_detect.algorithms`` algorithm against the same targets -- which is
 possible at all only because every algorithm's result is normalized into the
-same shape (see ``unidetect/algorithms/base.py::AlgorithmResult``). Each
+same shape (see ``open_detect/algorithms/base.py::AlgorithmResult``). Each
 benchmark's ``run_benchmark.py`` produces a results JSON with an
 ``"algorithms"`` map of ``{name: {"metrics": {"overall": {...}, ...},
 "duration_seconds": float | None, "duration_note": str | None}}``; this

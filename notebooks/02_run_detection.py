@@ -16,8 +16,8 @@
 
 # COMMAND ----------
 
-dbutils.widgets.text("unidetect_catalog", "main", "Catalog holding unidetect's own tables")
-dbutils.widgets.text("unidetect_schema", "data_quality", "Schema holding unidetect's own tables")
+dbutils.widgets.text("open_detect_catalog", "main", "Catalog holding open_detect's own tables")
+dbutils.widgets.text("open_detect_schema", "data_quality", "Schema holding open_detect's own tables")
 dbutils.widgets.text("target_tables", "", "Comma-separated fully-qualified tables to scan")
 dbutils.widgets.text("error_types", "uniqueness,numeric_outlier,spelling,functional_dependency", "Error types")
 dbutils.widgets.text("alpha", "0.05", "Significance level (lower = fewer, higher-confidence results)")
@@ -26,12 +26,12 @@ dbutils.widgets.text("alpha", "0.05", "Significance level (lower = fewer, higher
 
 import json
 
-from unidetect.config import UniDetectConfig, UnityCatalogLocation
-from unidetect.core.enums import ErrorType
-from unidetect.pipeline import UniDetect
+from open_detect.config import UniDetectConfig, UnityCatalogLocation
+from open_detect.core.enums import ErrorType
+from open_detect.pipeline import UniDetect
 
 location = UnityCatalogLocation(
-    catalog=dbutils.widgets.get("unidetect_catalog"), schema=dbutils.widgets.get("unidetect_schema")
+    catalog=dbutils.widgets.get("open_detect_catalog"), schema=dbutils.widgets.get("open_detect_schema")
 )
 config = UniDetectConfig(location=location, alpha=float(dbutils.widgets.get("alpha")))
 target_tables = [t.strip() for t in dbutils.widgets.get("target_tables").split(",") if t.strip()]
@@ -66,7 +66,7 @@ display(top[["error_type", "table_id", "column_names", "lr_ratio", "surprisal", 
 
 # COMMAND ----------
 
-# MAGIC %md Persist results to the `unidetect_detections` Unity Catalog table for downstream consumption (dashboards, alerts):
+# MAGIC %md Persist results to the `open_detect_detections` Unity Catalog table for downstream consumption (dashboards, alerts):
 
 # COMMAND ----------
 

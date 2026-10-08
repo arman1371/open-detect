@@ -1,7 +1,7 @@
 """Standalone quickstart: run Raha against a small dirty in-memory table.
 
 Run with `python examples/raha_quickstart.py` from a Python environment that
-has `unidetect[raha]` installed (adds scikit-learn + scipy; see README).
+has `open_detect[raha]` installed (adds scikit-learn + scipy; see README).
 Unlike Uni-Detect, Raha needs no Spark session and no background corpus --
 just the table itself, plus a handful of labels.
 """
@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import pandas as pd
 
-from unidetect.algorithms.raha import GroundTruthLabeler, RahaConfig, RahaDetector
+from open_detect.algorithms.raha import GroundTruthLabeler, RahaConfig, RahaDetector
 
 
 def main() -> None:

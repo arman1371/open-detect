@@ -7,7 +7,7 @@ from __future__ import annotations
 import numpy as np
 import pandas as pd
 
-from unidetect.algorithms.raha.strategies import (
+from open_detect.algorithms.raha.strategies import (
     fd_violation_strategies,
     gaussian_outlier_strategies,
     histogram_outlier_strategies,

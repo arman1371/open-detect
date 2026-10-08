@@ -1,12 +1,12 @@
-"""Unit tests for the unidetect.algorithms registry and base contract."""
+"""Unit tests for the open_detect.algorithms registry and base contract."""
 
 from __future__ import annotations
 
 import pytest
 
-from unidetect.algorithms import list_algorithms, registry
-from unidetect.algorithms.base import AlgorithmResult, CellResult
-from unidetect.algorithms.registry import (
+from open_detect.algorithms import list_algorithms, registry
+from open_detect.algorithms.base import AlgorithmResult, CellResult
+from open_detect.algorithms.registry import (
     UnknownAlgorithmError,
     get_algorithm,
     get_algorithm_class,
@@ -24,7 +24,7 @@ def test_unknown_algorithm_raises():
 
 
 def test_get_algorithm_constructs_with_args():
-    from unidetect.algorithms.raha import RahaConfig, RahaDetector
+    from open_detect.algorithms.raha import RahaConfig, RahaDetector
 
     config = RahaConfig(labeling_budget=5)
     algo = get_algorithm("raha", config)

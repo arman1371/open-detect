@@ -5,8 +5,8 @@ from __future__ import annotations
 import numpy as np
 import pandas as pd
 
-from unidetect.algorithms.raha.features import ColumnFeatures
-from unidetect.algorithms.raha.labeling import (
+from open_detect.algorithms.raha.features import ColumnFeatures
+from open_detect.algorithms.raha.labeling import (
     CallableLabeler,
     GroundTruthLabeler,
     HeuristicLabeler,

@@ -4,14 +4,14 @@ from __future__ import annotations
 
 import pytest
 
-from unidetect.config import UniDetectConfig, UnityCatalogLocation
-from unidetect.exceptions import ConfigurationError
+from open_detect.config import UniDetectConfig, UnityCatalogLocation
+from open_detect.exceptions import ConfigurationError
 
 
 class TestUnityCatalogLocation:
     def test_table_builds_three_part_name(self):
         loc = UnityCatalogLocation(catalog="main", schema="data_quality")
-        assert loc.table("unidetect_corpus_stats") == "main.data_quality.unidetect_corpus_stats"
+        assert loc.table("open_detect_corpus_stats") == "main.data_quality.open_detect_corpus_stats"
 
     @pytest.mark.parametrize(
         "catalog,schema", [("", "s"), ("c", ""), ("bad-name", "s"), ("c", "bad name")]
@@ -63,6 +63,6 @@ class TestUniDetectConfig:
 
     def test_fully_qualified_table_names(self):
         config = UniDetectConfig(location=self._location())
-        assert config.corpus_stats_fqn == "main.data_quality.unidetect_corpus_stats"
-        assert config.token_stats_fqn == "main.data_quality.unidetect_token_stats"
-        assert config.detections_fqn == "main.data_quality.unidetect_detections"
+        assert config.corpus_stats_fqn == "main.data_quality.open_detect_corpus_stats"
+        assert config.token_stats_fqn == "main.data_quality.open_detect_token_stats"
+        assert config.detections_fqn == "main.data_quality.open_detect_detections"

@@ -6,21 +6,21 @@ import logging
 
 import pytest
 
-from unidetect.logging_utils import get_logger, log_duration
+from open_detect.logging_utils import get_logger, log_duration
 
 
 class TestGetLogger:
     def test_namespaces_arbitrary_module_names(self):
-        logger = get_logger("unidetect.corpus.builder")
-        assert logger.name == "unidetect.corpus.builder"
+        logger = get_logger("open_detect.corpus.builder")
+        assert logger.name == "open_detect.corpus.builder"
 
     def test_prefixes_bare_module_names(self):
         logger = get_logger("some_module")
-        assert logger.name == "unidetect.some_module"
+        assert logger.name == "open_detect.some_module"
 
     def test_root_logger_name_is_returned_unprefixed(self):
-        logger = get_logger("unidetect")
-        assert logger.name == "unidetect"
+        logger = get_logger("open_detect")
+        assert logger.name == "open_detect"
 
 
 class TestLogDuration:

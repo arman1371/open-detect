@@ -1,4 +1,4 @@
-# unidetect
+# open-detect
 
 [**Documentation**](https://arman1371.github.io/open-detect/) · [Quickstart](https://arman1371.github.io/open-detect/getting-started/quickstart/) · [API reference](https://arman1371.github.io/open-detect/reference/)
 
@@ -14,7 +14,7 @@ run several and compare) without learning a new API per paper:
 | `auto_validate` | Song & He, *Auto-Validate*, SIGMOD 2021 | Corpus-driven, unsupervised, single-table, pandas-native |
 
 ```python
-from unidetect.algorithms import get_algorithm
+from open_detect.algorithms import get_algorithm
 
 raha = get_algorithm("raha")
 result = raha.detect(my_dataframe, table_id="orders")
@@ -22,7 +22,7 @@ result.errors()  # every cell either algorithm calls dirty, in one common schema
 ```
 
 Both algorithms return the same `AlgorithmResult` (see
-[`unidetect/algorithms/base.py`](src/unidetect/algorithms/base.py)), so
+[`open_detect/algorithms/base.py`](src/open_detect/algorithms/base.py)), so
 results are comparable and unionable regardless of which algorithm produced
 them, even though the two papers' underlying methods have nothing in common.
 See [`ARCHITECTURE.md`](ARCHITECTURE.md) for how each part of each paper maps
@@ -37,7 +37,7 @@ dependency management.
 ```bash
 uv sync       # local development, including pyspark + delta-spark for tests
 # or, on a Databricks cluster / job (Spark and Delta are already provided):
-pip install unidetect
+pip install open-detect
 ```
 
 ## Uni-Detect (Wang & He, SIGMOD 2019)
@@ -62,9 +62,9 @@ Lake** as the compute and storage layer, in two phases:
 ### Quickstart
 
 ```python
-from unidetect import UniDetectConfig, UnityCatalogLocation
-from unidetect.pipeline import UniDetect
-from unidetect.catalog import list_tables_matching
+from open_detect import UniDetectConfig, UnityCatalogLocation
+from open_detect.pipeline import UniDetect
+from open_detect.catalog import list_tables_matching
 
 config = UniDetectConfig(
     location=UnityCatalogLocation(catalog="main", schema="data_quality"),
@@ -117,26 +117,26 @@ organization already has registered**: a whole catalog, a set of schemas, or
 a curated allow-list. For most organizations this is thousands to millions
 of governed tables spanning many domains, which plays the same statistical
 role: a large background sample of "what clean tables look like" to reason
-against. See `unidetect/catalog.py::list_tables_matching`.
+against. See `open_detect/catalog.py::list_tables_matching`.
 
 ### Uni-Detect design
 
-- `unidetect.metrics` — the four pure-Python/NumPy metric functions (`UR`,
+- `open_detect.metrics` — the four pure-Python/NumPy metric functions (`UR`,
   `max-MAD`, `MPD`, `FR`), independently unit-tested against the paper's own
   worked numeric examples.
-- `unidetect.perturbation` — the epsilon-perturbation for each error type
+- `open_detect.perturbation` — the epsilon-perturbation for each error type
   (Definition 2).
-- `unidetect.featurization` — the corpus sub-setting / bucketing dimensions
+- `open_detect.featurization` — the corpus sub-setting / bucketing dimensions
   (Figure 5).
-- `unidetect.strategies` — the single source of truth for which direction
+- `open_detect.strategies` — the single source of truth for which direction
   each metric moves in after perturbation (generalizes Equation 12 into one
   formula, `INCREASING` vs `DECREASING`).
-- `unidetect.corpus` — offline ingestion + statistics builder, and the
+- `open_detect.corpus` — offline ingestion + statistics builder, and the
   online batch likelihood-ratio store, both Spark/Delta-native.
-- `unidetect.detectors` — one class per error type, sharing a template
+- `open_detect.detectors` — one class per error type, sharing a template
   method (`BaseDetector.detect`) that wires metric → perturbation →
   featurization → corpus lookup → ranked, explainable output.
-- `unidetect.pipeline.UniDetect` — the public facade.
+- `open_detect.pipeline.UniDetect` — the public facade.
 
 ## Raha (Mahdavi et al., SIGMOD 2019)
 
@@ -150,12 +150,12 @@ label through its cluster, and trains one classifier per column to predict
 the rest.
 
 ```bash
-pip install "unidetect[raha]"   # adds scikit-learn + scipy
+pip install "open-detect[raha]"   # adds scikit-learn + scipy
 ```
 
 ```python
 import pandas as pd
-from unidetect.algorithms.raha import RahaConfig, RahaDetector, GroundTruthLabeler
+from open_detect.algorithms.raha import RahaConfig, RahaDetector, GroundTruthLabeler
 
 dirty = pd.read_csv("dirty.csv")
 detector = RahaDetector(RahaConfig(labeling_budget=20))
@@ -177,20 +177,20 @@ for why this is strictly weaker than a real label).
 
 ### Raha design
 
-- `unidetect.algorithms.raha.strategies` — the outlier/pattern/rule
+- `open_detect.algorithms.raha.strategies` — the outlier/pattern/rule
   detection strategy families (Section 4.1), each a parameter grid of
   strategy functions.
-- `unidetect.algorithms.raha.features` — assembles each column's feature
+- `open_detect.algorithms.raha.features` — assembles each column's feature
   matrix `V_j` from every strategy (Section 4.2).
-- `unidetect.algorithms.raha.clustering` — hierarchical agglomerative
+- `open_detect.algorithms.raha.clustering` — hierarchical agglomerative
   clustering per column plus the softmax tuple sampler (Section 4.3,
   Equation 3).
-- `unidetect.algorithms.raha.labeling` — the pluggable `Labeler` interface,
+- `open_detect.algorithms.raha.labeling` — the pluggable `Labeler` interface,
   and cluster-based label propagation with homogeneity/majority conflict
   resolution (Section 4.4).
-- `unidetect.algorithms.raha.classifier` — per-column classifier training +
+- `open_detect.algorithms.raha.classifier` — per-column classifier training +
   prediction (Section 4.4).
-- `unidetect.algorithms.raha.detector.RahaDetector` — Algorithm 1
+- `open_detect.algorithms.raha.detector.RahaDetector` — Algorithm 1
   end-to-end, registered as `"raha"`.
 
 Not implemented: knowledge-base violation detection (needs a live external
@@ -201,14 +201,14 @@ documented as scope decisions in the relevant module docstrings.
 
 ## Adding a new algorithm
 
-`unidetect.algorithms` is a registry (`unidetect/algorithms/registry.py`):
-implement `ErrorDetectionAlgorithm` (`unidetect/algorithms/base.py`),
+`open_detect.algorithms` is a registry (`open_detect/algorithms/registry.py`):
+implement `ErrorDetectionAlgorithm` (`open_detect/algorithms/base.py`),
 returning results as `AlgorithmResult`, then either register it in-tree
 (`register_lazy("my_algo", ...)`) or, for an out-of-tree package, declare it
 as an entry point:
 
 ```toml
-[project.entry-points."unidetect.algorithms"]
+[project.entry-points."open_detect.algorithms"]
 my_algorithm = "my_package.module:MyAlgorithmClass"
 ```
 
@@ -253,13 +253,13 @@ compared against — a common casualty of academic-PDF math extraction). Where
 this happens, this implementation uses the standard, well-established
 literature definition consistent with the paper's own stated intuition and
 worked example; the exact convention chosen is documented in the relevant
-module's docstring (see `unidetect/metrics/functional_dependency.py`).
+module's docstring (see `open_detect/metrics/functional_dependency.py`).
 
 **Raha.** The histogram outlier strategy's published normalization formula
 has the same kind of extraction artifact; the natural reading (relative
 value frequency) is the one that reproduces the paper's own worked example
 exactly, and is what this implementation uses (see
-`unidetect/algorithms/raha/strategies.py`). Knowledge-base violation
+`open_detect/algorithms/raha/strategies.py`). Knowledge-base violation
 detection and historical strategy filtering (Sections 2.2 and 5) are out of
 scope, as documented in the Raha design section above.
 
@@ -271,7 +271,7 @@ flags cells that do not match the inferred pattern.  It has four variants:
 and ``fmdv_vh`` (the paper's best, combining both).
 
 ```python
-from unidetect.algorithms.auto_validate import (
+from open_detect.algorithms.auto_validate import (
     AutoValidateAlgorithm,
     AutoValidateConfig,
     IndexNotBuiltError,
@@ -286,8 +286,8 @@ for cell in result.errors():
     print(f"{cell.column_name}[{cell.row_index}]: {cell.evidence['pattern']}")
 
 # Option B: use the parts directly.
-from unidetect.algorithms.auto_validate import build_pattern_index, fmdv_vh
-from unidetect.algorithms.auto_validate.drift import check_drift
+from open_detect.algorithms.auto_validate import build_pattern_index, fmdv_vh
+from open_detect.algorithms.auto_validate.drift import check_drift
 
 index = build_pattern_index(corpus, config)
 pattern = fmdv_vh(test_df["col_a"], index, config)

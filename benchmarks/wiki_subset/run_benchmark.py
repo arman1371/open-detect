@@ -51,7 +51,7 @@ BASELINE_FILE = RESULTS_DIR / "baseline.json"
 LATEST_FILE = RESULTS_DIR / "latest.json"
 
 TEST_CATALOG = "spark_catalog"
-TEST_SCHEMA = "unidetect_benchmark"
+TEST_SCHEMA = "open_detect_benchmark"
 
 ERROR_TYPES = [
     "uniqueness",
@@ -120,7 +120,7 @@ def _load_targets(spark) -> list[dict]:
 
 
 def _build_config(uc_location):
-    from unidetect.config import UniDetectConfig
+    from open_detect.config import UniDetectConfig
 
     return UniDetectConfig(
         location=uc_location,
@@ -137,9 +137,9 @@ def _build_config(uc_location):
 
 def run_uni_detect() -> tuple[list[dict], dict, float]:
     """Score every eval target with Uni-Detect. Returns (targets, metrics, duration_seconds)."""
-    from unidetect.config import UnityCatalogLocation
-    from unidetect.core.enums import ErrorType
-    from unidetect.pipeline import UniDetect
+    from open_detect.config import UnityCatalogLocation
+    from open_detect.core.enums import ErrorType
+    from open_detect.pipeline import UniDetect
 
     uc_location = UnityCatalogLocation(catalog=TEST_CATALOG, schema=TEST_SCHEMA)
     config = _build_config(uc_location)
@@ -269,7 +269,7 @@ def run_auto_validate() -> tuple[list[dict], dict, dict, float]:
 
     import pandas as pd
 
-    from unidetect.algorithms.auto_validate import (
+    from open_detect.algorithms.auto_validate import (
         AutoValidateAlgorithm,
         AutoValidateConfig,
     )
@@ -387,8 +387,8 @@ def run_raha() -> tuple[list[dict], dict, dict, float]:
     """
     import pandas as pd
 
-    from unidetect.algorithms.raha import RahaConfig, RahaDetector
-    from unidetect.algorithms.raha.labeling import Labeler
+    from open_detect.algorithms.raha import RahaConfig, RahaDetector
+    from open_detect.algorithms.raha.labeling import Labeler
 
     class KnownIndexLabeler(Labeler):
         def __init__(self, target_column: str, injected_indices: set[int]) -> None:
@@ -465,7 +465,7 @@ def run() -> dict:
     except ImportError:
         print(
             "scikit-learn not installed; skipping raha "
-            "(run `uv sync` or `uv pip install unidetect[raha]` first).",
+            "(run `uv sync` or `uv pip install open_detect[raha]` first).",
             file=sys.stderr,
         )
     else:
@@ -507,7 +507,7 @@ def run() -> dict:
     except ImportError:
         print(
             "pandas not installed; skipping auto_validate "
-            "(run `uv sync` or `uv pip install unidetect` first).",
+            "(run `uv sync` or `uv pip install open_detect` first).",
             file=sys.stderr,
         )
     else:

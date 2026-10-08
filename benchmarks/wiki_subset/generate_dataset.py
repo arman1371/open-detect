@@ -547,7 +547,7 @@ def _uniqueness_tp(rnd: random.Random, severity: str) -> tuple[list[str], list[i
     for _ in range(n_dupes):
         i, j = rnd.sample(range(len(values)), 2)
         values[j] = values[i]
-        # Convention (matching unidetect.metrics.uniqueness.duplicate_value_indices):
+        # Convention (matching open_detect.metrics.uniqueness.duplicate_value_indices):
         # the first occurrence is "correct", later ones are the error.
         injected.append(j)
     return values, injected

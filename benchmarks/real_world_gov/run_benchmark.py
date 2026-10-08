@@ -5,7 +5,7 @@
 - **uni_detect** -- builds corpus statistics from the *clean* tables, then
   scores the dirty tables against that corpus (Spark/Delta; requires JDK 17).
 - **raha** -- scores each dirty table directly against its own *clean* table
-  via :class:`~unidetect.algorithms.raha.GroundTruthLabeler` (pandas; no
+  via :class:`~open_detect.algorithms.raha.GroundTruthLabeler` (pandas; no
   Spark/JDK dependency at all).
 - **auto_validate** -- builds a pattern index over the *same* background
   corpus ``uni_detect`` uses (the 5 datasets' ``clean.csv`` tables, one
@@ -52,7 +52,7 @@ BASELINE_FILE = RESULTS_DIR / "baseline.json"
 LATEST_FILE = RESULTS_DIR / "latest.json"
 
 TEST_CATALOG = "spark_catalog"
-TEST_SCHEMA = "unidetect_benchmark_real"
+TEST_SCHEMA = "open_detect_benchmark_real"
 
 #: The paper's own labeling-budget default (Section 6.1); see ``README.md``
 #: for why this benchmark keeps it rather than tuning it per dataset.
@@ -77,7 +77,7 @@ AUTO_VALIDATE_TAU = 4
 
 
 def _build_config(uc_location):
-    from unidetect.config import UniDetectConfig
+    from open_detect.config import UniDetectConfig
 
     return UniDetectConfig(
         location=uc_location,
@@ -116,9 +116,9 @@ def _dataset_frames() -> dict[str, dict]:
 
 def run_uni_detect(frames: dict[str, dict]) -> tuple[list[dict], dict, float]:
     """Score every dataset's dirty table with Uni-Detect. Returns (targets, metrics, duration_seconds)."""
-    from unidetect.config import UnityCatalogLocation
-    from unidetect.core.enums import ErrorType
-    from unidetect.pipeline import UniDetect
+    from open_detect.config import UnityCatalogLocation
+    from open_detect.core.enums import ErrorType
+    from open_detect.pipeline import UniDetect
 
     uc_location = UnityCatalogLocation(catalog=TEST_CATALOG, schema=TEST_SCHEMA)
     config = _build_config(uc_location)
@@ -212,10 +212,10 @@ def run_raha(frames: dict[str, dict]) -> tuple[list[dict], dict, dict, float]:
     a double-digit-percent error rate, so a perfect column-level score does
     not by itself mean every cell was classified correctly.
 
-    Each dataset gets its own :class:`~unidetect.algorithms.raha.RahaDetector`
+    Each dataset gets its own :class:`~open_detect.algorithms.raha.RahaDetector`
     run (Raha trains one classifier per column of a single table, so there is
     no cross-dataset "corpus" phase the way Uni-Detect has). Labels come from
-    :class:`~unidetect.algorithms.raha.GroundTruthLabeler` against the
+    :class:`~open_detect.algorithms.raha.GroundTruthLabeler` against the
     dataset's own ``clean.csv`` -- the same "raha-style" clean/dirty pairing
     this benchmark's data already ships in, and the natural way to answer "how
     does Raha do with the labeling budget its own paper evaluates it at"
@@ -223,8 +223,8 @@ def run_raha(frames: dict[str, dict]) -> tuple[list[dict], dict, dict, float]:
     """
     import pandas as pd
 
-    from unidetect.algorithms.raha import GroundTruthLabeler, RahaConfig, RahaDetector
-    from unidetect.algorithms.raha.strategies import NULL_SENTINEL, normalize_to_str
+    from open_detect.algorithms.raha import GroundTruthLabeler, RahaConfig, RahaDetector
+    from open_detect.algorithms.raha.strategies import NULL_SENTINEL, normalize_to_str
 
     targets: list[dict] = []
     cell_rows: list[dict] = []
@@ -309,11 +309,11 @@ def run_auto_validate(frames: dict[str, dict]) -> tuple[list[dict], dict, dict, 
     """
     import pandas as pd
 
-    from unidetect.algorithms.auto_validate import (
+    from open_detect.algorithms.auto_validate import (
         AutoValidateAlgorithm,
         AutoValidateConfig,
     )
-    from unidetect.algorithms.raha.strategies import NULL_SENTINEL, normalize_to_str
+    from open_detect.algorithms.raha.strategies import NULL_SENTINEL, normalize_to_str
 
     config = AutoValidateConfig(
         variant="fmdv_vh", m=AUTO_VALIDATE_M, r=0.05, tau=AUTO_VALIDATE_TAU, theta=0.1
@@ -397,7 +397,7 @@ def run() -> dict:
     except ImportError:
         print(
             "scikit-learn not installed; skipping raha "
-            "(run `uv sync` or `uv pip install unidetect[raha]` first).",
+            "(run `uv sync` or `uv pip install open_detect[raha]` first).",
             file=sys.stderr,
         )
     else:
@@ -415,7 +415,7 @@ def run() -> dict:
     except ImportError:
         print(
             "pandas not installed; skipping auto_validate "
-            "(run `uv sync` or `uv pip install unidetect` first).",
+            "(run `uv sync` or `uv pip install open_detect` first).",
             file=sys.stderr,
         )
     else:

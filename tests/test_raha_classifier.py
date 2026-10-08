@@ -4,9 +4,9 @@ from __future__ import annotations
 
 import numpy as np
 
-from unidetect.algorithms.raha.classifier import train_and_predict
-from unidetect.algorithms.raha.config import RahaConfig
-from unidetect.algorithms.raha.features import ColumnFeatures
+from open_detect.algorithms.raha.classifier import train_and_predict
+from open_detect.algorithms.raha.config import RahaConfig
+from open_detect.algorithms.raha.features import ColumnFeatures
 
 
 def _features(matrix: np.ndarray, names: tuple[str, ...] | None = None) -> ColumnFeatures:

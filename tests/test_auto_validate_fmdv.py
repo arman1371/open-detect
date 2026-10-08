@@ -8,12 +8,12 @@ import pandas as pd
 import pytest
 
 if TYPE_CHECKING:
-    from unidetect.algorithms.auto_validate.config import AutoValidateConfig
-    from unidetect.algorithms.auto_validate.index import PatternIndex
+    from open_detect.algorithms.auto_validate.config import AutoValidateConfig
+    from open_detect.algorithms.auto_validate.index import PatternIndex
 
-from unidetect.algorithms.auto_validate.config import AutoValidateConfig
-from unidetect.algorithms.auto_validate.fmdv import fmdv, fmdv_h
-from unidetect.algorithms.auto_validate.index import build_pattern_index
+from open_detect.algorithms.auto_validate.config import AutoValidateConfig
+from open_detect.algorithms.auto_validate.fmdv import fmdv, fmdv_h
+from open_detect.algorithms.auto_validate.index import build_pattern_index
 
 
 def _tiny_corpus(m_val: int = 1) -> tuple[list[str], AutoValidateConfig]:

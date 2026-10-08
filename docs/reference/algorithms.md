@@ -2,7 +2,7 @@
 
 ## Registry
 
-::: unidetect.algorithms.registry
+::: open_detect.algorithms.registry
     options:
       heading_level: 3
       show_root_heading: false
@@ -10,7 +10,7 @@
 
 ## Result types
 
-::: unidetect.algorithms.base
+::: open_detect.algorithms.base
     options:
       heading_level: 3
       show_root_heading: false

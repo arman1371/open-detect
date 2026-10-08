@@ -4,8 +4,8 @@ from __future__ import annotations
 
 import pandas as pd
 
-from unidetect.algorithms.raha.config import RahaConfig
-from unidetect.algorithms.raha.features import build_all_features, build_column_features
+from open_detect.algorithms.raha.config import RahaConfig
+from open_detect.algorithms.raha.features import build_all_features, build_column_features
 
 
 def test_drops_constant_features():

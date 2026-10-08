@@ -7,7 +7,7 @@ required.
 
 ## 0. The multi-algorithm framework
 
-`unidetect.algorithms` (`src/unidetect/algorithms/`) is what turns this
+`open_detect.algorithms` (`src/open_detect.algorithms/`) is what turns this
 repository from a single paper's implementation into a library of
 interchangeable error-detection algorithms:
 
@@ -20,10 +20,10 @@ interchangeable error-detection algorithms:
   a class, resolved lazily so that requesting one algorithm never imports
   another's optional dependencies (`pyspark` for Uni-Detect, `scikit-learn`
   for Raha). Third-party algorithms register the same way via the
-  `unidetect.algorithms` Python entry-point group, with no changes to this
+  `open_detect.algorithms` Python entry-point group, with no changes to this
   repository.
 - `algorithms/uni_detect_algorithm.py` -- adapts the pre-existing
-  `unidetect.pipeline.UniDetect` (Sections 1-7 below) to this contract by
+  `open_detect.pipeline.UniDetect` (Sections 1-7 below) to this contract by
   flattening its Spark output.
 - `algorithms/raha/` -- Raha's own implementation (Section 8 below), built
   directly against the shared contract since it has no pre-existing
@@ -71,17 +71,17 @@ ratio = count(T' in S(T): m(T') >= theta1  AND  m(T'_perturbed) <= theta2)
 
 | Paper concept | Code |
 |---|---|
-| Definition 1 (unsupervised error-detection) | `unidetect.core.enums.ErrorType` |
-| Definition 2 (epsilon-perturbation) | `unidetect.perturbation.perturb_*` |
-| Definition 3 (LR test) | `unidetect.corpus.store.CorpusStatsStore.batch_score` |
-| Section 2.2.2 (featurization / subsetting) | `unidetect.featurization` |
-| Definition 4 (Uni-Detect instantiation) | `unidetect.detectors.base.BaseDetector` (template method) + per-type metric/perturbation/featurization |
-| Section 3.1 (numeric outliers: max-MAD) | `unidetect.metrics.outliers`, `unidetect.detectors.numeric_outlier` |
-| Section 3.2 (spelling: MPD) | `unidetect.metrics.spelling`, `unidetect.detectors.spelling` |
-| Section 3.3 (uniqueness: UR) | `unidetect.metrics.uniqueness`, `unidetect.detectors.uniqueness` |
-| Section 3.4 (FD: FR) | `unidetect.metrics.functional_dependency`, `unidetect.detectors.functional_dependency` |
+| Definition 1 (unsupervised error-detection) | `open_detect.core.enums.ErrorType` |
+| Definition 2 (epsilon-perturbation) | `open_detect.perturbation.perturb_*` |
+| Definition 3 (LR test) | `open_detect.corpus.store.CorpusStatsStore.batch_score` |
+| Section 2.2.2 (featurization / subsetting) | `open_detect.featurization` |
+| Definition 4 (Uni-Detect instantiation) | `open_detect.detectors.base.BaseDetector` (template method) + per-type metric/perturbation/featurization |
+| Section 3.1 (numeric outliers: max-MAD) | `open_detect.metrics.outliers`, `open_detect.detectors.numeric_outlier` |
+| Section 3.2 (spelling: MPD) | `open_detect.metrics.spelling`, `open_detect.detectors.spelling` |
+| Section 3.3 (uniqueness: UR) | `open_detect.metrics.uniqueness`, `open_detect.detectors.uniqueness` |
+| Section 3.4 (FD: FR) | `open_detect.metrics.functional_dependency`, `open_detect.detectors.functional_dependency` |
 | Theorem 1 (monotonicity) | Generalized into `ComparisonDirection` (see below) — the same proof holds for either direction by symmetry |
-| "System Architecture": offline learning + online lookup | `unidetect.corpus.builder.CorpusStatsBuilder` (offline) / `unidetect.corpus.store.CorpusStatsStore` (online) |
+| "System Architecture": offline learning + online lookup | `open_detect.corpus.builder.CorpusStatsBuilder` (offline) / `open_detect.corpus.store.CorpusStatsStore` (online) |
 
 ## 3. Generalizing Equation (12): `ComparisonDirection`
 
@@ -100,7 +100,7 @@ the anomalous subset is removed:
   ratio = count(before >= theta1 AND after <= theta2) / count(before >= theta2)
   ```
 
-`unidetect.strategies` is the single source of truth for which family each
+`open_detect.strategies` is the single source of truth for which family each
 `ErrorType` belongs to, and `CorpusStatsStore.batch_score` implements both
 formulas as one parameterized Spark query. This isn't just deduplication —
 it's the same generalization Theorem 1's monotonicity proof already implies
@@ -120,7 +120,7 @@ up rather than recomputing them. This codebase keeps that split explicit:
   partitioned by `error_type`:
 
   ```
-  unidetect_corpus_stats(error_type, feature_bucket, theta_before, theta_after, table_id)
+  open_detect_corpus_stats(error_type, feature_bucket, theta_before, theta_after, table_id)
   ```
 
 - `CorpusStatsStore.batch_score` never re-touches raw corpus data. It reads
@@ -138,7 +138,7 @@ rebuilt.
 
 Figure 5's "cube diagram" (data type × row count × uniqueness/prevalence ×
 ...) is implemented as coarse, bounded-cardinality string buckets
-(`unidetect.featurization.bucket_by_edges` and friends), combined into a
+(`open_detect.featurization.bucket_by_edges` and friends), combined into a
 `FeatureBucket` whose `as_key()` is the corpus table's grouping/partition
 key. Coarse, bounded buckets are a deliberate scaling decision: they keep
 `GROUP BY feature_bucket` tractable no matter how large the background
@@ -151,12 +151,12 @@ trade-off: "T is already big enough so that sparsity is not an issue").
 1. **The corpus `T`** is instantiated as "the tables already registered in
    Unity Catalog" rather than a 100M-table web crawl — the natural
    enterprise analogue, and the one this library is built to consume
-   directly via `unidetect.catalog.list_tables_matching`.
+   directly via `open_detect.catalog.list_tables_matching`.
 
 2. **FD's `FR` metric.** The PDF's extracted formula for `FR` (and for the
    `Conforming-pair-ratio` baseline it's compared against) drops a
    comparison operator — a common artifact of extracting math from academic
-   PDFs. `unidetect.metrics.functional_dependency` implements the standard,
+   PDFs. `open_detect.metrics.functional_dependency` implements the standard,
    well-established row-based compliance ratio consistent with the paper's
    own stated intuition ("closer to 1 indicates likely violations, similar
    to UR") and its Figure 4(c) worked example (`FR = 4/6`), which the test
@@ -164,7 +164,7 @@ trade-off: "T is already big enough so that sparsity is not an issue").
 
 3. **MPD blocking.** An exact all-pairs minimum-edit-distance scan is
    `O(n^2)` per column, which does not scale to real Delta table columns.
-   `unidetect.metrics.spelling` blocks candidates by (prefix, length bucket)
+   `open_detect.metrics.spelling` blocks candidates by (prefix, length bucket)
    before comparing pairwise, trading a small amount of recall on
    adversarial inputs for near-linear expected runtime — the right call for
    an unattended, automated detector.
@@ -190,7 +190,7 @@ explanation (Figures 2 and 4 in the paper).
 
 ## 8. Code map
 
-Raha's Algorithm 1 maps onto `src/unidetect/algorithms/raha/` module-by-step:
+Raha's Algorithm 1 maps onto `src/open_detect.algorithms/raha/` module-by-step:
 
 | Algorithm 1 step | Paper section | Code |
 |---|---|---|
@@ -368,7 +368,7 @@ that specific cell) for explainability, in the same spirit as Uni-Detect's
   before `build_index`.
 
 Registry: `_load_auto_validate()` → `register_lazy("auto_validate", ...)` in
-`src/unidetect/algorithms/__init__.py`.  `unidetect.algorithms` import path
+`src/open_detect.algorithms/__init__.py`.  `open_detect.algorithms` import path
 never imports scipy/pyspark/sklearn — those are lazy-loaded only when the
 algorithm is actually constructed.
 

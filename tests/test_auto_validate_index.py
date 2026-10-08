@@ -7,14 +7,14 @@ from dataclasses import FrozenInstanceError
 import pandas as pd
 import pytest
 
-from unidetect.algorithms.auto_validate.config import AutoValidateConfig
-from unidetect.algorithms.auto_validate.index import (
+from open_detect.algorithms.auto_validate.config import AutoValidateConfig
+from open_detect.algorithms.auto_validate.index import (
     PatternIndex,
     build_pattern_index,
     clean_column,
     indexable_values,
 )
-from unidetect.algorithms.auto_validate.metrics import impurity
+from open_detect.algorithms.auto_validate.metrics import impurity
 
 TIME = "<num>:<num>:<num>"
 

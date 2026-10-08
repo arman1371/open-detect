@@ -4,7 +4,7 @@ Every algorithm is reached the same way: look it up by name, call `detect()`, re
 `AlgorithmResult`.
 
 ```python
-from unidetect.algorithms import get_algorithm, list_algorithms
+from open_detect.algorithms import get_algorithm, list_algorithms
 
 list_algorithms()   # ['auto_validate', 'raha', 'uni_detect']
 ```
@@ -15,12 +15,12 @@ Raha needs only the dirty table. It samples tuples for you to label, and spreads
 through clusters of similar cells.
 
 ```bash
-pip install "unidetect[raha]"
+pip install "open-detect[raha]"
 ```
 
 ```python
 import pandas as pd
-from unidetect.algorithms.raha import GroundTruthLabeler, RahaConfig, RahaDetector
+from open_detect.algorithms.raha import GroundTruthLabeler, RahaConfig, RahaDetector
 
 dirty = pd.DataFrame(
     {
@@ -64,7 +64,7 @@ each column of your table and flags cells that do not match.
 
 ```python
 import pandas as pd
-from unidetect.algorithms.auto_validate import AutoValidateAlgorithm, AutoValidateConfig
+from open_detect.algorithms.auto_validate import AutoValidateAlgorithm, AutoValidateConfig
 
 corpus = [  # columns known to be clean
     pd.Series(["2024-01-15", "2024-02-20", "2024-03-10"]),
@@ -97,9 +97,9 @@ Uni-Detect compares your tables against statistics learned from a large corpus o
 Spark and Delta Lake. It has an offline phase (build statistics once) and an online phase (scan).
 
 ```python
-from unidetect import UniDetectConfig, UnityCatalogLocation
-from unidetect.pipeline import UniDetect
-from unidetect.catalog import list_tables_matching
+from open_detect import UniDetectConfig, UnityCatalogLocation
+from open_detect.pipeline import UniDetect
+from open_detect.catalog import list_tables_matching
 
 config = UniDetectConfig(location=UnityCatalogLocation(catalog="main", schema="data_quality"))
 ud = UniDetect(config)   # uses the active Databricks SparkSession

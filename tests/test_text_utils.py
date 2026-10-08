@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from unidetect.text_utils import is_float_like, is_integer_like, is_mixed_alphanumeric, tokenize
+from open_detect.text_utils import is_float_like, is_integer_like, is_mixed_alphanumeric, tokenize
 
 
 class TestIntegerLike:

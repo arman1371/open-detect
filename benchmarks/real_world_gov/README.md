@@ -9,7 +9,7 @@ independently-produced ground truth, from a public error-detection
 benchmark corpus rather than anything built for this repository.
 
 This benchmark runs **every registered algorithm** (see
-[`unidetect.algorithms`](../../ARCHITECTURE.md)) against the same 5 datasets
+[`open_detect.algorithms`](../../ARCHITECTURE.md)) against the same 5 datasets
 and reports a head-to-head comparison -- effectiveness (precision/recall/F1/
 accuracy) and wall-clock duration -- rather than one algorithm's numbers in
 isolation. `uni_detect`, `raha` and `auto_validate` are covered today; a
@@ -365,7 +365,7 @@ background corpus would need to be run to find out.
 uv run python benchmarks/real_world_gov/run_benchmark.py
 ```
 
-`raha` has no JDK/Spark dependency and runs anywhere `unidetect[raha]` is
+`raha` has no JDK/Spark dependency and runs anywhere `open-detect[raha]` is
 installed. `uni_detect` requires **JDK 17** locally, same as `wiki_subset` --
 see the "JDK version" note in the top-level `README.md`. On a JDK 21+
 machine the Spark/Delta session either fails to start or fails partway

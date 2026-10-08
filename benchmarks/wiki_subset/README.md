@@ -25,7 +25,7 @@ See [`../README.md`](../README.md) for how this benchmark relates to the
 other one (`real_world_gov`) and the infrastructure they share.
 
 This benchmark runs **every registered algorithm** (see
-[`unidetect.algorithms`](../../ARCHITECTURE.md) -- `uni_detect`, `raha` and
+[`open_detect.algorithms`](../../ARCHITECTURE.md) -- `uni_detect`, `raha` and
 `auto_validate` today) against the same 60 targets and reports a head-to-head
 comparison -- effectiveness and wall-clock duration -- see "Reading the
 results" below.
@@ -274,7 +274,7 @@ make benchmark
 uv run python benchmarks/wiki_subset/run_benchmark.py
 ```
 
-`raha` has no JDK/Spark dependency and runs anywhere `unidetect[raha]` is
+`raha` has no JDK/Spark dependency and runs anywhere `open-detect[raha]` is
 installed. `uni_detect` starts a local, Delta-enabled Spark session (same
 setup as `tests/conftest.py`, requires **JDK 17**), loads the WIKI-subset
 corpus and eval tables, builds corpus statistics per error type, and runs
@@ -395,6 +395,6 @@ instead of fetching real Wikipedia tables at benchmark-run time:
   signal at a fraction of the runtime and storage cost.
 
 If you want to run this benchmark against a larger, real Wikipedia-table
-sample, `unidetect.pipeline.UniDetect` takes any list of Unity-Catalog-style
+sample, `open_detect.pipeline.UniDetect` takes any list of Unity-Catalog-style
 table names -- point `run_benchmark.py`'s corpus/eval loading at your own
 ingested tables instead.

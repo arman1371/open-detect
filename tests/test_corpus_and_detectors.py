@@ -12,9 +12,9 @@ from __future__ import annotations
 
 import pytest
 
-from unidetect.config import UniDetectConfig
-from unidetect.core.enums import ErrorType
-from unidetect.pipeline import UniDetect
+from open_detect.config import UniDetectConfig
+from open_detect.core.enums import ErrorType
+from open_detect.pipeline import UniDetect
 
 
 def _write_table(spark, fqn: str, rows: list[dict], columns: list[str]) -> None:
