@@ -4,14 +4,14 @@ from __future__ import annotations
 
 import pytest
 
-from unidetect.algorithms.auto_validate.hierarchy import (
+from open_detect.algorithms.auto_validate.hierarchy import (
     ROOT_PATTERN,
     generalize,
     matches,
     token_count,
     tokenize,
 )
-from unidetect.algorithms.auto_validate.patterns import (
+from open_detect.algorithms.auto_validate.patterns import (
     DEFAULT_MAX_PATTERNS,
     iter_patterns,
     patterns_of,
@@ -72,7 +72,7 @@ class TestPatternsOf:
 
     def test_ordering_is_coarsest_first(self):
         ordered = sorted_patterns(patterns_of("9:07"))
-        from unidetect.algorithms.auto_validate.hierarchy import generality_weight
+        from open_detect.algorithms.auto_validate.hierarchy import generality_weight
 
         weights = [generality_weight(p) for p in ordered]
         assert weights == sorted(weights)

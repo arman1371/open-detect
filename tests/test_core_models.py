@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-from unidetect.core.enums import ColumnDataType, ErrorType
-from unidetect.core.models import (
+from open_detect.core.enums import ColumnDataType, ErrorType
+from open_detect.core.models import (
     Candidate,
     CorpusColumnRecord,
     CorpusPairRecord,

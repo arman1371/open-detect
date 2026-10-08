@@ -10,9 +10,9 @@ import pytest
 if TYPE_CHECKING:
     pass
 
-from unidetect.algorithms.auto_validate.config import AutoValidateConfig
-from unidetect.algorithms.auto_validate.drift import check_drift
-from unidetect.algorithms.auto_validate.fmdv import InferredPattern
+from open_detect.algorithms.auto_validate.config import AutoValidateConfig
+from open_detect.algorithms.auto_validate.drift import check_drift
+from open_detect.algorithms.auto_validate.fmdv import InferredPattern
 
 
 def _make_pattern(pattern_str: str = "<num>:<num>:<num>") -> InferredPattern:

@@ -6,8 +6,8 @@ from __future__ import annotations
 
 import pandas as pd
 
-from unidetect.algorithms import get_algorithm
-from unidetect.algorithms.raha import GroundTruthLabeler, RahaConfig, RahaDetector
+from open_detect.algorithms import get_algorithm
+from open_detect.algorithms.raha import GroundTruthLabeler, RahaConfig, RahaDetector
 
 DIRTY = pd.DataFrame(
     {

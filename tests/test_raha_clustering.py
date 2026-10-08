@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import numpy as np
 
-from unidetect.algorithms.raha.clustering import cluster_column, sample_tuple
+from open_detect.algorithms.raha.clustering import cluster_column, sample_tuple
 
 
 class TestClusterColumn:

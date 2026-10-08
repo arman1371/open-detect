@@ -3,7 +3,7 @@ requires = ["hatchling>=1.24"]
 build-backend = "hatchling.build"
 
 [project]
-name = "unidetect"
+name = "open-detect"
 version = "0.2.0"
 description = "A library of pluggable, paper-backed error detection algorithms for tabular data (Uni-Detect, Raha, ...)."
 readme = "README.md"
@@ -53,17 +53,17 @@ Repository = "https://github.com/arman1371/open-detect"
 Documentation = "https://arman1371.github.io/open-detect/"
 
 [project.scripts]
-build_corpus_statistics_job = "unidetect.jobs.build_corpus_statistics:main"
-run_detection_job = "unidetect.jobs.run_detection:main"
+build_corpus_statistics_job = "open_detect.jobs.build_corpus_statistics:main"
+run_detection_job = "open_detect.jobs.run_detection:main"
 
 # Third-party algorithms register themselves here, under their own package,
-# without any code changes in unidetect itself -- see
-# unidetect/algorithms/registry.py. Example:
-# [project.entry-points."unidetect.algorithms"]
+# without any code changes in open_detect itself -- see
+# open_detect/algorithms/registry.py. Example:
+# [project.entry-points."open_detect.algorithms"]
 # my_algorithm = "my_package.module:MyAlgorithmClass"
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/unidetect"]
+packages = ["src/open_detect"]
 
 [dependency-groups]
 dev = [

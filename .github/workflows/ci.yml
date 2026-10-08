@@ -43,7 +43,7 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-ivy-
       - run: uv sync
-      - run: uv run pytest --cov=unidetect --cov-report=term-missing
+      - run: uv run pytest --cov=open_detect --cov-report=term-missing
 
   type-check:
     runs-on: ubuntu-latest

@@ -7,12 +7,12 @@ from typing import TYPE_CHECKING
 import pandas as pd
 
 if TYPE_CHECKING:
-    from unidetect.algorithms.auto_validate.config import AutoValidateConfig
-    from unidetect.algorithms.auto_validate.index import PatternIndex
+    from open_detect.algorithms.auto_validate.config import AutoValidateConfig
+    from open_detect.algorithms.auto_validate.index import PatternIndex
 
-from unidetect.algorithms.auto_validate.config import AutoValidateConfig
-from unidetect.algorithms.auto_validate.fmdv_v import fmdv_v, fmdv_vh
-from unidetect.algorithms.auto_validate.index import build_pattern_index
+from open_detect.algorithms.auto_validate.config import AutoValidateConfig
+from open_detect.algorithms.auto_validate.fmdv_v import fmdv_v, fmdv_vh
+from open_detect.algorithms.auto_validate.index import build_pattern_index
 
 
 def _time_corpus(m_val: int = 1) -> tuple[list[list[str]], AutoValidateConfig]:

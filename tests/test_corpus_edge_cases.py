@@ -14,12 +14,12 @@ from __future__ import annotations
 
 import pytest
 
-from unidetect.config import UniDetectConfig
-from unidetect.core.enums import ErrorType
-from unidetect.corpus.ingestion import CorpusIngestor
-from unidetect.corpus.store import CorpusStatsStore
-from unidetect.exceptions import CorpusNotFoundError
-from unidetect.pipeline import UniDetect
+from open_detect.config import UniDetectConfig
+from open_detect.core.enums import ErrorType
+from open_detect.corpus.ingestion import CorpusIngestor
+from open_detect.corpus.store import CorpusStatsStore
+from open_detect.exceptions import CorpusNotFoundError
+from open_detect.pipeline import UniDetect
 
 
 def _write_table(spark, fqn: str, rows: list[dict], columns: list[str]) -> None:
@@ -60,8 +60,8 @@ class TestCorpusStatsStoreBeforeBuild:
     def config(self, uc_location):
         return UniDetectConfig(
             location=uc_location,
-            corpus_stats_table="unidetect_corpus_stats_before_build_test",
-            token_stats_table="unidetect_token_stats_before_build_test",
+            corpus_stats_table="open_detect_corpus_stats_before_build_test",
+            token_stats_table="open_detect_token_stats_before_build_test",
         )
 
     def test_table_exists_is_false(self, spark, config):

@@ -2,10 +2,10 @@
 
 ## The registry
 
-Algorithms are looked up by name through a small registry in `unidetect.algorithms`.
+Algorithms are looked up by name through a small registry in `open_detect.algorithms`.
 
 ```python
-from unidetect.algorithms import get_algorithm, get_algorithm_class, list_algorithms
+from open_detect.algorithms import get_algorithm, get_algorithm_class, list_algorithms
 
 list_algorithms()                       # ['auto_validate', 'raha', 'uni_detect']
 cls = get_algorithm_class("raha")       # the class, not an instance
@@ -67,7 +67,7 @@ result.to_pandas()       # DataFrame with the columns above
 len(result)              # number of cells reported
 for cell in result: ... # iterate every CellResult
 
-from unidetect.algorithms import AlgorithmResult
+from open_detect.algorithms import AlgorithmResult
 combined = AlgorithmResult.union([raha_result, av_result], algorithm="ensemble")
 ```
 
@@ -89,6 +89,6 @@ Configs are immutable. To change one setting, build a new config, or use
 
 ## Errors
 
-All exceptions raised by the library derive from `UniDetectError`, so you can catch broadly
-(`except UniDetectError`) or narrowly (`ConfigurationError`, `IndexNotBuiltError`,
+All exceptions raised by the library derive from `OpenDetectError`, so you can catch broadly
+(`except OpenDetectError`) or narrowly (`ConfigurationError`, `IndexNotBuiltError`,
 `CorpusNotFoundError`, ...). See the [reference](reference/exceptions.md).

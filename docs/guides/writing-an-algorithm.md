@@ -11,7 +11,7 @@ Your constructor and your `data` type are yours to define.
 
 ```python
 import pandas as pd
-from unidetect.algorithms import AlgorithmResult, CellResult, ErrorDetectionAlgorithm
+from open_detect.algorithms import AlgorithmResult, CellResult, ErrorDetectionAlgorithm
 
 
 class NegativeValues(ErrorDetectionAlgorithm):
@@ -48,7 +48,7 @@ Guidelines for `detect()`:
 - Make `is_error` the honest binary verdict. Use `score` for ranking within your algorithm, and
   document its scale.
 - Put human-readable reasoning in `evidence` (a plain dict).
-- Raise exceptions derived from `UniDetectError` for configuration and usage problems.
+- Raise exceptions derived from `OpenDetectError` for configuration and usage problems.
 
 ## 2. Register it
 
@@ -57,7 +57,7 @@ Guidelines for `detect()`:
 === "Decorator"
 
     ```python
-    from unidetect.algorithms import register_algorithm
+    from open_detect.algorithms import register_algorithm
 
     @register_algorithm("negative_values")
     class NegativeValues(ErrorDetectionAlgorithm): ...
@@ -69,7 +69,7 @@ Guidelines for `detect()`:
     algorithm is first requested.
 
     ```python
-    from unidetect.algorithms import register_lazy
+    from open_detect.algorithms import register_lazy
 
     def _load():
         from my_package.algo import NegativeValues
@@ -81,7 +81,7 @@ Guidelines for `detect()`:
 Then:
 
 ```python
-from unidetect.algorithms import get_algorithm
+from open_detect.algorithms import get_algorithm
 
 algo = get_algorithm("negative_values", tolerance=0.5)
 result = algo.detect(pd.DataFrame({"x": [1, -2, 3]}), table_id="demo")
@@ -91,13 +91,13 @@ result.errors()
 Registering a name that already exists overwrites it, which is useful in tests and for swapping
 in your own variant of a built-in.
 
-### As a plugin package (no changes to `unidetect`)
+### As a plugin package (no changes to `open-detect`)
 
-Declare a Python entry point in the `unidetect.algorithms` group in **your** package's
+Declare a Python entry point in the `open_detect.algorithms` group in **your** package's
 `pyproject.toml`:
 
 ```toml
-[project.entry-points."unidetect.algorithms"]
+[project.entry-points."open_detect.algorithms"]
 negative_values = "my_package.algo:NegativeValues"
 ```
 

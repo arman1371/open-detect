@@ -24,8 +24,8 @@ Run Spark integration tests under **JDK 17**.
 ## Adding an algorithm
 
 Follow [Writing your own algorithm](guides/writing-an-algorithm.md). To make it a built-in, put
-it in `src/unidetect/algorithms/<name>/` and register it lazily in
-`src/unidetect/algorithms/__init__.py` next to the existing three. Add a section to
+it in `src/open_detect/algorithms/<name>/` and register it lazily in
+`src/open_detect/algorithms/__init__.py` next to the existing three. Add a section to
 `ARCHITECTURE.md` mapping the paper to the code, and add it to the benchmarks.
 
 ## Working on these docs

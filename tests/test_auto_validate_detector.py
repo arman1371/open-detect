@@ -5,12 +5,12 @@ from __future__ import annotations
 import pandas as pd
 import pytest
 
-from unidetect.algorithms import get_algorithm, get_algorithm_class, list_algorithms
-from unidetect.algorithms.auto_validate.config import AutoValidateConfig
-from unidetect.algorithms.auto_validate.detector import AutoValidateAlgorithm
-from unidetect.algorithms.auto_validate.exceptions import IndexNotBuiltError
-from unidetect.algorithms.auto_validate.fmdv import InferredPattern
-from unidetect.algorithms.auto_validate.index import PatternIndex
+from open_detect.algorithms import get_algorithm, get_algorithm_class, list_algorithms
+from open_detect.algorithms.auto_validate.config import AutoValidateConfig
+from open_detect.algorithms.auto_validate.detector import AutoValidateAlgorithm
+from open_detect.algorithms.auto_validate.exceptions import IndexNotBuiltError
+from open_detect.algorithms.auto_validate.fmdv import InferredPattern
+from open_detect.algorithms.auto_validate.index import PatternIndex
 
 
 def _make_tiny_corpus() -> list[pd.Series]:

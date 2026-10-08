@@ -12,14 +12,14 @@ from __future__ import annotations
 
 import pytest
 
-from unidetect.config import UniDetectConfig, UnityCatalogLocation
-from unidetect.core.enums import ColumnDataType, ErrorType
-from unidetect.corpus.builder import (
+from open_detect.config import UniDetectConfig, UnityCatalogLocation
+from open_detect.core.enums import ColumnDataType, ErrorType
+from open_detect.corpus.builder import (
     _coerce_numeric,
     _score_single_column,
     _stats_schema_without_error_type,
 )
-from unidetect.corpus.schema import CORPUS_STATS_SCHEMA
+from open_detect.corpus.schema import CORPUS_STATS_SCHEMA
 
 
 @pytest.fixture

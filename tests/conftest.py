@@ -19,7 +19,7 @@ it has nothing to delegate to). So locally we address tables as
 ``spark_catalog.<schema>.<table>``, which Spark resolves natively and which
 is a fully qualified three-level name -- a faithful stand-in for Unity
 Catalog's ``<catalog>.<schema>.<table>`` shape from the library's point of
-view, since all of unidetect's own code only ever treats the catalog
+view, since all of open_detect's own code only ever treats the catalog
 component as an opaque string.
 """
 
@@ -37,7 +37,7 @@ from pathlib import Path
 import pytest
 
 TEST_CATALOG = "spark_catalog"
-TEST_SCHEMA = "unidetect_test_schema"
+TEST_SCHEMA = "open_detect_test_schema"
 
 _MAVEN_BASE = "https://repo1.maven.org/maven2"
 _SCALA_VERSION = "2.12"
@@ -67,7 +67,7 @@ def _delta_jars(delta_version: str) -> list[str]:
     passing local paths via ``spark.jars`` sidesteps the JVM-side Ivy
     resolution path entirely.
     """
-    cache_dir = Path(tempfile.gettempdir()) / "unidetect-test-jars" / delta_version
+    cache_dir = Path(tempfile.gettempdir()) / "open_detect-test-jars" / delta_version
 
     pom_url = (
         f"{_MAVEN_BASE}/io/delta/delta-spark_{_SCALA_VERSION}/{delta_version}/"
@@ -105,7 +105,7 @@ def spark() -> Iterator[pyspark.sql.SparkSession]:  # noqa: F821
     # PATH by default, not via sys.executable -- so without this, workers
     # can silently run a *different* Python than the driver (e.g. the
     # system interpreter instead of this venv), missing both the editable
-    # `unidetect` install and pandas/numpy/rapidfuzz. This must be set
+    # `open_detect` install and pandas/numpy/rapidfuzz. This must be set
     # before the JVM/SparkContext starts.
     os.environ.setdefault("PYSPARK_PYTHON", sys.executable)
     os.environ.setdefault("PYSPARK_DRIVER_PYTHON", sys.executable)
@@ -113,10 +113,10 @@ def spark() -> Iterator[pyspark.sql.SparkSession]:  # noqa: F821
     import importlib_metadata
     from pyspark.sql import SparkSession
 
-    warehouse_dir = tempfile.mkdtemp(prefix="unidetect-warehouse-")
+    warehouse_dir = tempfile.mkdtemp(prefix="open_detect-warehouse-")
     builder = (
         SparkSession.builder.master("local[2]")
-        .appName("unidetect-tests")
+        .appName("open_detect-tests")
         .config("spark.sql.warehouse.dir", warehouse_dir)
         .config("spark.sql.shuffle.partitions", "2")
         .config("spark.ui.enabled", "false")
@@ -150,6 +150,6 @@ def spark() -> Iterator[pyspark.sql.SparkSession]:  # noqa: F821
 @pytest.fixture
 def uc_location(spark):  # noqa: ANN001, ARG001
     """A throwaway Unity-Catalog-shaped location backed by the local test catalog."""
-    from unidetect.config import UnityCatalogLocation
+    from open_detect.config import UnityCatalogLocation
 
     return UnityCatalogLocation(catalog=TEST_CATALOG, schema=TEST_SCHEMA)
