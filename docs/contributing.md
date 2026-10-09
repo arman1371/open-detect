@@ -91,6 +91,8 @@ git tag -a v0.2.0 <commit-sha> -m "v0.2.0 baseline"
 git push origin v0.2.0
 ```
 
+(Already done for this repository: `v0.2.0` points at the project rename commit `46a1237`.)
+
 The Release workflow refuses to run until a `v*` tag exists. After this, the first `feat` or
 `fix` merged to `main` produces `v0.3.0` (or `v0.2.1`).
 
@@ -101,7 +103,8 @@ The Release workflow refuses to run until a `v*` tag exists. After this, the fir
 | Workflow permissions | Settings, Actions, General | **Read and write permissions** (the release job pushes a commit and a tag) |
 | Merge method | Settings, General, Pull Requests | Allow **squash merging** only; "Default commit message" = **Pull request title** (or title and description) |
 | Required status check | Settings, Branches (or Rules), `main` | Require **CI passed** (the single aggregate job in `ci.yml`) |
-| `RELEASE_TOKEN` secret | Settings, Secrets and variables, Actions | **Only if `main` blocks the default `GITHUB_TOKEN`** (branch protection that requires PRs for everyone). A fine-grained PAT or GitHub App token with `contents: write`, whose owner is allowed to bypass the protection. Without the secret the workflow falls back to `GITHUB_TOKEN`. |
+| Ruleset bypass for the release bot | Settings, Rules, Rulesets, `main` ruleset, Bypass list | Add **Deploy keys** with mode *Always allow*. The `main` ruleset requires PRs for everyone and `GITHUB_TOKEN` cannot be a bypass actor, so the release job pushes its commit and tag over SSH with a deploy key. |
+| Deploy key + `RELEASE_DEPLOY_KEY` secret | Settings, Deploy keys; Settings, Secrets and variables, Actions | Generate a key pair (`ssh-keygen -t ed25519 -N "" -f release-key`), add `release-key.pub` as a deploy key with **Allow write access**, and store the private key as the secret `RELEASE_DEPLOY_KEY`. Rotate by repeating this and deleting the old key. |
 
 ### Publishing to PyPI (optional, off by default)
 

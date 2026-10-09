@@ -49,15 +49,17 @@ jobs:
       version: ${{ steps.release.outputs.version }}
       tag: ${{ steps.release.outputs.tag }}
     env:
-      # RELEASE_TOKEN (PAT or GitHub App token) is only required if `main` is protected
-      # against the default GITHUB_TOKEN; see docs/contributing.md. Falls back to GITHUB_TOKEN.
-      GH_TOKEN: ${{ secrets.RELEASE_TOKEN || secrets.GITHUB_TOKEN }}
+      # API calls (GitHub Release, assets, docs dispatch) use the workflow token.
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     steps:
       - uses: actions/checkout@v7
         with:
           ref: main
           fetch-depth: 0
-          token: ${{ env.GH_TOKEN }}
+          # `main` requires PRs for everyone (repository ruleset), so the release commit and tag
+          # are pushed over SSH with a repo deploy key that is a ruleset bypass actor. The
+          # GITHUB_TOKEN cannot be a bypass actor. See docs/contributing.md.
+          ssh-key: ${{ secrets.RELEASE_DEPLOY_KEY }}
 
       - name: Require the baseline tag
         run: |

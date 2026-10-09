@@ -15,12 +15,12 @@ jobs:
     permissions:
       contents: write
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@v4
         with:
           ref: main
           fetch-depth: 0
 
-      - uses: actions/setup-python@v7
+      - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
 
@@ -39,7 +39,5 @@ jobs:
             echo "No graph changes to commit."
           else
             git commit -m "chore: update knowledge graph [skip ci]"
-            # The release workflow may have pushed to main since checkout.
-            git pull --rebase origin main
             git push origin HEAD:main
           fi

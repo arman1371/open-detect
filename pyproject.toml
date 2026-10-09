@@ -148,3 +148,4 @@ upload_to_vcs_release = true
 [tool.semantic_release.remote]
 type = "github"
 token = { env = "GH_TOKEN" }
+ignore_token_for_push = true # push with the SSH deploy key set up by actions/checkout, not the API token
