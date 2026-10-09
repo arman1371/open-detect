@@ -34,7 +34,7 @@ spark = [
   # PySpark 3.5's Arrow serialization (pandas_udf/mapInPandas) is only
   # tested against pyarrow up to ~14.x; pyarrow 15+ has been observed to
   # raise "Expected Array, got ChunkedArray" for array-typed columns.
-  "pyarrow>=11,<15",
+  "pyarrow>=11,<26",
   # pyarrow<15 wheels are built against the NumPy 1.x ABI and segfault/
   # raise under NumPy 2.x ("compiled using NumPy 1.x cannot be run in
   # NumPy 2.x").
@@ -68,7 +68,7 @@ packages = ["src/open_detect"]
 [dependency-groups]
 dev = [
   "pyspark>=3.5,<4.0",
-  "pyarrow>=11,<15",
+  "pyarrow>=11,<26",
   "numpy<2",
   "delta-spark>=3.1,<4.0",
   "scikit-learn>=1.3",
