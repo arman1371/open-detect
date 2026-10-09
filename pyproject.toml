@@ -107,3 +107,45 @@ addopts = "-ra -q"
 filterwarnings = [
   "ignore::DeprecationWarning",
 ]
+
+[tool.semantic_release]
+# Versioning is driven by Conventional Commits on `main`. See docs/contributing.md.
+tag_format = "v{version}"
+commit_parser = "conventional"
+branch = "main"
+allow_zero_version = true # stay on 0.y.z until we deliberately cut 1.0.0
+major_on_zero = false # while < 1.0.0: breaking change -> minor bump, feat -> minor, fix/perf -> patch
+version_toml = ["pyproject.toml:project.version"]
+commit_message = "chore(release): v{version} [skip ci]"
+# Refresh the project's own entry in uv.lock so `uv sync --locked` keeps working, then build.
+build_command = """
+  uv lock --upgrade-package open-detect
+  git add uv.lock
+  uv build
+"""
+
+[tool.semantic_release.commit_parser_options]
+minor_tags = ["feat"]
+patch_tags = ["fix", "perf"]
+allowed_tags = ["feat", "fix", "perf", "docs", "build", "chore", "ci", "refactor", "revert", "style", "test"]
+default_bump_level = 0
+
+[tool.semantic_release.changelog]
+template_dir = ".github/semantic-release/templates"
+mode = "update"
+exclude_commit_patterns = [
+  '''^(chore|ci|style|test|build)(\([^)]*\))?:.*''',
+]
+
+[tool.semantic_release.changelog.default_templates]
+changelog_file = "CHANGELOG.md"
+output_format = "md"
+
+[tool.semantic_release.publish]
+dist_glob_patterns = ["dist/*"]
+upload_to_vcs_release = true
+
+[tool.semantic_release.remote]
+type = "github"
+token = { env = "GH_TOKEN" }
+ignore_token_for_push = true # push with the SSH deploy key set up by actions/checkout, not the API token
