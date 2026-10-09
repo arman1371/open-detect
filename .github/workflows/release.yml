@@ -1,0 +1,153 @@
+name: Release
+
+# Runs after CI succeeds on `main` (or manually). python-semantic-release reads the
+# Conventional Commits since the last `v*` tag; if any of them warrant a release it bumps
+# pyproject.toml/uv.lock, updates CHANGELOG.md, commits `chore(release): vX.Y.Z [skip ci]`,
+# tags it, creates the GitHub Release and attaches the sdist + wheel.
+#
+# No release loop: the release commit carries `[skip ci]` so CI (and therefore this workflow)
+# never runs for it, and the job below also refuses to run for release commits.
+on:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Dry run: only report what would be released (no commit, tag or release)"
+        type: boolean
+        default: true
+      force:
+        description: "Force the bump level instead of deriving it from commits"
+        type: choice
+        options: [auto, patch, minor, major]
+        default: auto
+
+permissions:
+  contents: read
+
+# One release at a time, and never cancel one mid-flight (it pushes commits and tags).
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.workflow_run.conclusion == 'success' &&
+       github.event.workflow_run.event == 'push' &&
+       !startsWith(github.event.workflow_run.head_commit.message, 'chore(release):'))
+    permissions:
+      contents: write # push release commit + tag, create the GitHub Release
+      actions: write # re-trigger the docs deploy so the changelog page is refreshed
+    outputs:
+      released: ${{ steps.release.outputs.released }}
+      version: ${{ steps.release.outputs.version }}
+      tag: ${{ steps.release.outputs.tag }}
+    env:
+      # API calls (GitHub Release, assets, docs dispatch) use the workflow token.
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: main
+          fetch-depth: 0
+          # `main` requires PRs for everyone (repository ruleset), so the release commit and tag
+          # are pushed over SSH with a repo deploy key that is a ruleset bypass actor. The
+          # GITHUB_TOKEN cannot be a bypass actor. See docs/contributing.md.
+          ssh-key: ${{ secrets.RELEASE_DEPLOY_KEY }}
+
+      - name: Require the baseline tag
+        run: |
+          if ! git tag --list 'v*' | grep -q .; then
+            echo "::error::No v* tag found. Create the baseline tag first (see docs/contributing.md#first-release-bootstrap): git tag -a v0.2.0 <sha> && git push origin v0.2.0"
+            exit 1
+          fi
+
+      - name: Only release commits that passed CI
+        if: github.event_name == 'workflow_run'
+        env:
+          TESTED_SHA: ${{ github.event.workflow_run.head_sha }}
+        run: |
+          # Every commit on main after the one CI tested must be a [skip ci] commit
+          # (knowledge-graph refresh); otherwise a newer, still-untested commit is on main
+          # and its own CI run will trigger the release instead.
+          untested=$(git log --format=%s "${TESTED_SHA}..HEAD" | grep -vF '[skip ci]' || true)
+          if [ -n "$untested" ]; then
+            echo "::notice::main moved past the tested commit; skipping, the newer CI run will release."
+            echo "SKIP_RELEASE=true" >> "$GITHUB_ENV"
+          fi
+
+      - uses: astral-sh/setup-uv@v10.2.0
+        if: env.SKIP_RELEASE != 'true'
+        with:
+          enable-cache: true
+
+      - name: Install python-semantic-release
+        if: env.SKIP_RELEASE != 'true'
+        run: uv tool install "python-semantic-release>=10,<11"
+
+      - name: Configure git identity
+        if: env.SKIP_RELEASE != 'true'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+      - name: Dry run
+        if: env.SKIP_RELEASE != 'true' && github.event_name == 'workflow_dispatch' && inputs.dry_run
+        env:
+          FORCE: ${{ inputs.force }}
+        run: |
+          flag=""; [ "$FORCE" != "auto" ] && flag="--$FORCE"
+          {
+            echo "### Release dry run"
+            echo "Last released: \`$(semantic-release version --print-last-released-tag || true)\`"
+            echo "Next version: \`$(semantic-release --noop version --print $flag 2>/dev/null | tail -1)\`"
+          } | tee -a "$GITHUB_STEP_SUMMARY"
+
+      - name: Release
+        id: release
+        if: env.SKIP_RELEASE != 'true' && !(github.event_name == 'workflow_dispatch' && inputs.dry_run)
+        env:
+          FORCE: ${{ inputs.force }}
+        run: |
+          flag=""; [ -n "$FORCE" ] && [ "$FORCE" != "auto" ] && flag="--$FORCE"
+          semantic-release -v version $flag
+          if grep -q '^released=true' "$GITHUB_OUTPUT"; then
+            semantic-release publish --tag "$(sed -n 's/^tag=//p' "$GITHUB_OUTPUT")"
+          fi
+
+      - name: Upload dist for downstream jobs
+        if: steps.release.outputs.released == 'true'
+        uses: actions/upload-artifact@v7
+        with:
+          name: dist
+          path: dist/
+          if-no-files-found: error
+
+      - name: Refresh the docs site (changelog page)
+        if: steps.release.outputs.released == 'true'
+        run: gh workflow run docs.yml --ref main
+
+  pypi:
+    name: publish to PyPI
+    needs: release
+    # Disabled by default: set the repository variable PUBLISH_TO_PYPI=true after completing
+    # the one-time trusted publishing setup in docs/contributing.md.
+    if: needs.release.outputs.released == 'true' && vars.PUBLISH_TO_PYPI == 'true'
+    runs-on: ubuntu-latest
+    environment:
+      name: pypi
+      url: https://pypi.org/p/open-detect
+    permissions:
+      id-token: write # OIDC trusted publishing; no API token stored
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          name: dist
+          path: dist/
+      - uses: pypa/gh-action-pypi-publish@release/v1

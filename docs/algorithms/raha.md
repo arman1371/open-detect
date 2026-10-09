@@ -18,14 +18,14 @@ and a small labeling budget, 20 tuples by default.
 ## Install
 
 ```bash
-pip install "unidetect[raha]"
+pip install "open-detect[raha]"
 ```
 
 ## Usage
 
 ```python
 import pandas as pd
-from unidetect.algorithms.raha import RahaConfig, RahaDetector, GroundTruthLabeler
+from open_detect.algorithms.raha import RahaConfig, RahaDetector, GroundTruthLabeler
 
 dirty = pd.read_csv("dirty.csv")
 detector = RahaDetector(RahaConfig(labeling_budget=20))
@@ -38,7 +38,7 @@ for cell in result.errors():
 Through the registry it is the same thing:
 
 ```python
-from unidetect.algorithms import get_algorithm
+from open_detect.algorithms import get_algorithm
 raha = get_algorithm("raha")                       # default RahaConfig
 raha = get_algorithm("raha", RahaConfig(labeling_budget=10))
 ```
@@ -66,7 +66,7 @@ usually the quickest way to see *why* a value looks wrong.
 
 ## Configuration
 
-See [`RahaConfig`](../reference/raha.md#unidetect.algorithms.raha.config.RahaConfig) for the full list.
+See [`RahaConfig`](../reference/raha.md#open_detect.algorithms.raha.config.RahaConfig) for the full list.
 
 | Setting | Default | Notes |
 |---|---|---|

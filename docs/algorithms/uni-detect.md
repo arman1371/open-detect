@@ -36,7 +36,7 @@ Work is split into two phases:
 On Databricks, Spark and Delta are already there:
 
 ```bash
-pip install unidetect
+pip install open-detect
 ```
 
 Locally, add the `spark` extra and use **JDK 17**; see [Installation](../getting-started/installation.md).
@@ -44,9 +44,9 @@ Locally, add the `spark` extra and use **JDK 17**; see [Installation](../getting
 ## Usage on Databricks
 
 ```python
-from unidetect import UniDetectConfig, UnityCatalogLocation
-from unidetect.pipeline import UniDetect
-from unidetect.catalog import list_tables_matching
+from open_detect import UniDetectConfig, UnityCatalogLocation
+from open_detect.pipeline import UniDetect
+from open_detect.catalog import list_tables_matching
 
 config = UniDetectConfig(
     location=UnityCatalogLocation(catalog="main", schema="data_quality"),
@@ -62,13 +62,13 @@ detections = ud.detect(["main.sales.orders"])
 detections.show()
 ```
 
-`location` is where `unidetect` keeps its **own** tables (corpus statistics, token statistics,
+`location` is where `open-detect` keeps its **own** tables (corpus statistics, token statistics,
 and optionally detections). It is not the data being scanned.
 
 To restrict the work to certain error types:
 
 ```python
-from unidetect import ErrorType
+from open_detect import ErrorType
 
 ud.build_corpus_statistics(corpus_tables, error_types=[ErrorType.UNIQUENESS, ErrorType.SPELLING])
 ud.detect(["main.sales.orders"], error_types=[ErrorType.UNIQUENESS])
@@ -100,7 +100,7 @@ for row in detections.where("is_significant").limit(10).collect():
 Persist results to the configured detections table:
 
 ```python
-ud.write_detections(detections)   # appends to <catalog>.<schema>.unidetect_detections
+ud.write_detections(detections)   # appends to <catalog>.<schema>.open_detect_detections
 ```
 
 ### Through the registry
@@ -110,7 +110,7 @@ ud.write_detections(detections)   # appends to <catalog>.<schema>.unidetect_dete
 other algorithms.
 
 ```python
-from unidetect.algorithms import get_algorithm
+from open_detect.algorithms import get_algorithm
 
 algo = get_algorithm("uni_detect", config)
 result = algo.detect(["main.sales.orders"])    # data = table names; table_id is ignored
@@ -122,7 +122,7 @@ Each detection spanning several columns or rows (a duplicate group, an FD violat
 
 ## Configuration
 
-See [`UniDetectConfig`](../reference/uni-detect.md#unidetect.config.UniDetectConfig).
+See [`UniDetectConfig`](../reference/uni-detect.md#open_detect.config.UniDetectConfig).
 
 | Setting | Default | Notes |
 |---|---|---|
@@ -132,7 +132,7 @@ See [`UniDetectConfig`](../reference/uni-detect.md#unidetect.config.UniDetectCon
 | `laplace_smoothing` | `1.0` | Keeps zero-support buckets from yielding a perfect `0` ratio |
 | `max_mpd_block_size` | `500` | Bounds pairwise spelling comparisons on skewed columns |
 | `max_fd_column_pairs_per_table` | `200` | Bounds FD candidates per table |
-| `corpus_stats_table`, `token_stats_table`, `detections_table` | `unidetect_*` | Unqualified names of the library's tables |
+| `corpus_stats_table`, `token_stats_table`, `detections_table` | `open_detect_*` | Unqualified names of the library's tables |
 
 ## A fully local example
 

@@ -1,7 +1,7 @@
 """Unit tests for jobs/run_detection.py (argument parsing + orchestration only).
 
 ``main()`` is exercised with a mocked Spark session and a mocked
-:class:`~unidetect.pipeline.UniDetect`, since this module's own job is just
+:class:`~open_detect.pipeline.UniDetect`, since this module's own job is just
 CLI plumbing around the pipeline -- the pipeline's actual behavior is already
 covered by ``test_corpus_and_detectors.py``.
 """
@@ -10,8 +10,8 @@ from __future__ import annotations
 
 from unittest.mock import MagicMock, patch
 
-from unidetect.core.enums import ErrorType
-from unidetect.jobs.run_detection import main, parse_args
+from open_detect.core.enums import ErrorType
+from open_detect.jobs.run_detection import main, parse_args
 
 
 class TestParseArgs:
@@ -73,11 +73,11 @@ class TestMain:
 
     def test_detects_and_shows_results(self):
         with (
-            patch("unidetect.jobs.run_detection.get_spark") as mock_get_spark,
-            patch("unidetect.jobs.run_detection.UniDetect") as mock_unidetect_cls,
+            patch("open_detect.jobs.run_detection.get_spark") as mock_get_spark,
+            patch("open_detect.jobs.run_detection.UniDetect") as mock_pipeline_cls,
         ):
             mock_get_spark.return_value = MagicMock()
-            ud = mock_unidetect_cls.return_value
+            ud = mock_pipeline_cls.return_value
             detections = self._mock_detections()
             ud.detect.return_value = detections
 
@@ -103,11 +103,11 @@ class TestMain:
 
     def test_applies_top_k_limit(self):
         with (
-            patch("unidetect.jobs.run_detection.get_spark") as mock_get_spark,
-            patch("unidetect.jobs.run_detection.UniDetect") as mock_unidetect_cls,
+            patch("open_detect.jobs.run_detection.get_spark") as mock_get_spark,
+            patch("open_detect.jobs.run_detection.UniDetect") as mock_pipeline_cls,
         ):
             mock_get_spark.return_value = MagicMock()
-            ud = mock_unidetect_cls.return_value
+            ud = mock_pipeline_cls.return_value
             detections = self._mock_detections()
             ud.detect.return_value = detections
 
@@ -128,11 +128,11 @@ class TestMain:
 
     def test_writes_results_when_requested(self):
         with (
-            patch("unidetect.jobs.run_detection.get_spark") as mock_get_spark,
-            patch("unidetect.jobs.run_detection.UniDetect") as mock_unidetect_cls,
+            patch("open_detect.jobs.run_detection.get_spark") as mock_get_spark,
+            patch("open_detect.jobs.run_detection.UniDetect") as mock_pipeline_cls,
         ):
             mock_get_spark.return_value = MagicMock()
-            ud = mock_unidetect_cls.return_value
+            ud = mock_pipeline_cls.return_value
             detections = self._mock_detections()
             ud.detect.return_value = detections
 

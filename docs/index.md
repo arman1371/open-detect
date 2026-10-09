@@ -1,14 +1,14 @@
 ---
-title: unidetect
+title: open-detect
 hide:
   - navigation
 ---
 
-# unidetect
+# open-detect
 
 **Pluggable, paper-backed error detection for tabular data.**
 
-`unidetect` implements published error-detection research behind one small, uniform API.
+`open-detect` implements published error-detection research behind one small, uniform API.
 Pick an algorithm by name, run it on your data, and get back results in a common schema
 you can rank, compare, and union across algorithms.
 
@@ -17,7 +17,7 @@ you can rank, compare, and union across algorithms.
 
 ```python
 import pandas as pd
-from unidetect.algorithms import get_algorithm
+from open_detect.algorithms import get_algorithm
 
 dirty = pd.DataFrame({"city": ["Paris", "London", "MISSING", "123"]})
 
@@ -71,7 +71,7 @@ result.to_pandas()       # the same, as a DataFrame in the shared schema
 | Input to `detect()` | `pandas.DataFrame` | `pandas.DataFrame` | list of table names |
 | Runtime | pandas, scikit-learn | pandas | Spark + Delta |
 
-The papers have almost nothing in common methodologically, so `unidetect` does not pretend their
+The papers have almost nothing in common methodologically, so `open-detect` does not pretend their
 inputs are the same. It unifies the **output**: every algorithm returns an
 [`AlgorithmResult`](reference/algorithms.md) made of per-cell
 [`CellResult`](reference/algorithms.md) records, so results are directly comparable.

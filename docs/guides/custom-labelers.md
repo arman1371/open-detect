@@ -8,7 +8,7 @@ cells are dirty. The `Labeler` interface is how a person, a UI, or a rules engin
 `CallableLabeler` wraps a function `(df, row_index) -> {column_name: is_error}`:
 
 ```python
-from unidetect.algorithms.raha import CallableLabeler, RahaConfig, RahaDetector
+from open_detect.algorithms.raha import CallableLabeler, RahaConfig, RahaDetector
 
 def ask_a_human(df, row_index):
     row = df.loc[row_index]
@@ -48,7 +48,7 @@ def label_from_rules(df, row_index):
 For anything stateful (a web session, a database connection) subclass `Labeler`:
 
 ```python
-from unidetect.algorithms.raha import Labeler
+from open_detect.algorithms.raha import Labeler
 
 class SlackLabeler(Labeler):
     def __init__(self, channel):

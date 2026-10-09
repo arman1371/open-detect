@@ -10,8 +10,8 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from unidetect.core.enums import ErrorType
-from unidetect.jobs.build_corpus_statistics import main, parse_args
+from open_detect.core.enums import ErrorType
+from open_detect.jobs.build_corpus_statistics import main, parse_args
 
 
 class TestParseArgs:
@@ -34,11 +34,11 @@ class TestParseArgs:
 class TestMain:
     def test_builds_from_explicit_corpus_tables(self):
         with (
-            patch("unidetect.jobs.build_corpus_statistics.get_spark") as mock_get_spark,
-            patch("unidetect.jobs.build_corpus_statistics.UniDetect") as mock_unidetect_cls,
+            patch("open_detect.jobs.build_corpus_statistics.get_spark") as mock_get_spark,
+            patch("open_detect.jobs.build_corpus_statistics.UniDetect") as mock_pipeline_cls,
         ):
             mock_get_spark.return_value = MagicMock()
-            ud = mock_unidetect_cls.return_value
+            ud = mock_pipeline_cls.return_value
 
             main(
                 [
@@ -60,15 +60,15 @@ class TestMain:
 
     def test_scans_catalog_when_corpus_tables_omitted(self):
         with (
-            patch("unidetect.jobs.build_corpus_statistics.get_spark") as mock_get_spark,
-            patch("unidetect.jobs.build_corpus_statistics.UniDetect") as mock_unidetect_cls,
+            patch("open_detect.jobs.build_corpus_statistics.get_spark") as mock_get_spark,
+            patch("open_detect.jobs.build_corpus_statistics.UniDetect") as mock_pipeline_cls,
             patch(
-                "unidetect.jobs.build_corpus_statistics.list_tables_matching"
+                "open_detect.jobs.build_corpus_statistics.list_tables_matching"
             ) as mock_list_tables,
         ):
             mock_get_spark.return_value = MagicMock()
             mock_list_tables.return_value = ["main.sales.orders"]
-            ud = mock_unidetect_cls.return_value
+            ud = mock_pipeline_cls.return_value
 
             main(
                 [
@@ -98,16 +98,16 @@ class TestMain:
         # in the suite then silently reuses via SparkSession.getOrCreate()
         # ("Using an existing Spark session"), permanently losing the Delta
         # catalog/jars configuration for the rest of the test run.
-        with patch("unidetect.jobs.build_corpus_statistics.get_spark") as mock_get_spark:
+        with patch("open_detect.jobs.build_corpus_statistics.get_spark") as mock_get_spark:
             mock_get_spark.return_value = MagicMock()
             with pytest.raises(SystemExit):
                 main(["--catalog", "main", "--schema", "s"])
 
     def test_exits_when_no_corpus_tables_resolved(self):
         with (
-            patch("unidetect.jobs.build_corpus_statistics.get_spark") as mock_get_spark,
+            patch("open_detect.jobs.build_corpus_statistics.get_spark") as mock_get_spark,
             patch(
-                "unidetect.jobs.build_corpus_statistics.list_tables_matching"
+                "open_detect.jobs.build_corpus_statistics.list_tables_matching"
             ) as mock_list_tables,
         ):
             mock_get_spark.return_value = MagicMock()

@@ -9,17 +9,17 @@ from __future__ import annotations
 
 import pytest
 
-from unidetect.exceptions import InsufficientDataError
-from unidetect.metrics.base import drop_nulls
-from unidetect.metrics.functional_dependency import fd_compliance_ratio, minority_violation_rows
-from unidetect.metrics.outliers import (
+from open_detect.exceptions import InsufficientDataError
+from open_detect.metrics.base import drop_nulls
+from open_detect.metrics.functional_dependency import fd_compliance_ratio, minority_violation_rows
+from open_detect.metrics.outliers import (
     mad_scores,
     max_mad,
     median_absolute_deviation,
     sd_scores,
 )
-from unidetect.metrics.spelling import differing_token_lengths, min_pairwise_edit_distance
-from unidetect.metrics.uniqueness import duplicate_value_indices, uniqueness_ratio
+from open_detect.metrics.spelling import differing_token_lengths, min_pairwise_edit_distance
+from open_detect.metrics.uniqueness import duplicate_value_indices, uniqueness_ratio
 
 
 class TestDropNulls:

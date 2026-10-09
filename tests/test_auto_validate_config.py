@@ -6,8 +6,8 @@ from dataclasses import FrozenInstanceError
 
 import pytest
 
-from unidetect.algorithms.auto_validate.config import AutoValidateConfig
-from unidetect.exceptions import ConfigurationError
+from open_detect.algorithms.auto_validate.config import AutoValidateConfig
+from open_detect.exceptions import ConfigurationError
 
 
 class TestDefaults:

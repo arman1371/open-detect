@@ -7,8 +7,8 @@ a few lines. This is the payoff of the shared contract.
 
 ```python
 import pandas as pd
-from unidetect.algorithms import AlgorithmResult, get_algorithm
-from unidetect.algorithms.auto_validate import AutoValidateConfig
+from open_detect.algorithms import AlgorithmResult, get_algorithm
+from open_detect.algorithms.auto_validate import AutoValidateConfig
 
 dirty = pd.DataFrame(
     {

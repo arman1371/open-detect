@@ -41,7 +41,7 @@ def git_commit(repo_root: Path) -> str:
 def spark_session(
     catalog: str,
     schema: str,
-    app_name: str = "unidetect-benchmark",
+    app_name: str = "open_detect-benchmark",
     driver_memory: str = "3g",
 ) -> Iterator[Any]:
     """Start a local, single-process, Delta-enabled Spark session for a benchmark run.
@@ -59,7 +59,7 @@ def spark_session(
     from delta import configure_spark_with_delta_pip
     from pyspark.sql import SparkSession
 
-    warehouse_dir = tempfile.mkdtemp(prefix="unidetect-benchmark-warehouse-")
+    warehouse_dir = tempfile.mkdtemp(prefix="open_detect-benchmark-warehouse-")
     builder = (
         SparkSession.builder.master("local[2]")
         .appName(app_name)

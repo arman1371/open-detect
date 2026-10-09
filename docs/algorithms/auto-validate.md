@@ -18,14 +18,14 @@ dates, IDs, emails, phone numbers, codes.
 ## Install
 
 ```bash
-pip install "unidetect[auto_validate]"
+pip install "open-detect[auto_validate]"
 ```
 
 ## Usage
 
 ```python
 import pandas as pd
-from unidetect.algorithms.auto_validate import AutoValidateAlgorithm, AutoValidateConfig
+from open_detect.algorithms.auto_validate import AutoValidateAlgorithm, AutoValidateConfig
 
 corpus = [
     pd.Series(["2024-01-15", "2024-02-20", "2024-03-10"]),
@@ -101,7 +101,7 @@ column and reports whether the share of values breaking the pattern has shifted 
 since a single-table scan has no "future" column to compare against.
 
 ```python
-from unidetect.algorithms.auto_validate import check_drift
+from open_detect.algorithms.auto_validate import check_drift
 
 inferred = detector.infer_pattern(train_df["col_a"])
 drift = check_drift(train_df["col_a"], future_df["col_a"], inferred)
@@ -112,7 +112,7 @@ drift.p_value      # two-tailed Fisher's exact test
 ## Using the parts directly
 
 ```python
-from unidetect.algorithms.auto_validate import (
+from open_detect.algorithms.auto_validate import (
     AutoValidateConfig, build_pattern_index, fmdv_vh, patterns_of, matches, tokenize
 )
 

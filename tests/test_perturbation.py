@@ -6,7 +6,7 @@ from __future__ import annotations
 
 import pytest
 
-from unidetect.perturbation import (
+from open_detect.perturbation import (
     perturb_functional_dependency,
     perturb_numeric_outlier,
     perturb_spelling,

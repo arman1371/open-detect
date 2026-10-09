@@ -1,0 +1,33 @@
+{#  EXAMPLE:
+
+## vX.X.X (YYYY-MMM-DD)
+
+_This release is published under the MIT License._            # Release Notes Only
+
+{{ change_sections }}
+
+#}{{
+"## %s (%s)\n" | format(
+  release.version.as_semver_tag(),
+  release.tagged_date.strftime("%Y-%m-%d")
+)
+}}{%  if license_name is defined and license_name
+%}{{    "\n_This release is published under the %s License._\n" | format(license_name)
+}}{%  endif
+%}{#
+#}{%  set commit_objects = release["elements"] | dictsort
+%}{%  include "changes.md.j2"
+-%}{#
+#}{%  set prev_release_index = releases.index(release) + 1
+%}{%  if 'compare_url' is filter and prev_release_index < releases | length
+%}{%    set prev_version_tag = releases[prev_release_index].version.as_tag()
+%}{%    set new_version_tag = release.version.as_tag()
+%}{{    "\n"
+}}{{    "---\n"
+}}{{    "\n"
+}}{{    "**Full Changelog**: [%s...%s](%s)" | format(
+          prev_version_tag, new_version_tag, prev_version_tag | compare_url(new_version_tag)
+        )
+}}{{    "\n"
+}}{%  endif
+%}

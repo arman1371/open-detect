@@ -12,7 +12,7 @@ than being copy-pasted:
 | **[`real_world_gov`](real_world_gov/README.md)** | Real government open-data tables with real, historically-injected errors and independently-produced ground truth. | 5 datasets sampled from [LUH-DBS/Matelda](https://github.com/LUH-DBS/Matelda)'s `DGov_NTR` corpus, checked in. |
 
 Both benchmarks score **every registered algorithm** (see
-[`unidetect.algorithms`](../ARCHITECTURE.md) -- `uni_detect`, `raha` and
+[`open_detect.algorithms`](../ARCHITECTURE.md) -- `uni_detect`, `raha` and
 `auto_validate` today) against the same targets and render a side-by-side
 comparison table -- precision/recall/F1/accuracy *and* wall-clock duration --
 rather than one algorithm's numbers reported in isolation. See each

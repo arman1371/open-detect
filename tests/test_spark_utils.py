@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from unittest.mock import MagicMock, patch
 
-from unidetect.spark_utils import get_spark
+from open_detect.spark_utils import get_spark
 
 
 class TestGetSpark:
@@ -25,4 +25,4 @@ class TestGetSpark:
             result = get_spark()
 
         assert result is built
-        mock_session_cls.builder.appName.assert_called_once_with("unidetect")
+        mock_session_cls.builder.appName.assert_called_once_with("open_detect")

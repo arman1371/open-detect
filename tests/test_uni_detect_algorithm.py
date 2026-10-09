@@ -4,16 +4,16 @@
 ``test_corpus_and_detectors.py``; this module mocks it out -- the same
 pattern ``test_run_detection_job.py`` uses -- since all the adapter owns is
 flattening Uni-Detect's Spark output rows into the shared
-:class:`~unidetect.algorithms.base.AlgorithmResult` schema.
+:class:`~open_detect.algorithms.base.AlgorithmResult` schema.
 """
 
 from __future__ import annotations
 
 from unittest.mock import MagicMock, patch
 
-from unidetect.algorithms import get_algorithm
-from unidetect.algorithms.uni_detect_algorithm import UniDetectAlgorithm
-from unidetect.config import UniDetectConfig, UnityCatalogLocation
+from open_detect.algorithms import get_algorithm
+from open_detect.algorithms.uni_detect_algorithm import UniDetectAlgorithm
+from open_detect.config import UniDetectConfig, UnityCatalogLocation
 
 
 def _config() -> UniDetectConfig:
@@ -28,7 +28,7 @@ def _row(**kwargs):
 
 class TestUniDetectAlgorithm:
     def test_flattens_multi_column_multi_row_detection(self):
-        with patch("unidetect.pipeline.UniDetect") as mock_cls:
+        with patch("open_detect.pipeline.UniDetect") as mock_cls:
             mock_pipeline = mock_cls.return_value
             mock_pipeline.detect.return_value.collect.return_value = [
                 _row(
@@ -56,7 +56,7 @@ class TestUniDetectAlgorithm:
         assert all(c.evidence["lr_ratio"] == 0.01 for c in result)
 
     def test_single_column_single_row_detection(self):
-        with patch("unidetect.pipeline.UniDetect") as mock_cls:
+        with patch("open_detect.pipeline.UniDetect") as mock_cls:
             mock_pipeline = mock_cls.return_value
             mock_pipeline.detect.return_value.collect.return_value = [
                 _row(
@@ -81,6 +81,6 @@ class TestUniDetectAlgorithm:
         assert cell.is_error is False
 
     def test_registered_under_uni_detect(self):
-        with patch("unidetect.pipeline.UniDetect"):
+        with patch("open_detect.pipeline.UniDetect"):
             algo = get_algorithm("uni_detect", _config(), MagicMock())
         assert isinstance(algo, UniDetectAlgorithm)

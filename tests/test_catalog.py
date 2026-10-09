@@ -12,14 +12,14 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from unidetect.catalog import (
+from open_detect.catalog import (
     ensure_schema_exists,
     list_tables,
     list_tables_matching,
     table_exists,
 )
-from unidetect.config import UnityCatalogLocation
-from unidetect.exceptions import UnityCatalogError
+from open_detect.config import UnityCatalogLocation
+from open_detect.exceptions import UnityCatalogError
 
 
 class TestEnsureSchemaExists:
