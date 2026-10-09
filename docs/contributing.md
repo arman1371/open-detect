@@ -146,3 +146,33 @@ mkdocs build --strict   # what CI runs; fails on broken links and unresolved ref
 
 The site is published to GitHub Pages by `.github/workflows/docs.yml` on every push to `main`
 that touches docs, `mkdocs.yml`, `ARCHITECTURE.md` or `src/`.
+
+## Knowledge graph automation
+
+`.github/workflows/update-knowledge-graph.yml` runs `graphify update .` on every push to `main`
+and opens (or updates) a single PR from branch `chore/update-knowledge-graph` that refreshes
+`graphify-out/graph.json`, `graph.html` and `GRAPH_REPORT.md`. The PR is set to squash
+auto-merge, so it lands once the required `SonarQube Quality Gate` check passes. The workflow
+never pushes to `main`.
+
+**One-time repository setup**
+
+- Settings > General > Pull Requests: enable **Allow auto-merge** and **Allow squash merging**.
+- Create a [fine-grained personal access token](https://github.com/settings/personal-access-tokens)
+  limited to this repository only, with **Contents: Read and write** and **Pull requests: Read and
+  write** (Metadata: Read is automatic) and nothing else. Use the longest expiry allowed
+  (at most one year), and store it as the repository secret **`GRAPH_PR_TOKEN`**.
+- Rotate the token before it expires: generate a new one, update the secret, and record the next
+  renewal date here. If the token lapses, the workflow fails at the pull request step.
+
+A PAT (or GitHub App token) is required because PRs created with the default `GITHUB_TOKEN` do not
+trigger other workflows, so the required Sonar check would never run. A GitHub App with the same
+two permissions plus `actions/create-github-app-token` is the stronger long-term option: its
+tokens are short-lived and not tied to a person.
+
+**Loop prevention**
+
+- The push trigger uses `paths-ignore: graphify-out/**`, so merging the graph PR (which only touches
+  `graphify-out/`) does not re-run the workflow. Pushes that also change other files still trigger it.
+- The job is skipped when the head commit message starts with `chore: update knowledge graph`,
+  except for manual `workflow_dispatch` runs.

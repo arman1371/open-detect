@@ -1,8 +1,13 @@
+# Keeps graphify-out/ current by opening an auto-merging PR (never pushes to main).
+# Requires repo secret GRAPH_PR_TOKEN (fine-grained PAT, this repo only: Contents RW,
+# Pull requests RW). See docs/contributing.md "Knowledge graph automation".
 name: Update Knowledge Graph
 
 on:
   push:
     branches: [main]
+    paths-ignore:
+      - "graphify-out/**"
   workflow_dispatch:
 
 concurrency:
@@ -11,9 +16,10 @@ concurrency:
 
 jobs:
   update-graph:
+    if: "github.event_name == 'workflow_dispatch' || !startsWith(github.event.head_commit.message, 'chore: update knowledge graph')"
     runs-on: ubuntu-latest
     permissions:
-      contents: write
+      contents: read
     steps:
       - uses: actions/checkout@v4
         with:
@@ -30,14 +36,28 @@ jobs:
       - name: Update knowledge graph
         run: graphify update .
 
-      - name: Commit updated graph
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add graphify-out/graph.json graphify-out/graph.html graphify-out/GRAPH_REPORT.md
-          if git diff --cached --quiet; then
-            echo "No graph changes to commit."
-          else
-            git commit -m "chore: update knowledge graph [skip ci]"
-            git push origin HEAD:main
-          fi
+      - name: Open or update graph PR
+        id: cpr
+        uses: peter-evans/create-pull-request@v7
+        with:
+          token: ${{ secrets.GRAPH_PR_TOKEN }}
+          branch: chore/update-knowledge-graph
+          add-paths: |
+            graphify-out/graph.json
+            graphify-out/graph.html
+            graphify-out/GRAPH_REPORT.md
+          commit-message: "chore: update knowledge graph"
+          title: "chore: update knowledge graph"
+          body: |
+            Automated refresh of `graphify-out/` produced by `graphify update .`
+            from the Update Knowledge Graph workflow.
+
+            This PR auto-merges (squash) once required checks pass.
+          delete-branch: true
+
+      - name: Enable auto-merge
+        if: steps.cpr.outputs.pull-request-number != ''
+        env:
+          GH_TOKEN: ${{ secrets.GRAPH_PR_TOKEN }}
+          PR: ${{ steps.cpr.outputs.pull-request-number }}
+        run: gh pr merge --auto --squash "$PR" --repo "$GITHUB_REPOSITORY"
