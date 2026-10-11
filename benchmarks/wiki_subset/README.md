@@ -102,7 +102,7 @@ algorithm(s) did run.
 
 One error type per subdirectory, following the same
 "boring-baseline-category-per-error-type" pattern
-`tests/test_corpus_and_detectors.py` uses to validate against the paper's
+`tests/algorithms/uni_detect/test_corpus_and_detectors.py` uses to validate against the paper's
 own worked examples, scaled up with real-world content. Row-counts, value
 spreads and domain widths are drawn from wide, principled ranges
 independent of any specific evaluation target (see "A note on methodology"
@@ -395,6 +395,6 @@ instead of fetching real Wikipedia tables at benchmark-run time:
   signal at a fraction of the runtime and storage cost.
 
 If you want to run this benchmark against a larger, real Wikipedia-table
-sample, `open_detect.pipeline.UniDetect` takes any list of Unity-Catalog-style
+sample, `open_detect.algorithms.uni_detect.pipeline.UniDetect` takes any list of Unity-Catalog-style
 table names -- point `run_benchmark.py`'s corpus/eval loading at your own
 ingested tables instead.
