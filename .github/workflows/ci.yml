@@ -100,7 +100,7 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-ivy-
       - run: uv sync
-      - run: uv run pytest --cov=open_detect --cov-report=term-missing --cov-report=xml:coverage.xml
+      - run: uv run pytest --durations=25 --cov=open_detect --cov-report=term-missing --cov-report=xml:coverage.xml
       - uses: actions/upload-artifact@v7
         with:
           name: coverage-py${{ matrix.python-version }}
