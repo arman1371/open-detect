@@ -8,7 +8,7 @@ import open_detect
 
 
 def test_lazy_import_resolves_open_detect_class():
-    from open_detect.pipeline import UniDetect
+    from open_detect.algorithms.uni_detect.pipeline import UniDetect
 
     assert open_detect.UniDetect is UniDetect
 

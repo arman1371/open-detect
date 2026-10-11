@@ -27,7 +27,7 @@ denominator into the paper's own worked example (Section 2.2, threshold
 "``TF(d[i,j])`` normalized by the number of rows", i.e. plain relative
 frequency ``count(v) / |d|``, reproduces it exactly. We implement the latter;
 this is the same class of PDF-math-extraction artifact documented in
-``open_detect/metrics/functional_dependency.py`` for the Uni-Detect paper.
+``open_detect/algorithms/uni_detect/metrics/functional_dependency.py`` for the Uni-Detect paper.
 """
 
 from __future__ import annotations
@@ -131,7 +131,7 @@ def fd_violation_strategies(df: pd.DataFrame, target_column: str) -> dict[str, n
     For every other column ``a`` as a candidate left-hand side, flags cells
     in ``target_column`` whose ``a``-group contains more than one distinct
     ``target_column`` value -- the same "ambiguous LHS group" notion of an FD
-    violation used by ``open_detect.metrics.functional_dependency``.
+    violation used by ``open_detect.algorithms.uni_detect.metrics.functional_dependency``.
 
     We follow Section 4.1's formal definition, which assigns strategy
     ``s_{a->a'}`` to the right-hand-side column ``a'`` (``j = index of a'``).
@@ -140,7 +140,7 @@ def fd_violation_strategies(df: pd.DataFrame, target_column: str) -> dict[str, n
     vector, which is inconsistent with that formal definition; we take the
     formal one as authoritative, consistent with this codebase's general
     approach to such paper inconsistencies (see
-    ``open_detect/metrics/functional_dependency.py``).
+    ``open_detect/algorithms/uni_detect/metrics/functional_dependency.py``).
     """
     target_raw = normalize_to_str(df[target_column]).to_numpy()
     strategies: dict[str, np.ndarray] = {}

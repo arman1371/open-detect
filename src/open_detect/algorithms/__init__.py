@@ -38,7 +38,7 @@ def _load_raha() -> type[ErrorDetectionAlgorithm]:
 
 
 def _load_uni_detect() -> type[ErrorDetectionAlgorithm]:
-    from open_detect.algorithms.uni_detect_algorithm import UniDetectAlgorithm
+    from open_detect.algorithms.uni_detect.algorithm import UniDetectAlgorithm
 
     return UniDetectAlgorithm
 

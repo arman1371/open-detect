@@ -120,7 +120,7 @@ def _load_targets(spark) -> list[dict]:
 
 
 def _build_config(uc_location):
-    from open_detect.config import UniDetectConfig
+    from open_detect.algorithms.uni_detect.config import UniDetectConfig
 
     return UniDetectConfig(
         location=uc_location,
@@ -130,16 +130,16 @@ def _build_config(uc_location):
         max_fd_column_pairs_per_table=10,
         # Scaled down from the web-scale defaults to match this benchmark's
         # tens-of-tables corpus, the same reasoning
-        # ``tests/test_corpus_and_detectors.py::config`` documents.
+        # ``tests/algorithms/uni_detect/test_corpus_and_detectors.py::config`` documents.
         prevalence_edges=(2, 5, 20, 100, 1000),
     )
 
 
 def run_uni_detect() -> tuple[list[dict], dict, float]:
     """Score every eval target with Uni-Detect. Returns (targets, metrics, duration_seconds)."""
-    from open_detect.config import UnityCatalogLocation
+    from open_detect.algorithms.uni_detect.config import UnityCatalogLocation
+    from open_detect.algorithms.uni_detect.pipeline import UniDetect
     from open_detect.core.enums import ErrorType
-    from open_detect.pipeline import UniDetect
 
     uc_location = UnityCatalogLocation(catalog=TEST_CATALOG, schema=TEST_SCHEMA)
     config = _build_config(uc_location)
