@@ -159,14 +159,9 @@ jobs:
   sonarqube:
     name: SonarQube Quality Gate
     needs: test
-    # Never on schedule/dispatch. Skipped for Dependabot: it gets no SONAR_TOKEN (Dependabot
-    # secrets are a separate store), so the scan would only fail. The actor check alone is not
-    # enough: a human re-running a Dependabot run becomes the actor but the token stays empty.
-    # A skipped job counts as passing for a required check.
-    if: >-
-      (github.event_name == 'pull_request' || github.event_name == 'push') &&
-      github.actor != 'dependabot[bot]' &&
-      github.event.pull_request.user.login != 'dependabot[bot]'
+    # Never on schedule/dispatch. Runs for Dependabot too: SONAR_TOKEN must exist in the
+    # Dependabot secrets store (Settings > Secrets > Dependabot), otherwise the scan fails.
+    if: github.event_name == 'pull_request' || github.event_name == 'push'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
