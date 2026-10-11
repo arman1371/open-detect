@@ -144,6 +144,36 @@ jobs:
       - run: pip install -r docs/requirements.txt
       - run: mkdocs build --strict
 
+  # Reuses the coverage report produced by the `test` job instead of re-running the suite.
+  # Required by the repo ruleset by job name, so keep `name` as is. Deliberately NOT in
+  # `ci-passed`'s `needs`: it is its own required check.
+  sonarqube:
+    name: SonarQube Quality Gate
+    needs: test
+    if: github.event_name == 'pull_request' || github.event_name == 'push'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          # Full history is required for SonarCloud's new-code and blame analysis.
+          fetch-depth: 0
+      # sonar-project.properties points sonar.python.coverage.reportPaths at ./coverage.xml.
+      - uses: actions/download-artifact@v8
+        with:
+          name: coverage-py3.11
+      - name: SonarQube scan
+        uses: SonarSource/sonarqube-scan-action@v8
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          SONAR_HOST_URL: https://sonarcloud.io
+      - name: SonarQube Quality Gate check
+        uses: SonarSource/sonarqube-quality-gate-action@v1
+        timeout-minutes: 5
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          SONAR_HOST_URL: https://sonarcloud.io
+
   # Single required status check: branch protection only needs to require "CI passed".
   ci-passed:
     name: CI passed
