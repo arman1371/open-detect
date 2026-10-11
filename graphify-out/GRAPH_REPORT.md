@@ -1,7 +1,7 @@
-# Graph Report - open-detect-f922b0c61f86  (2026-10-11)
+# Graph Report - open-detect  (2026-10-11)
 
 ## Corpus Check
-- 147 files · ~113,981 words
+- 147 files · ~114,144 words
 - Verdict: corpus is large enough that graph structure adds value.
 - Unclassified: 241 file(s) not represented in the graph (top: .csv 226, .j2 10, (none) 2)
 
@@ -11,7 +11,7 @@
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `72a1a8f5`
+- Built from commit: `2094f527`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -211,8 +211,8 @@ Cohesion: 0.13
 Nodes (4): get_logger(), log_duration(), TestGetLogger, TestLogDuration
 
 ### Community 21 - "patterns.py"
-Cohesion: 0.06
-Nodes (20): _char_class(), _class_of_token(), generality_weight(), generalize(), _iter_runs(), Token, token_count(), tokenize() (+12 more)
+Cohesion: 0.05
+Nodes (19): generality_weight(), generalize(), _iter_runs(), Token, token_count(), tokenize(), _alternatives(), any_pattern() (+11 more)
 
 ### Community 22 - ".build_corpus_statistics"
 Cohesion: 0.25
@@ -220,7 +220,7 @@ Nodes (4): CorpusStatsBuilder, compute(), _stats_schema_without_error_type(), Te
 
 ### Community 23 - "collections_abc"
 Cohesion: 0.09
-Nodes (10): BaseDetector, make_evidence_json(), FunctionalDependencyDetector, compute(), NumericOutlierDetector, compute(), SpellingDetector, compute() (+2 more)
+Nodes (9): BaseDetector, make_evidence_json(), FunctionalDependencyDetector, NumericOutlierDetector, compute(), SpellingDetector, compute(), UniquenessDetector (+1 more)
 
 ### Community 24 - "PatternIndex"
 Cohesion: 0.10
@@ -260,7 +260,7 @@ Nodes (9): fd_violation_strategies(), gaussian_outlier_strategies(), histogram_o
 
 ### Community 34 - "auto_validate/detector.py"
 Cohesion: 0.09
-Nodes (9): DriftResult, _append_literal(), _is_numeric(), matches(), _parse(), _part_matches(), fpr_column(), impurity() (+1 more)
+Nodes (10): DriftResult, _append_literal(), _char_class(), _class_of_token(), _is_numeric(), matches(), _parse(), _part_matches() (+2 more)
 
 ### Community 35 - "ColumnDataType"
 Cohesion: 0.16
@@ -312,7 +312,7 @@ Nodes (10): Benchmark: real_world_gov, Comparing across versions, Layout, Method
 
 ### Community 48 - "featurization.py"
 Cohesion: 0.11
-Nodes (11): bucket_by_edges(), bucket_leftness(), bucket_row_count(), bucket_token_length(), bucket_token_prevalence(), build_functional_dependency_bucket(), build_outlier_bucket(), build_spelling_bucket() (+3 more)
+Nodes (12): compute(), bucket_by_edges(), bucket_leftness(), bucket_row_count(), bucket_token_length(), bucket_token_prevalence(), build_functional_dependency_bucket(), build_outlier_bucket() (+4 more)
 
 ### Community 49 - "clean_column"
 Cohesion: 0.28
@@ -419,7 +419,7 @@ Nodes (3): Registry, Registry and results, Result types
 _Questions this graph is uniquely positioned to answer:_
 
 - **Why does `AutoValidateConfig` connect `AutoValidateConfig` to `_is_null`, `auto_validate/detector.py`, `real_world_gov/run_benchmark.py`, `AutoValidateAlgorithm`, `json`, `check_drift`, `fmdv`, `PatternIndex`, `test_auto_validate_fmdv_v.py`, `UnityCatalogLocation`, `AlgorithmResult`, `OpenDetectError`?**
-  _High betweenness centrality (0.136) - this node is a cross-community bridge._
+  _High betweenness centrality (0.137) - this node is a cross-community bridge._
 - **Are the 29 inferred relationships involving `AutoValidateConfig` (e.g. with `run_auto_validate()` and `run_auto_validate()`) actually correct?**
   _`AutoValidateConfig` has 29 INFERRED edges - model-reasoned connections that need verification._
 - **What connects `open-detect`, `ErrorType enum (Definition 1)`, `outliers metric (max-MAD, Section 3.1)` to the rest of the system?**
