@@ -154,7 +154,7 @@ scoring -- see the results discussion below.
 Config (`epsilon=0.05`, `alpha=0.2`, `prevalence_edges=(2, 5, 20, 100,
 1000)`) matches `wiki_subset`'s own choice of scaled-down bucket edges, for
 the same reason: both benchmarks' corpora are tens of tables, not the
-paper's web-scale crawl (see `tests/test_corpus_and_detectors.py::config`).
+paper's web-scale crawl (see `tests/algorithms/uni_detect/test_corpus_and_detectors.py::config`).
 
 ## Methodology: raha
 

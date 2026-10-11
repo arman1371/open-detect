@@ -11,8 +11,8 @@ from open_detect.logging_utils import get_logger, log_duration
 
 class TestGetLogger:
     def test_namespaces_arbitrary_module_names(self):
-        logger = get_logger("open_detect.corpus.builder")
-        assert logger.name == "open_detect.corpus.builder"
+        logger = get_logger("open_detect.algorithms.uni_detect.corpus.builder")
+        assert logger.name == "open_detect.algorithms.uni_detect.corpus.builder"
 
     def test_prefixes_bare_module_names(self):
         logger = get_logger("some_module")

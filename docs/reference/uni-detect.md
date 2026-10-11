@@ -2,29 +2,29 @@
 
 ## Pipeline
 
-::: open_detect.pipeline.UniDetect
+::: open_detect.algorithms.uni_detect.pipeline.UniDetect
     options:
       heading_level: 3
 
 ## Registry adapter
 
-::: open_detect.algorithms.uni_detect_algorithm.UniDetectAlgorithm
+::: open_detect.algorithms.uni_detect.algorithm.UniDetectAlgorithm
     options:
       heading_level: 3
 
 ## Configuration
 
-::: open_detect.config.UniDetectConfig
+::: open_detect.algorithms.uni_detect.config.UniDetectConfig
     options:
       heading_level: 3
 
-::: open_detect.config.UnityCatalogLocation
+::: open_detect.algorithms.uni_detect.config.UnityCatalogLocation
     options:
       heading_level: 3
 
 ## Unity Catalog helpers
 
-::: open_detect.catalog
+::: open_detect.algorithms.uni_detect.catalog
     options:
       heading_level: 3
       show_root_heading: false

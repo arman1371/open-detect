@@ -45,8 +45,8 @@ Locally, add the `spark` extra and use **JDK 17**; see [Installation](../getting
 
 ```python
 from open_detect import UniDetectConfig, UnityCatalogLocation
-from open_detect.pipeline import UniDetect
-from open_detect.catalog import list_tables_matching
+from open_detect.algorithms.uni_detect.pipeline import UniDetect
+from open_detect.algorithms.uni_detect.catalog import list_tables_matching
 
 config = UniDetectConfig(
     location=UnityCatalogLocation(catalog="main", schema="data_quality"),
@@ -122,7 +122,7 @@ Each detection spanning several columns or rows (a duplicate group, an FD violat
 
 ## Configuration
 
-See [`UniDetectConfig`](../reference/uni-detect.md#open_detect.config.UniDetectConfig).
+See [`UniDetectConfig`](../reference/uni-detect.md#open_detect.algorithms.uni_detect.config.UniDetectConfig).
 
 | Setting | Default | Notes |
 |---|---|---|

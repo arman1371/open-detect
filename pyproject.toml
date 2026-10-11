@@ -53,8 +53,8 @@ Repository = "https://github.com/arman1371/open-detect"
 Documentation = "https://arman1371.github.io/open-detect/"
 
 [project.scripts]
-build_corpus_statistics_job = "open_detect.jobs.build_corpus_statistics:main"
-run_detection_job = "open_detect.jobs.run_detection:main"
+build_corpus_statistics_job = "open_detect.algorithms.uni_detect.jobs.build_corpus_statistics:main"
+run_detection_job = "open_detect.algorithms.uni_detect.jobs.run_detection:main"
 
 # Third-party algorithms register themselves here, under their own package,
 # without any code changes in open_detect itself -- see

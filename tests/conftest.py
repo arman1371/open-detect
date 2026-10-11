@@ -150,6 +150,6 @@ def spark() -> Iterator[pyspark.sql.SparkSession]:  # noqa: F821
 @pytest.fixture
 def uc_location(spark):  # noqa: ANN001, ARG001
     """A throwaway Unity-Catalog-shaped location backed by the local test catalog."""
-    from open_detect.config import UnityCatalogLocation
+    from open_detect.algorithms.uni_detect.config import UnityCatalogLocation
 
     return UnityCatalogLocation(catalog=TEST_CATALOG, schema=TEST_SCHEMA)
