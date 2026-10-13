@@ -12,7 +12,7 @@ class OpenDetectError(Exception):
 
 
 class ConfigurationError(OpenDetectError):
-    """Raised when a :class:`~open_detect.config.UniDetectConfig` is invalid."""
+    """Raised when a :class:`~open_detect.algorithms.uni_detect.config.UniDetectConfig` is invalid."""
 
 
 class CorpusNotFoundError(OpenDetectError):

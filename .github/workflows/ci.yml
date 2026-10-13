@@ -6,6 +6,9 @@ on:
   pull_request:
     # `edited` re-runs the PR title check when the title changes; the other types are the defaults.
     types: [opened, synchronize, reopened, edited]
+  # Nightly run of the full Python matrix against main (PRs only run 3.11).
+  schedule:
+    - cron: "17 2 * * *"
   workflow_dispatch:
 
 # Least privilege by default; individual jobs ask for more only if they need it.
@@ -14,8 +17,10 @@ permissions:
 
 # Cancel superseded runs on PRs. Runs on main are never cancelled so every
 # merge gets a result (the release workflow keys off the CI result for main).
+# Non-PR runs are grouped per event so a nightly/dispatch run can never displace
+# (or be displaced by) the queued push run of a merge.
 concurrency:
-  group: ci-${{ github.event.pull_request.number || github.ref }}
+  group: ci-${{ github.event.pull_request.number || format('{0}-{1}', github.event_name, github.ref) }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
@@ -79,9 +84,14 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python-version: ["3.10", "3.11"]  # 3.12 unsupported: a dependency imports distutils
+        # PRs only run 3.11 (the leg Sonar consumes); main and the nightly run the full matrix.
+        # 3.12 unsupported: a dependency imports distutils.
+        python-version: ${{ fromJSON(github.event_name == 'pull_request' && '["3.11"]' || '["3.10","3.11"]') }}
     env:
       UV_PYTHON: ${{ matrix.python-version }}
+      # tests/conftest.py downloads the Delta jars to $TMPDIR/open_detect-test-jars; pinned so
+      # the cache path below always agrees with it.
+      TMPDIR: /tmp
     steps:
       - uses: actions/checkout@v7
       - uses: astral-sh/setup-uv@v10.2.0
@@ -91,14 +101,13 @@ jobs:
         with:
           distribution: "temurin"
           java-version: "17"
+      # The Delta version is pinned by uv.lock, so it keys the jars conftest.py downloads.
       - uses: actions/cache@v6
         with:
-          path: |
-            ~/.ivy2
-            ~/.m2/repository
-          key: ${{ runner.os }}-ivy-${{ hashFiles('uv.lock') }}
+          path: /tmp/open_detect-test-jars
+          key: ${{ runner.os }}-delta-jars-${{ hashFiles('uv.lock') }}
           restore-keys: |
-            ${{ runner.os }}-ivy-
+            ${{ runner.os }}-delta-jars-
       - run: uv sync
       - run: uv run pytest --durations=25 --cov=open_detect --cov-report=term-missing --cov-report=xml:coverage.xml
       - uses: actions/upload-artifact@v7
@@ -143,6 +152,38 @@ jobs:
           cache-dependency-path: docs/requirements.txt
       - run: pip install -r docs/requirements.txt
       - run: mkdocs build --strict
+
+  # Reuses the coverage report produced by the `test` job instead of re-running the suite.
+  # Required by the repo ruleset by job name, so keep `name` as is. Deliberately NOT in
+  # `ci-passed`'s `needs`: it is its own required check.
+  sonarqube:
+    name: SonarQube Quality Gate
+    needs: test
+    # Never on schedule/dispatch. Runs for Dependabot too: SONAR_TOKEN must exist in the
+    # Dependabot secrets store (Settings > Secrets > Dependabot), otherwise the scan fails.
+    if: github.event_name == 'pull_request' || github.event_name == 'push'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          # Full history is required for SonarCloud's new-code and blame analysis.
+          fetch-depth: 0
+      # sonar-project.properties points sonar.python.coverage.reportPaths at ./coverage.xml.
+      - uses: actions/download-artifact@v8
+        with:
+          name: coverage-py3.11
+      - name: SonarQube scan
+        uses: SonarSource/sonarqube-scan-action@v8
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          SONAR_HOST_URL: https://sonarcloud.io
+      - name: SonarQube Quality Gate check
+        uses: SonarSource/sonarqube-quality-gate-action@v1
+        timeout-minutes: 5
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          SONAR_HOST_URL: https://sonarcloud.io
 
   # Single required status check: branch protection only needs to require "CI passed".
   ci-passed:

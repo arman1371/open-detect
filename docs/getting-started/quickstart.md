@@ -98,8 +98,8 @@ Spark and Delta Lake. It has an offline phase (build statistics once) and an onl
 
 ```python
 from open_detect import UniDetectConfig, UnityCatalogLocation
-from open_detect.pipeline import UniDetect
-from open_detect.catalog import list_tables_matching
+from open_detect.algorithms.uni_detect.pipeline import UniDetect
+from open_detect.algorithms.uni_detect.catalog import list_tables_matching
 
 config = UniDetectConfig(location=UnityCatalogLocation(catalog="main", schema="data_quality"))
 ud = UniDetect(config)   # uses the active Databricks SparkSession

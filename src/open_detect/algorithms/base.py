@@ -1,7 +1,7 @@
 """Algorithm-agnostic contract every registered error-detection algorithm implements.
 
 This package turns ``open_detect`` from a single-paper implementation into a
-library of interchangeable error-detection algorithms: :class:`~open_detect.pipeline.UniDetect`
+library of interchangeable error-detection algorithms: :class:`~open_detect.algorithms.uni_detect.pipeline.UniDetect`
 (Wang & He, SIGMOD'19) and Raha (Mahdavi et al., SIGMOD'19) today, more in the
 future. The two papers have genuinely different operating models -- Uni-Detect
 scores tables already registered in Unity Catalog against a large background
