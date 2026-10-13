@@ -22,7 +22,10 @@ def _write_table(spark, fqn: str, rows: list[dict], columns: list[str]) -> None:
     df.write.format("delta").mode("overwrite").saveAsTable(fqn)
 
 
-@pytest.fixture
+CORPUS_SCHEMA = "open_detect_corpus_fixture"
+
+
+@pytest.fixture(scope="module")
 def corpus_tables_by_category(spark, uc_location):
     """Builds a small but statistically meaningful synthetic corpus, grouped by category.
 
@@ -37,6 +40,10 @@ def corpus_tables_by_category(spark, uc_location):
     purely to keep *this* small test corpus's signal clean per assertion.
     """
     catalog, schema = uc_location.catalog, uc_location.schema
+    # The corpus tables live in their own namespace so module teardown can drop
+    # them in one statement; per-test target/stats tables stay in ``schema``.
+    corpus_schema = CORPUS_SCHEMA
+    spark.sql(f"CREATE NAMESPACE IF NOT EXISTS {catalog}.{corpus_schema}")
 
     import random
 
@@ -110,7 +117,7 @@ def corpus_tables_by_category(spark, uc_location):
     for t in range(10):
         n = names_rnd.randint(60, 300)
         values = [names_rnd.choice(common_names) for _ in range(n)]  # lots of natural collisions
-        fqn = f"{catalog}.{schema}.corpus_names_{t}"
+        fqn = f"{catalog}.{corpus_schema}.corpus_names_{t}"
         _write_table(spark, fqn, [{"name": v} for v in values], ["name"])
         categories["uniqueness"].append(fqn)
 
@@ -118,7 +125,7 @@ def corpus_tables_by_category(spark, uc_location):
     for t in range(10):
         n = ids_rnd.randint(60, 300)
         values = [f"ICAO{ids_rnd.randint(100000, 999999)}X{t}{i}" for i in range(n)]
-        fqn = f"{catalog}.{schema}.corpus_ids_{t}"
+        fqn = f"{catalog}.{corpus_schema}.corpus_ids_{t}"
         _write_table(spark, fqn, [{"code": v} for v in values], ["code"])
         categories["uniqueness"].append(fqn)
 
@@ -144,7 +151,7 @@ def corpus_tables_by_category(spark, uc_location):
         n = votes_rnd.randint(6, 60)
         values = [round(votes_rnd.uniform(0.1, 3.0), 2) for _ in range(n)]
         values[0] = round(votes_rnd.uniform(20, 45), 2)  # one legitimately larger "winner"
-        fqn = f"{catalog}.{schema}.corpus_votes_{t}"
+        fqn = f"{catalog}.{corpus_schema}.corpus_votes_{t}"
         _write_table(spark, fqn, [{"pct": v} for v in values], ["pct"])
         categories["outlier"].append(fqn)
 
@@ -169,7 +176,7 @@ def corpus_tables_by_category(spark, uc_location):
         base = figures_rnd.uniform(5000, 15000)
         spread = 300 + t * 400  # sweeps 300 .. ~8000
         values = [round(base + figures_rnd.uniform(-spread, spread), 2) for _ in range(n)]
-        fqn = f"{catalog}.{schema}.corpus_figures_{t}"
+        fqn = f"{catalog}.{corpus_schema}.corpus_figures_{t}"
         _write_table(spark, fqn, [{"amount": v} for v in values], ["amount"])
         categories["outlier"].append(fqn)
 
@@ -177,7 +184,7 @@ def corpus_tables_by_category(spark, uc_location):
     for t in range(10):
         n = romans_rnd.randint(6, len(roman_numerals))
         values = [f"Super Bowl {r}" for r in romans_rnd.sample(roman_numerals, n)]
-        fqn = f"{catalog}.{schema}.corpus_spelling_{t}"
+        fqn = f"{catalog}.{corpus_schema}.corpus_spelling_{t}"
         _write_table(spark, fqn, [{"event": v} for v in values], ["event"])
         categories["spelling"].append(fqn)
 
@@ -232,7 +239,7 @@ def corpus_tables_by_category(spark, uc_location):
             f"Corpustest {word_a}",
             f"Corpustest {word_b}",
         ]
-        fqn = f"{catalog}.{schema}.corpus_long_names_{t}"
+        fqn = f"{catalog}.{corpus_schema}.corpus_long_names_{t}"
         _write_table(spark, fqn, [{"name": v} for v in values], ["name"])
         categories["spelling"].append(fqn)
 
@@ -241,7 +248,7 @@ def corpus_tables_by_category(spark, uc_location):
         n = fd_rnd.randint(60, 200)
         lhs = [str(fd_rnd.randint(0, 10_000)) for _ in range(n)]
         rhs = [str(fd_rnd.randint(0, 10_000)) for _ in range(n)]
-        fqn = f"{catalog}.{schema}.corpus_fd_{t}"
+        fqn = f"{catalog}.{corpus_schema}.corpus_fd_{t}"
         _write_table(
             spark, fqn, [{"a": a, "b": b} for a, b in zip(lhs, rhs, strict=True)], ["a", "b"]
         )
@@ -265,13 +272,16 @@ def corpus_tables_by_category(spark, uc_location):
         domain = n // 3
         lhs = [str(i % domain) for i in range(n)]
         rhs = [f"item-{i % domain}" for i in range(n)]
-        fqn = f"{catalog}.{schema}.corpus_fd_labels_{t}"
+        fqn = f"{catalog}.{corpus_schema}.corpus_fd_labels_{t}"
         _write_table(
             spark, fqn, [{"a": a, "b": b} for a, b in zip(lhs, rhs, strict=True)], ["a", "b"]
         )
         categories["fd"].append(fqn)
 
-    return {"catalog": catalog, "schema": schema, "categories": categories, "rnd": fd_target_rnd}
+    try:
+        yield {"catalog": catalog, "schema": schema, "categories": categories, "rnd": fd_target_rnd}
+    finally:
+        spark.sql(f"DROP NAMESPACE IF EXISTS {catalog}.{corpus_schema} CASCADE")
 
 
 @pytest.fixture

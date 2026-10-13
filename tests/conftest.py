@@ -119,6 +119,10 @@ def spark() -> Iterator[pyspark.sql.SparkSession]:  # noqa: F821
         .appName("open_detect-tests")
         .config("spark.sql.warehouse.dir", warehouse_dir)
         .config("spark.sql.shuffle.partitions", "2")
+        .config("spark.default.parallelism", "2")
+        # Delta replays its transaction log with this many partitions on every
+        # snapshot load (default 50) -- pure overhead for tiny test tables.
+        .config("spark.databricks.delta.snapshotPartitions", "2")
         .config("spark.ui.enabled", "false")
         .config("spark.sql.extensions", "io.delta.sql.DeltaSparkSessionExtension")
         .config(
@@ -147,7 +151,7 @@ def spark() -> Iterator[pyspark.sql.SparkSession]:  # noqa: F821
     shutil.rmtree(warehouse_dir, ignore_errors=True)
 
 
-@pytest.fixture
+@pytest.fixture(scope="session")
 def uc_location(spark):  # noqa: ANN001, ARG001
     """A throwaway Unity-Catalog-shaped location backed by the local test catalog."""
     from open_detect.algorithms.uni_detect.config import UnityCatalogLocation
