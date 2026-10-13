@@ -1,7 +1,7 @@
 # Graph Report - open-detect  (2026-10-13)
 
 ## Corpus Check
-- 147 files · ~114,104 words
+- 147 files · ~114,178 words
 - Verdict: corpus is large enough that graph structure adds value.
 - Unclassified: 241 file(s) not represented in the graph (top: .csv 226, .j2 10, (none) 2)
 
@@ -11,7 +11,7 @@
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `db317176`
+- Built from commit: `56b276ce`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
