@@ -6,7 +6,7 @@
 
 - **Corpus metadata format addition:** the corpus-statistics build now records its configuration
   (`epsilon`, `laplace_smoothing`, `max_mpd_block_size`, `max_fd_column_pairs_per_table`, and all
-  bucket edge tuples) as one Delta table property per error type
+  bucket edge tuples, as JSON) as one Delta table property per error type
   (`open_detect.build_config.<error_type>`). Detection compares it with the active
   `UniDetectConfig` and raises `ConfigurationError` listing the differing fields; set
   `allow_corpus_config_mismatch=True` (`--allow-config-mismatch` on `run_detection`) to log and

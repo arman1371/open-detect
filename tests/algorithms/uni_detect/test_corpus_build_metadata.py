@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import logging
+import re
 from unittest.mock import MagicMock
 
 import pytest
@@ -123,6 +124,20 @@ class TestMismatch:
 
 
 class TestLegacyCorpus:
+    def test_unparsable_metadata_warns_without_raising(self, caplog):
+        spark = FakeSpark({property_key(ErrorType.UNIQUENESS): "*********(redacted)"})
+
+        with caplog.at_level(logging.WARNING):
+            verify_build_config(spark, FQN, ErrorType.UNIQUENESS, _config())
+
+        assert any("not valid JSON" in r.getMessage() for r in caplog.records)
+
+    def test_fingerprint_survives_spark_value_redaction(self):
+        # spark.redaction.regex masks property values matching secret|password|token|access.?key
+        assert not re.search(
+            r"(?i)secret|password|token|access[.]?key", json.dumps(_config().build_fingerprint())
+        )
+
     def test_missing_metadata_warns_without_raising(self, caplog):
         spark = FakeSpark({"delta.minReaderVersion": "1"})
 

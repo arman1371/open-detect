@@ -154,7 +154,9 @@ class UniDetectConfig:
             "max_fd_column_pairs_per_table": self.max_fd_column_pairs_per_table,
             "row_count_edges": list(self.row_count_edges),
             "prevalence_edges": list(self.prevalence_edges),
-            "token_length_edges": list(self.token_length_edges),
+            # Not named "token_length_edges": Spark redacts table-property values
+            # containing "token" (spark.redaction.regex), which would corrupt the JSON.
+            "length_edges": list(self.token_length_edges),
         }
 
     @property

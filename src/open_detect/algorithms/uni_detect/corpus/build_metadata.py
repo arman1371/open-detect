@@ -62,7 +62,16 @@ def read_build_config(
     key = property_key(error_type)
     for row in spark.sql(f"SHOW TBLPROPERTIES {table_fqn}").collect():
         if row["key"] == key:
-            return json.loads(row["value"])
+            try:
+                return json.loads(row["value"])
+            except ValueError:
+                logger.warning(
+                    "Property %s on %s is not valid JSON (possibly redacted by Spark); "
+                    "treating the corpus as having no persisted build configuration.",
+                    key,
+                    table_fqn,
+                )
+                return None
     return None
 
 
