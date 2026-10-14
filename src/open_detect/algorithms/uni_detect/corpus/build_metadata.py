@@ -61,9 +61,10 @@ def read_build_config(
     """Return the persisted fingerprint for ``error_type``, or ``None`` for legacy corpora."""
     key = property_key(error_type)
     for row in spark.sql(f"SHOW TBLPROPERTIES {table_fqn}").collect():
-        if row["key"] == key:
+        prop = row.asDict()
+        if prop["key"] == key:
             try:
-                return json.loads(row["value"])
+                return json.loads(prop["value"])
             except ValueError:
                 logger.warning(
                     "Property %s on %s is not valid JSON (possibly redacted by Spark); "

@@ -8,6 +8,7 @@ import re
 from unittest.mock import MagicMock
 
 import pytest
+from pyspark.sql import Row
 
 from open_detect.algorithms.uni_detect.config import UniDetectConfig, UnityCatalogLocation
 from open_detect.algorithms.uni_detect.corpus.build_metadata import (
@@ -37,7 +38,7 @@ class FakeSpark:
     def sql(self, statement: str):
         self.statements.append(statement)
         if statement.startswith("SHOW TBLPROPERTIES"):
-            rows = [{"key": k, "value": v} for k, v in self.properties.items()]
+            rows = [Row(key=k, value=v) for k, v in self.properties.items()]
             result = MagicMock()
             result.collect.return_value = rows
             return result
@@ -158,10 +159,10 @@ class TestWiring:
         spark = MagicMock()
         spark.catalog.tableExists.return_value = True
         spark.sql.return_value.collect.return_value = [
-            {
-                "key": property_key(ErrorType.UNIQUENESS),
-                "value": json.dumps(_config(epsilon=0.5).build_fingerprint()),
-            }
+            Row(
+                key=property_key(ErrorType.UNIQUENESS),
+                value=json.dumps(_config(epsilon=0.5).build_fingerprint()),
+            )
         ]
         store = CorpusStatsStore(spark, _config(epsilon=0.01))
 
