@@ -89,7 +89,13 @@ jobs:
 
       - name: Install python-semantic-release
         if: env.SKIP_RELEASE != 'true'
-        run: uv tool install "python-semantic-release>=10,<11"
+        # Exact version + hashes of every transitive dependency
+        # (.github/requirements/semantic-release.txt); bump it via Dependabot or `uv pip compile`.
+        run: |
+          uv venv "$RUNNER_TEMP/semantic-release"
+          uv pip install --quiet --python "$RUNNER_TEMP/semantic-release/bin/python" \
+            --require-hashes -r .github/requirements/semantic-release.txt
+          echo "$RUNNER_TEMP/semantic-release/bin" >> "$GITHUB_PATH"
 
       - name: Configure git identity
         if: env.SKIP_RELEASE != 'true'
