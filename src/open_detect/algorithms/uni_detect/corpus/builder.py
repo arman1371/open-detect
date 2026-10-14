@@ -23,11 +23,14 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from open_detect.algorithms.uni_detect.config import UniDetectConfig
+from open_detect.algorithms.uni_detect.corpus.build_metadata import write_build_config
 from open_detect.algorithms.uni_detect.corpus.schema import CORPUS_STATS_SCHEMA
 from open_detect.core.enums import ErrorType
 from open_detect.logging_utils import get_logger, log_duration
 
 if TYPE_CHECKING:
+    from collections.abc import Sequence
+
     from pyspark.sql import DataFrame, SparkSession
 
 logger = get_logger(__name__)
@@ -194,8 +197,18 @@ class CorpusStatsBuilder:
             stats = stats.select(*[f.name for f in CORPUS_STATS_SCHEMA.fields])
         return stats
 
-    def write(self, stats: DataFrame, mode: str = "overwrite") -> None:
+    def write(
+        self,
+        stats: DataFrame,
+        mode: str = "overwrite",
+        error_types: Sequence[ErrorType] | None = None,
+    ) -> None:
         """Persist a stats DataFrame, replacing only its own ``error_type`` partition(s).
+
+        ``error_types`` names the partitions ``stats`` covers; when omitted
+        they are discovered with an extra pass over ``stats``. The build
+        configuration is recorded on the table for each of them (see
+        :mod:`~open_detect.algorithms.uni_detect.corpus.build_metadata`).
 
         ``replaceWhere`` only makes sense against a table that already
         exists (Delta has nothing to selectively overwrite on a first
@@ -205,6 +218,10 @@ class CorpusStatsBuilder:
         fqn = self.config.corpus_stats_fqn
         table_already_exists = self.spark.catalog.tableExists(fqn)
 
+        if error_types is None:
+            error_types = [
+                ErrorType(r["error_type"]) for r in stats.select("error_type").distinct().collect()
+            ]
         writer = stats.write.format("delta").mode(mode)
         if table_already_exists:
             # Re-declaring `.partitionBy(...)` (and `overwriteSchema`) against
@@ -214,16 +231,13 @@ class CorpusStatsBuilder:
             # testing) repeating it alongside `replaceWhere` trips an
             # internal catalog-sync assertion. Unity Catalog is unaffected,
             # but omitting the redundant options is correct everywhere.
-            if mode == "overwrite":
-                error_types = [
-                    r["error_type"] for r in stats.select("error_type").distinct().collect()
-                ]
-                if error_types:
-                    predicate = " OR ".join(f"error_type = '{et}'" for et in error_types)
-                    writer = writer.option("replaceWhere", predicate)
+            if mode == "overwrite" and error_types:
+                predicate = " OR ".join(f"error_type = '{et.value}'" for et in error_types)
+                writer = writer.option("replaceWhere", predicate)
         else:
             writer = writer.partitionBy("error_type").option("overwriteSchema", "true")
         writer.saveAsTable(fqn)
+        write_build_config(self.spark, fqn, error_types, self.config)
         logger.info("Wrote corpus statistics to %s", fqn)
 
 
