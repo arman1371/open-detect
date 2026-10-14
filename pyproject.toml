@@ -104,6 +104,9 @@ disallow_untyped_defs = false
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = "-ra -q"
+markers = [
+  "spark: requires a real local Delta-enabled Spark session (auto-applied to tests that use the `spark` fixture); deselect with -m \"not spark\"",
+]
 filterwarnings = [
   "ignore::DeprecationWarning",
 ]

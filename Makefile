@@ -1,4 +1,4 @@
-.PHONY: install dev-install lint format type-check test test-fast cov build clean benchmark benchmark-real-world-gov benchmark-all
+.PHONY: install dev-install lint format type-check test test-fast test-spark cov build clean benchmark benchmark-real-world-gov benchmark-all
 
 install:
 	uv sync --no-dev
@@ -20,7 +20,10 @@ test:
 	uv run pytest
 
 test-fast:
-	uv run pytest tests --deselect tests/algorithms/uni_detect/test_corpus_and_detectors.py --deselect tests/algorithms/uni_detect/test_corpus_edge_cases.py
+	uv run pytest -m "not spark"
+
+test-spark:
+	uv run pytest -m spark
 
 cov:
 	uv run pytest --cov=open_detect --cov-report=term-missing --cov-report=html

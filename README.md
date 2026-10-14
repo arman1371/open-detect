@@ -220,7 +220,8 @@ Installing that package makes `"my_algorithm"` show up in
 ```bash
 make test        # full suite (Spark/Delta integration tests auto-skip if
                   # a local Delta-enabled Spark session cannot be started)
-make test-fast    # pure-Python unit tests only, no Spark/JVM required
+make test-fast    # everything except Spark-backed tests (-m "not spark"), no JVM required
+make test-spark   # only Spark-backed tests (-m spark)
 ```
 
 **JDK version:** run the Spark/Delta integration tests under **JDK 17**
