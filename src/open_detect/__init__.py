@@ -18,6 +18,9 @@ Third-party algorithms can register themselves via the ``open_detect.algorithms`
 entry-point group -- see :mod:`open_detect.algorithms.registry`.
 """
 
+from importlib.metadata import PackageNotFoundError
+from importlib.metadata import version as _pkg_version
+
 from open_detect.algorithms.uni_detect.config import UniDetectConfig, UnityCatalogLocation
 from open_detect.core.enums import ColumnDataType, ComparisonDirection, ErrorType
 from open_detect.core.models import Candidate, Detection, FeatureBucket, MetricObservation
@@ -37,7 +40,10 @@ __all__ = [
     "list_algorithms",
 ]
 
-__version__ = "0.2.0"
+try:
+    __version__ = _pkg_version("open-detect")
+except PackageNotFoundError:  # source tree without install
+    __version__ = "0+unknown"
 
 
 def __getattr__(name: str):
