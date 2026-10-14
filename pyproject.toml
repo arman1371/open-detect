@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "open-detect"
-version = "0.2.0"
+version = "0.2.1"
 description = "A library of pluggable, paper-backed error detection algorithms for tabular data (Uni-Detect, Raha, ...)."
 readme = "README.md"
 requires-python = ">=3.10"
