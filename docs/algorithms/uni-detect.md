@@ -132,6 +132,7 @@ See [`UniDetectConfig`](../reference/uni-detect.md#open_detect.algorithms.uni_de
 | `laplace_smoothing` | `1.0` | Keeps zero-support buckets from yielding a perfect `0` ratio |
 | `max_mpd_block_size` | `500` | Bounds pairwise spelling comparisons on skewed columns |
 | `max_fd_column_pairs_per_table` | `200` | Bounds FD candidates per table |
+| `max_failure_ratio` | `0.01` | Fraction of columns/pairs that may fail to score on executors (and are skipped, with a single WARNING summary) before `DataQualityError` is raised. `0` = fail on any skip, `1` = never fail |
 | `corpus_stats_table`, `token_stats_table`, `detections_table` | `open_detect_*` | Unqualified names of the library's tables |
 
 ## A fully local example
