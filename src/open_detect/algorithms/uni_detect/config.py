@@ -75,6 +75,11 @@ class UniDetectConfig:
     detections_table:
         Name (unqualified) of the table detection results are optionally
         appended to.
+    max_failure_ratio:
+        Maximum tolerated fraction (``0 <= x <= 1``) of corpus columns /
+        target columns that may fail to score on the executors (and are
+        skipped) before a :class:`~open_detect.exceptions.DataQualityError`
+        is raised. ``0`` fails on the first skipped item; ``1`` never fails.
     """
 
     location: UnityCatalogLocation
@@ -89,6 +94,7 @@ class UniDetectConfig:
     corpus_stats_table: str = "open_detect_corpus_stats"
     token_stats_table: str = "open_detect_token_stats"
     detections_table: str = "open_detect_detections"
+    max_failure_ratio: float = 0.01
 
     def __post_init__(self) -> None:
         if not 0 < self.epsilon <= 1:
@@ -101,6 +107,10 @@ class UniDetectConfig:
             raise ConfigurationError("max_mpd_block_size must be >= 2")
         if self.max_fd_column_pairs_per_table < 1:
             raise ConfigurationError("max_fd_column_pairs_per_table must be >= 1")
+        if not 0 <= self.max_failure_ratio <= 1:
+            raise ConfigurationError(
+                f"max_failure_ratio must be in [0, 1], got {self.max_failure_ratio}"
+            )
 
     @property
     def corpus_stats_fqn(self) -> str:

@@ -6,12 +6,33 @@ from typing import TYPE_CHECKING
 
 from open_detect.algorithms.uni_detect.detectors.base import BaseDetector
 from open_detect.algorithms.uni_detect.detectors.schema import CANDIDATE_SCHEMA
+from open_detect.algorithms.uni_detect.failures import FailureCounts
+from open_detect.algorithms.uni_detect.featurization import build_spelling_bucket
+from open_detect.algorithms.uni_detect.perturbation import perturb_spelling
 from open_detect.core.enums import ErrorType
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
 
     from pyspark.sql import DataFrame
+
+    from open_detect.algorithms.uni_detect.config import UniDetectConfig
+
+
+def _score_column(clean_vals, num_rows, cfg: UniDetectConfig):
+    """Return ``(outcome, bucket)`` for one column's non-null values."""
+    outcome = perturb_spelling(
+        clean_vals, epsilon=cfg.epsilon, max_block_size=cfg.max_mpd_block_size
+    )
+    avg_len = outcome.evidence.get("avg_differing_token_length", 0.0)
+    bucket = build_spelling_bucket(
+        values=clean_vals,
+        num_rows=num_rows,
+        avg_differing_token_length=avg_len,
+        row_count_edges=cfg.row_count_edges,
+        token_length_edges=cfg.token_length_edges,
+    )
+    return outcome, bucket
 
 
 class SpellingDetector(BaseDetector):
@@ -22,13 +43,13 @@ class SpellingDetector(BaseDetector):
 
         cfg = self.config
         min_rows = 3
+        tracker = self._new_failure_tracker()
 
         def compute(batches):
             from open_detect.algorithms.uni_detect.detectors.base import make_evidence_json
-            from open_detect.algorithms.uni_detect.featurization import build_spelling_bucket
-            from open_detect.algorithms.uni_detect.perturbation import perturb_spelling
 
             for batch in batches:
+                counts = FailureCounts()
                 rows: list[dict] = []
                 for tid, col, n, vals in zip(
                     batch["table_id"],
@@ -40,20 +61,10 @@ class SpellingDetector(BaseDetector):
                     clean_vals = [v for v in vals if v is not None]
                     if len(clean_vals) < min_rows:
                         continue
-                    try:
-                        outcome = perturb_spelling(
-                            clean_vals, epsilon=cfg.epsilon, max_block_size=cfg.max_mpd_block_size
-                        )
-                        avg_len = outcome.evidence.get("avg_differing_token_length", 0.0)
-                        bucket = build_spelling_bucket(
-                            values=clean_vals,
-                            num_rows=int(n),
-                            avg_differing_token_length=avg_len,
-                            row_count_edges=cfg.row_count_edges,
-                            token_length_edges=cfg.token_length_edges,
-                        )
-                    except Exception:  # noqa: BLE001
+                    scored = counts.attempt(_score_column, clean_vals, int(n), cfg)
+                    if scored is None:
                         continue
+                    outcome, bucket = scored
 
                     rows.append(
                         {
@@ -67,6 +78,7 @@ class SpellingDetector(BaseDetector):
                             "evidence_json": make_evidence_json(outcome.evidence),
                         }
                     )
+                tracker.flush(counts)
                 yield pd.DataFrame(rows, columns=[f.name for f in CANDIDATE_SCHEMA.fields])
 
         columns_df = self.ingestor.ingest_columns(table_names)
