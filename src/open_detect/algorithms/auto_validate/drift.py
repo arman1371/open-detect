@@ -12,13 +12,14 @@ algorithm's import path.  The optional extra ``auto_validate`` in
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from dataclasses import dataclass
 
 import pandas as pd
 
 from open_detect.algorithms.auto_validate.config import AutoValidateConfig
 from open_detect.algorithms.auto_validate.fmdv import InferredPattern
-from open_detect.algorithms.auto_validate.hierarchy import matches
+from open_detect.algorithms.auto_validate.hierarchy import _parse, matches, tokenize
 
 
 @dataclass(frozen=True, slots=True)
@@ -78,11 +79,11 @@ def _fisher_two_tailed(
         )
 
     pat = pattern.pattern
-    pat_str = pat if isinstance(pat, str) else pat[0]
+    segments = (pat,) if isinstance(pat, str) else tuple(pat)
 
-    conform_train = sum(1 for v in train_clean if matches(pat_str, v))
+    conform_train = sum(1 for v in train_clean if _conforms(segments, v))
     noncon_train = n_train - conform_train
-    conform_test = sum(1 for v in test_clean if matches(pat_str, v))
+    conform_test = sum(1 for v in test_clean if _conforms(segments, v))
     noncon_test = n_test - conform_test
 
     oddsratio, p_value = fisher_exact(
@@ -98,6 +99,28 @@ def _fisher_two_tailed(
         odds_ratio=float(oddsratio),
         drifted=bool(p_value < significance),
     )
+
+
+def _conforms(segments: Sequence[str], value: str) -> bool:
+    """Whether ``value`` conforms to a vertical-cut pattern list.
+
+    The value's tokens are split left to right into consecutive slices, one per
+    segment pattern, each as wide as that pattern. The value conforms only if
+    every slice matches its pattern and the slices consume all of its tokens.
+    A one-element list is equivalent to :func:`matches` on that pattern.
+    """
+    if len(segments) == 1:
+        return matches(segments[0], value)
+    tokens = tokenize(value)
+    pos = 0
+    for segment in segments:
+        end = pos + len(_parse(segment))
+        if end > len(tokens):
+            return False
+        if not matches(segment, "".join(t.text for t in tokens[pos:end])):
+            return False
+        pos = end
+    return pos == len(tokens)
 
 
 def _clean_series(values: pd.Series) -> list[str]:
