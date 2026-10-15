@@ -43,6 +43,7 @@ def spark_session(
     schema: str,
     app_name: str = "open_detect-benchmark",
     driver_memory: str = "3g",
+    count_jobs: bool = False,
 ) -> Iterator[Any]:
     """Start a local, single-process, Delta-enabled Spark session for a benchmark run.
 
@@ -52,6 +53,9 @@ def spark_session(
     :class:`SparkUnavailable` -- never a raw Spark/py4j exception -- if the
     session cannot be started at all, so callers can distinguish "no local
     Spark/JDK available" from "the benchmark itself failed".
+
+    ``count_jobs=True`` raises the retained-jobs/stages limits so
+    :class:`common.spark_jobs.SparkJobCounter` can read every job back.
     """
     os.environ.setdefault("PYSPARK_PYTHON", sys.executable)
     os.environ.setdefault("PYSPARK_DRIVER_PYTHON", sys.executable)
@@ -80,6 +84,12 @@ def spark_session(
             "org.apache.spark.sql.delta.catalog.DeltaCatalog",
         )
     )
+    if count_jobs:
+        from common.spark_jobs import RETAINED_LIMIT
+
+        builder = builder.config("spark.ui.retainedJobs", str(RETAINED_LIMIT)).config(
+            "spark.ui.retainedStages", str(RETAINED_LIMIT)
+        )
     try:
         session = configure_spark_with_delta_pip(builder).getOrCreate()
         session.sparkContext.setLogLevel("ERROR")
