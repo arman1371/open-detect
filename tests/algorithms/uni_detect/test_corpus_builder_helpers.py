@@ -23,6 +23,7 @@ from open_detect.algorithms.uni_detect.corpus.builder import (
 from open_detect.algorithms.uni_detect.corpus.schema import CORPUS_STATS_SCHEMA
 from open_detect.algorithms.uni_detect.strategies import get_spec
 from open_detect.core.enums import ColumnDataType, ErrorType
+from open_detect.exceptions import InsufficientDataError
 
 
 @pytest.fixture
@@ -113,19 +114,22 @@ class TestScoreSingleColumn:
                 cfg=config,
             )
 
-        assert score(min_rows - 1) is None
+        with pytest.raises(InsufficientDataError):
+            score(min_rows - 1)
         assert score(min_rows) is not None
 
     def test_min_rows_differs_per_error_type(self, config):
         values = ["1000", "1007", "1014"]
         kwargs = {"num_rows": 3, "column_index": 0, "token_document_frequency": {}, "cfg": config}
         assert _score_single_column(ErrorType.SPELLING, values, **kwargs) is not None
-        assert _score_single_column(ErrorType.UNIQUENESS, values, **kwargs) is None
-        assert _score_single_column(ErrorType.NUMERIC_OUTLIER, values, **kwargs) is None
+        with pytest.raises(InsufficientDataError):
+            _score_single_column(ErrorType.UNIQUENESS, values, **kwargs)
+        with pytest.raises(InsufficientDataError):
+            _score_single_column(ErrorType.NUMERIC_OUTLIER, values, **kwargs)
 
     def test_numeric_outlier_counts_only_parseable_values_against_min_rows(self, config):
         values = ["1", "2", "3", "4", "x", "y", "z"]  # 4 of 7 parse (<80%)
-        assert (
+        with pytest.raises(InsufficientDataError):
             _score_single_column(
                 ErrorType.NUMERIC_OUTLIER,
                 values,
@@ -134,8 +138,6 @@ class TestScoreSingleColumn:
                 token_document_frequency={},
                 cfg=config,
             )
-            is None
-        )
 
     def test_unsupported_error_type_raises(self, config):
         with pytest.raises(ValueError, match="Unsupported single-column error type"):
@@ -171,5 +173,6 @@ class TestScoreFdPair:
 
     def test_pairs_below_spec_min_rows_are_skipped(self, config):
         min_rows = get_spec(ErrorType.FUNCTIONAL_DEPENDENCY).min_rows
-        assert self._score(config, min_rows - 1) is None
+        with pytest.raises(InsufficientDataError):
+            self._score(config, min_rows - 1)
         assert self._score(config, min_rows) is not None

@@ -30,6 +30,7 @@ from open_detect.algorithms.uni_detect.corpus.schema import CORPUS_STATS_SCHEMA
 from open_detect.algorithms.uni_detect.failures import FailureCounts, FailureTracker
 from open_detect.algorithms.uni_detect.strategies import get_spec
 from open_detect.core.enums import ErrorType
+from open_detect.exceptions import InsufficientDataError
 from open_detect.logging_utils import get_logger, log_duration
 
 if TYPE_CHECKING:
@@ -281,6 +282,14 @@ class CorpusStatsBuilder:
         logger.info("Wrote corpus statistics to %s", fqn)
 
 
+def _require_min_rows(n: int, error_type: ErrorType) -> None:
+    min_rows = get_spec(error_type).min_rows
+    if n < min_rows:
+        raise InsufficientDataError(
+            f"{error_type.value}: {n} usable values, need at least {min_rows}"
+        )
+
+
 def _score_fd_pair(
     lhs_values: list[str],
     rhs_values: list[str],
@@ -288,14 +297,13 @@ def _score_fd_pair(
     rhs_column_index: int,
     token_document_frequency: dict[str, int],
     cfg: UniDetectConfig,
-) -> tuple | None:
+) -> tuple:
     from open_detect.algorithms.uni_detect.featurization import (
         build_functional_dependency_bucket,
     )
     from open_detect.algorithms.uni_detect.perturbation import perturb_functional_dependency
 
-    if len(lhs_values) < get_spec(ErrorType.FUNCTIONAL_DEPENDENCY).min_rows:
-        return None
+    _require_min_rows(len(lhs_values), ErrorType.FUNCTIONAL_DEPENDENCY)
 
     outcome = perturb_functional_dependency(lhs_values, rhs_values, epsilon=cfg.epsilon)
     bucket = build_functional_dependency_bucket(
@@ -316,12 +324,13 @@ def _score_single_column(
     column_index: int,
     token_document_frequency: dict[str, int],
     cfg: UniDetectConfig,
-) -> tuple | None:
-    """Score one corpus column, or return ``None`` if it is too small to contribute.
+) -> tuple:
+    """Score one corpus column.
 
-    Columns with fewer values than ``ErrorTypeSpec.min_rows`` are skipped (not
-    counted as failures), mirroring the online detectors, so tiny columns do not
-    pollute the low-row-count buckets.
+    Raises :class:`InsufficientDataError` for columns with fewer usable values
+    than ``ErrorTypeSpec.min_rows``, mirroring the online detectors, so tiny
+    columns do not pollute the low-row-count buckets. ``FailureCounts.attempt``
+    records that as "not applicable", which is excluded from the failure ratio.
     """
     from open_detect.algorithms.uni_detect.featurization import (
         build_outlier_bucket,
@@ -334,11 +343,8 @@ def _score_single_column(
         perturb_uniqueness,
     )
 
-    min_rows = get_spec(error_type).min_rows
-
     if error_type is ErrorType.UNIQUENESS:
-        if len(values) < min_rows:
-            return None
+        _require_min_rows(len(values), error_type)
         outcome = perturb_uniqueness(values, epsilon=cfg.epsilon)
         bucket = build_uniqueness_bucket(
             values=values,
@@ -352,8 +358,7 @@ def _score_single_column(
 
     if error_type is ErrorType.NUMERIC_OUTLIER:
         numeric_values = _coerce_numeric(values)
-        if len(numeric_values) < min_rows:
-            return None
+        _require_min_rows(len(numeric_values), error_type)
         outcome = perturb_numeric_outlier(numeric_values, epsilon=cfg.epsilon)
         bucket = build_outlier_bucket(
             values=numeric_values, num_rows=num_rows, row_count_edges=cfg.row_count_edges
@@ -361,8 +366,7 @@ def _score_single_column(
         return bucket, outcome
 
     if error_type is ErrorType.SPELLING:
-        if len(values) < min_rows:
-            return None
+        _require_min_rows(len(values), error_type)
         outcome = perturb_spelling(
             values, epsilon=cfg.epsilon, max_block_size=cfg.max_mpd_block_size
         )
