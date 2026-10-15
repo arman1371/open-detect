@@ -140,10 +140,16 @@ class AutoValidateAlgorithm(ErrorDetectionAlgorithm):
             fpr_t, cov_t, theta_c = inferred.fpr_t, inferred.cov_t, inferred.theta_c
             n_total = len(series) - sum(1 for v in series if _is_null(v))
             score = 1.0 - fpr_t if n_total > 0 else 0.0
-            for idx, value in series.items():
-                if _is_null(value):
+            # Compute verdict once per distinct non-null value, then map back.
+            # This avoids a per-cell `_value_matches` call and a per-cell
+            # `pd.isna` call (replaced by the vectorized `is_null`).
+            distinct_values = series.dropna().unique()
+            verdicts = {v: not _value_matches(pattern, v) for v in distinct_values}
+            verdict_map = series.map(verdicts, na_action="ignore").fillna(False)
+            is_null_mask = series.isna()
+            for idx, is_error in zip(series.index, verdict_map):
+                if is_null_mask.iloc[idx]:
                     continue
-                is_error = not _value_matches(pattern, value)
                 cells.append(
                     CellResult(
                         table_id=table_id,
