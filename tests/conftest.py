@@ -157,3 +157,10 @@ def uc_location(spark):  # noqa: ANN001, ARG001
     from open_detect.algorithms.uni_detect.config import UnityCatalogLocation
 
     return UnityCatalogLocation(catalog=TEST_CATALOG, schema=TEST_SCHEMA)
+
+
+def pytest_collection_modifyitems(items: list[pytest.Item]) -> None:
+    """Auto-apply the ``spark`` marker to tests that request the ``spark`` fixture."""
+    for item in items:
+        if "spark" in getattr(item, "fixturenames", ()):
+            item.add_marker(pytest.mark.spark)

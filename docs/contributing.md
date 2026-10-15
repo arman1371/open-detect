@@ -13,13 +13,19 @@ uv sync                # installs runtime + dev dependencies
 | Command | Does |
 |---|---|
 | `make test` | Full test suite. Spark/Delta integration tests skip themselves if no local Delta-enabled Spark session can start. |
-| `make test-fast` | Pure-Python unit tests only. No JVM needed. |
+| `make test-fast` | Everything except Spark-backed tests (`pytest -m "not spark"`). No JVM needed. |
+| `make test-spark` | Only the Spark-backed tests (`pytest -m spark`). Needs a local Delta-enabled Spark session. |
 | `make lint` | `ruff check` |
 | `make format` | `ruff --fix` and `black` |
 | `make type-check` | `mypy src` |
 | `make cov` | Tests with a coverage report |
 
 Run Spark integration tests under **JDK 17**.
+
+The `spark` pytest marker is applied **automatically** by a `pytest_collection_modifyitems` hook in
+`tests/conftest.py` to every test that requests the `spark` fixture (directly or through a fixture such
+as `uc_location`). Do not decorate tests by hand, and do not maintain path lists to include or exclude
+Spark tests — a new Spark-backed test is picked up by `-m spark` / `-m "not spark"` automatically.
 
 ## Commit conventions and releases
 
