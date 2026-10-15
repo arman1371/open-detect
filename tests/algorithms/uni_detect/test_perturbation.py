@@ -6,12 +6,36 @@ from __future__ import annotations
 
 import pytest
 
+from open_detect.algorithms.uni_detect.metrics.uniqueness import (
+    duplicate_value_indices,
+    uniqueness_ratio,
+)
 from open_detect.algorithms.uni_detect.perturbation import (
+    _UNDEFINED_AFTER_HIGH,
+    PerturbationOutcome,
+    _max_drop,
     perturb_functional_dependency,
     perturb_numeric_outlier,
     perturb_spelling,
     perturb_uniqueness,
 )
+from open_detect.exceptions import InsufficientDataError
+
+
+def _perturb_uniqueness_reference(values, epsilon):
+    """Original implementation: rebuilds ``set(dropped)`` per element."""
+    theta_before = uniqueness_ratio(values)
+    all_dupes = duplicate_value_indices(values)
+    budget = _max_drop(len(values), epsilon)
+    dropped = tuple(all_dupes[:budget])
+    remaining = [v for i, v in enumerate(values) if i not in set(dropped)]
+    theta_after = uniqueness_ratio(remaining) if len(remaining) >= 2 else _UNDEFINED_AFTER_HIGH
+    return PerturbationOutcome(
+        theta_before=theta_before,
+        theta_after=theta_after,
+        dropped_indices=dropped,
+        evidence={"num_duplicate_values": len(all_dupes)},
+    )
 
 
 class TestPerturbUniqueness:
@@ -26,6 +50,43 @@ class TestPerturbUniqueness:
         outcome = perturb_uniqueness(["a", "b", "c", "d", "e"], epsilon=0.5)
         assert outcome.dropped_indices == ()
         assert outcome.theta_before == outcome.theta_after == 1.0
+
+    @pytest.mark.parametrize(
+        "values",
+        [
+            ["a", "a", "b", "b", "c", "c", "d"],
+            [None, None, "x", "x", "y"],
+            [1, 1.0, "1", "1", None, (1,), (1,), True],
+            ["a", "a", "a"],
+            [None, None, None],
+            ["only", "only"],
+            ["v"],
+            [],
+        ],
+        ids=[
+            "dupes",
+            "nulls",
+            "mixed-types",
+            "single-distinct",
+            "all-null",
+            "two-equal",
+            "single-value",
+            "empty",
+        ],
+    )
+    @pytest.mark.parametrize("epsilon", [0.01, 0.2, 1.0])
+    def test_matches_per_element_set_reference(self, values, epsilon):
+        try:
+            expected = _perturb_uniqueness_reference(values, epsilon)
+        except InsufficientDataError:
+            with pytest.raises(InsufficientDataError):
+                perturb_uniqueness(values, epsilon)
+            return
+        assert perturb_uniqueness(values, epsilon) == expected
+
+    def test_matches_reference_on_large_column(self):
+        values = [i % 5000 for i in range(20_000)]
+        assert perturb_uniqueness(values, 0.01) == _perturb_uniqueness_reference(values, 0.01)
 
 
 class TestPerturbNumericOutlier:
