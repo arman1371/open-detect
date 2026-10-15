@@ -1,10 +1,14 @@
-"""Unit tests for algorithms/raha/clustering.py."""
+"""Unit test for algorithms/raha/clustering.py."""
 
 from __future__ import annotations
 
 import numpy as np
 
-from open_detect.algorithms.raha.clustering import cluster_column, sample_tuple
+from open_detect.algorithms.raha.clustering import (
+    cluster_column,
+    compute_linkage,
+    sample_tuple,
+)
 
 
 class TestClusterColumn:
@@ -44,6 +48,31 @@ class TestClusterColumn:
         labels = cluster_column(matrix, k=2)
         assert not np.isnan(labels).any()
 
+    def test_precomputed_linkage_matches_recompute(self):
+        # The fast path (passing a precomputed linkage matrix) must produce
+        # byte-identical clusters to the slow path that recomputes
+        # pdist+linkage every call, for every k the labeling loop uses.
+        rng = np.random.default_rng(42)
+        matrix = rng.standard_normal((500, 8))
+        linkage_obj = compute_linkage(matrix)
+        for k in (2, 3, 5, 10, 500):
+            old = cluster_column(matrix, k)
+            new = cluster_column(matrix, k, linkage_matrix=linkage_obj)
+            assert np.array_equal(old, new), f"k={k}: fast/slow paths diverge"
+
+    def test_precomputed_linkage_matches_recompute_on_edge_cases(self):
+        for matrix in (
+            np.zeros((0, 3)),
+            np.array([[1.0, 0.0]]),
+            np.zeros((5, 0)),
+            np.array([[0.0, 0.0], [1.0, 0.0], [0.0, 0.0]]),
+        ):
+            linkage_obj = compute_linkage(matrix)
+            for k in (2, 3):
+                old = cluster_column(matrix, k)
+                new = cluster_column(matrix, k, linkage_matrix=linkage_obj)
+                assert np.array_equal(old, new), f"edge case {matrix.shape} k={k} diverges"
+
 
 class TestSampleTuple:
     def test_returns_none_when_all_excluded(self):
@@ -67,3 +96,42 @@ class TestSampleTuple:
         label_counts = {("a", 0): 10}
         draws = [sample_tuple(ids, label_counts, excluded_rows=set(), rng=rng) for _ in range(200)]
         assert sum(d in (2, 3) for d in draws) > 150
+
+    def test_matches_reference_distribution(self):
+        # The vectorised implementation must draw from exactly the same
+        # distribution as the reference row-wise loop, for fixed RNG state.
+        rng = np.random.default_rng(0)
+        ids = {
+            "a": rng.integers(0, 5, 100),
+            "b": rng.integers(0, 4, 100),
+            "c": rng.integers(0, 6, 100),
+        }
+        label_counts = {
+            (col, cid): int(rng.integers(0, 8))
+            for col in ids
+            for cid in range(6)
+        }
+        excluded = set(rng.choice(100, 10, replace=False))
+
+        def reference(ids, counts, excluded, rng):
+            columns = list(ids.values())
+            if not columns:
+                return None
+            n = len(columns[0])
+            scores = np.zeros(n)
+            for column_name, cluster_ids in ids.items():
+                c = np.array([counts.get((column_name, cid), 0) for cid in cluster_ids])
+                scores += np.exp(-c)
+            candidates = np.array([i for i in range(n) if i not in excluded])
+            if candidates.size == 0:
+                return None
+            candidate_scores = scores[candidates]
+            weights = np.exp(candidate_scores - candidate_scores.max())
+            probabilities = weights / weights.sum()
+            return int(rng.choice(candidates, p=probabilities))
+
+        rng1 = np.random.default_rng(7)
+        rng2 = np.random.default_rng(7)
+        assert reference(ids, label_counts, excluded, rng1) == sample_tuple(
+            ids, label_counts, excluded, rng2
+        )
