@@ -2,6 +2,19 @@
 
 <!-- version list -->
 
+## v0.2.3 (2026-10-15)
+
+### Bug Fixes
+
+- **uni-detect**: Corpus FD pairs, null alignment and min_rows gating (OPE-73)
+  ([#32](https://github.com/arman1371/open-detect/pull/32),
+  [`fedf192`](https://github.com/arman1371/open-detect/commit/fedf19211a3e84f01443761cbce4f50a7eacf07d))
+
+---
+
+**Full Changelog**: [v0.2.2...v0.2.3](https://github.com/arman1371/open-detect/compare/v0.2.2...v0.2.3)
+
+
 ## v0.2.2 (2026-10-15)
 
 ### Bug Fixes
