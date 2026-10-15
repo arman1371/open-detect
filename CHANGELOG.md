@@ -29,6 +29,19 @@
 - `run_detection` gained `--epsilon` (default `0.01`, same as the build job).
 - `UniDetectConfig` now rejects `laplace_smoothing <= 0`/NaN/inf (previously `0` was accepted and
   could cause 0/0 divisions) and empty, non-finite or non-strictly-increasing bucket edges.
+- **Corpus semantics change (rebuild required) — OPE-73:**
+  - FD column pairs are now *ordered* (both A->B and B->A are tested). Over
+    `max_fd_column_pairs_per_table` they are sampled deterministically from a hash of
+    `(table, lhs name, rhs name)`, so the choice no longer depends on column order. The pair arrays
+    keep only rows where both columns are non-null, so LHS/RHS values are always row-aligned
+    (previously nulls were dropped independently, which misaligned or silently skipped pairs).
+  - The corpus build now skips columns/pairs with fewer values than `ErrorTypeSpec.min_rows`
+    (spelling 3, others 5), the same minimums the detectors use (detectors now read them from the
+    spec). Previously tiny columns polluted the low-row-count buckets.
+  - A column counts as numeric for the outlier corpus only if at least 80%
+    (`MIN_NUMERIC_FRACTION`) of its non-null values parse as finite numbers; `nan`/`inf` never
+    count. Previously two numeric-looking values in a text column were enough.
+  Existing corpora built before this change should be rebuilt.
 
 ## v0.2.1 (2026-10-14)
 
