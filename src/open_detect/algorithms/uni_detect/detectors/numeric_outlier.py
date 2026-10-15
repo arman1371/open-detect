@@ -11,6 +11,7 @@ from open_detect.algorithms.uni_detect.featurization import build_outlier_bucket
 from open_detect.algorithms.uni_detect.metrics.base import require_min_size
 from open_detect.algorithms.uni_detect.metrics.outliers import finite_floats
 from open_detect.algorithms.uni_detect.perturbation import perturb_numeric_outlier
+from open_detect.algorithms.uni_detect.strategies import get_spec
 from open_detect.core.enums import ErrorType
 
 if TYPE_CHECKING:
@@ -38,7 +39,7 @@ class NumericOutlierDetector(BaseDetector):
         import pandas as pd
 
         cfg = self.config
-        min_rows = 5
+        min_rows = get_spec(self.error_type).min_rows
         tracker = self._new_failure_tracker()
 
         def compute(batches):

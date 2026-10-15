@@ -166,7 +166,8 @@ class TestPerElementFunctions:
 
     def test_fd_pair_length_mismatch_is_counted(self, config):
         counts = FailureCounts()
-        result = counts.attempt(_score_fd_pair, ["a", "b", "c"], ["x", "y"], 3, 0, {}, config)
+        lhs = ["a", "b", "c", "d", "e", "f"]
+        result = counts.attempt(_score_fd_pair, lhs, ["x", "y"], 6, 0, {}, config)
         assert result is None
         assert counts.by_type == {"ValueError": 1}
 
