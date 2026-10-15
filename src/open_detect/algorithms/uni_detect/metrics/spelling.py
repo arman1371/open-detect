@@ -29,6 +29,7 @@ from itertools import combinations
 from rapidfuzz.distance import Levenshtein
 
 from open_detect.algorithms.uni_detect.metrics.base import drop_nulls, require_min_size
+from open_detect.exceptions import ValidationError
 
 
 @dataclass(frozen=True, slots=True)
@@ -82,25 +83,8 @@ def _closest_pair(
     return best
 
 
-def min_pairwise_edit_distance(
-    values: Sequence[object],
-    max_block_size: int = 500,
-) -> MPDResult:
-    """``MPD(C) = min_{u != v in C} Edit(u, v)`` -- the closest pair of *distinct* values.
-
-    Parameters
-    ----------
-    values:
-        Column values; non-strings are stringified (``str(v)``) so this also
-        works on mixed-alphanumeric columns. Exact repeats are collapsed
-        before comparison; fewer than two distinct values raises
-        :class:`~open_detect.exceptions.InsufficientDataError`.
-    max_block_size:
-        Columns with at most this many distinct values are compared
-        exhaustively. Larger columns use blocking; blocks larger than this are
-        deterministically subsampled, bounding worst-case cost to
-        ``O(max_block_size^2)`` per block.
-    """
+def _search_mpd(values: Sequence[object], max_block_size: int) -> tuple[MPDResult | None, int]:
+    """Return ``(result, n_distinct)``; ``result`` is None when no pair can be compared."""
     stringified = [str(v) for v in drop_nulls(list(values))]
     first_index: dict[str, int] = {}
     for i, v in enumerate(stringified):
@@ -122,7 +106,7 @@ def min_pairwise_edit_distance(
     if len(distinct) <= max_block_size:
         best = _closest_pair(distinct, range(len(distinct)), None)
         assert best is not None  # >= 2 distinct values guarantees at least one pair
-        return _result(best)
+        return _result(best), len(distinct)
 
     blocks: dict[tuple[str, str, int], list[int]] = defaultdict(list)
     for i, v in enumerate(distinct):
@@ -140,15 +124,59 @@ def min_pairwise_edit_distance(
             idxs = idxs[::stride]
         best = _closest_pair(distinct, idxs, best)
         if best is not None and best.mpd <= 1:
-            return _result(best)
+            return _result(best), len(distinct)
 
-    if best is None:
-        raise ValueError(
+    return (_result(best) if best is not None else None), len(distinct)
+
+
+def try_min_pairwise_edit_distance(
+    values: Sequence[object],
+    max_block_size: int = 500,
+) -> MPDResult | None:
+    """Like :func:`min_pairwise_edit_distance`, but return ``None`` when no pair can be compared.
+
+    That happens when no two values share a blocking key and the column has
+    more than ``max_block_size`` distinct values, so the exhaustive scan does
+    not apply. Fewer than two distinct values still raises
+    :class:`~open_detect.exceptions.InsufficientDataError`.
+    """
+    return _search_mpd(values, max_block_size)[0]
+
+
+def min_pairwise_edit_distance(
+    values: Sequence[object],
+    max_block_size: int = 500,
+) -> MPDResult:
+    """``MPD(C) = min_{u != v in C} Edit(u, v)`` -- the closest pair of *distinct* values.
+
+    Parameters
+    ----------
+    values:
+        Column values; non-strings are stringified (``str(v)``) so this also
+        works on mixed-alphanumeric columns. Exact repeats are collapsed
+        before comparison; fewer than two distinct values raises
+        :class:`~open_detect.exceptions.InsufficientDataError`.
+    max_block_size:
+        Columns with at most this many distinct values are compared
+        exhaustively. Larger columns use blocking; blocks larger than this are
+        deterministically subsampled, bounding worst-case cost to
+        ``O(max_block_size^2)`` per block.
+
+    Raises
+    ------
+    InsufficientDataError
+        Fewer than two distinct non-null values.
+    ValidationError
+        No two values share a block and the column exceeds ``max_block_size``.
+    """
+    result, n_distinct = _search_mpd(values, max_block_size)
+    if result is None:
+        raise ValidationError(
             "min_pairwise_edit_distance found no comparable blocks and the "
-            f"column ({len(distinct)} distinct values) exceeds max_block_size={max_block_size}; "
+            f"column ({n_distinct} distinct values) exceeds max_block_size={max_block_size}; "
             "increase max_block_size or pre-bucket the column."
         )
-    return _result(best)
+    return result
 
 
 def differing_token_lengths(value_u: str, value_v: str) -> list[int]:

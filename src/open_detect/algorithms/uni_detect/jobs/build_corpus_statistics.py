@@ -24,6 +24,7 @@ from open_detect.algorithms.uni_detect.config import UniDetectConfig, UnityCatal
 from open_detect.algorithms.uni_detect.pipeline import UniDetect
 from open_detect.algorithms.uni_detect.spark_utils import get_spark
 from open_detect.core.enums import ErrorType
+from open_detect.exceptions import ConfigurationError, InsufficientDataError
 from open_detect.logging_utils import get_logger
 
 logger = get_logger(__name__)
@@ -60,6 +61,15 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
 
 
 def main(argv: list[str] | None = None) -> None:
+    """Run the job; the single place where job-level errors become a process exit code."""
+    try:
+        _run(argv)
+    except (ConfigurationError, InsufficientDataError) as exc:
+        logger.error("%s", exc)
+        raise SystemExit(1) from exc
+
+
+def _run(argv: list[str] | None) -> None:
     args = parse_args(argv)
     spark = get_spark()
 
@@ -67,14 +77,14 @@ def main(argv: list[str] | None = None) -> None:
         corpus_tables = [t.strip() for t in args.corpus_tables.split(",") if t.strip()]
     else:
         if not args.corpus_catalog:
-            raise SystemExit("Either --corpus-tables or --corpus-catalog must be provided")
+            raise ConfigurationError("Either --corpus-tables or --corpus-catalog must be provided")
         schemas = (
             [s.strip() for s in args.corpus_schemas.split(",")] if args.corpus_schemas else None
         )
         corpus_tables = list_tables_matching(spark, args.corpus_catalog, schemas)
 
     if not corpus_tables:
-        raise SystemExit("No corpus tables resolved; nothing to build statistics from.")
+        raise InsufficientDataError("No corpus tables resolved; nothing to build statistics from.")
 
     error_types = [ErrorType(e.strip()) for e in args.error_types.split(",") if e.strip()]
 

@@ -169,7 +169,7 @@ class TestPerElementFunctions:
         lhs = ["a", "b", "c", "d", "e", "f"]
         result = counts.attempt(_score_fd_pair, lhs, ["x", "y"], 6, 0, {}, config)
         assert result is None
-        assert counts.by_type == {"ValueError": 1}
+        assert counts.by_type == {"ValidationError": 1}
 
     def test_fd_pair_success(self, config):
         counts = FailureCounts()
@@ -189,7 +189,7 @@ class TestPerElementFunctions:
             _score_single_column, ErrorType.FUNCTIONAL_DEPENDENCY, ["a"], 1, 0, {}, config
         )
         assert result is None
-        assert counts.by_type == {"ValueError": 1}
+        assert counts.by_type == {"ValidationError": 1}
 
     def test_single_column_non_numeric_is_not_applicable(self, config):
         counts = FailureCounts()
@@ -242,7 +242,7 @@ class TestPerElementFunctions:
     def test_fd_detector_scorer(self, config):
         counts = FailureCounts()
         assert counts.attempt(fd_detector._score_pair, ["a", "b"], ["x"], 2, 0, {}, config) is None
-        assert counts.by_type == {"ValueError": 1}
+        assert counts.by_type == {"ValidationError": 1}
         lhs = ["a"] * 10 + ["b"] * 10
         rhs = ["x"] * 9 + ["y"] + ["z"] * 10
         scored = counts.attempt(fd_detector._score_pair, lhs, rhs, 20, 1, {}, config)

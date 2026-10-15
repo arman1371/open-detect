@@ -25,6 +25,7 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 
 from open_detect.algorithms.uni_detect.metrics.base import require_min_size
+from open_detect.exceptions import InsufficientDataError, ValidationError
 
 
 @dataclass(frozen=True, slots=True)
@@ -36,7 +37,7 @@ class FDResult:
 
 def fd_compliance_ratio(lhs_values: Sequence[object], rhs_values: Sequence[object]) -> FDResult:
     if len(lhs_values) != len(rhs_values):
-        raise ValueError("lhs_values and rhs_values must be the same length")
+        raise ValidationError("lhs_values and rhs_values must be the same length")
     require_min_size(lhs_values, 2, "fd_compliance_ratio")
 
     groups: dict[object, dict[object, list[int]]] = defaultdict(lambda: defaultdict(list))
@@ -47,7 +48,7 @@ def fd_compliance_ratio(lhs_values: Sequence[object], rhs_values: Sequence[objec
 
     total = sum(len(idxs) for rhs_map in groups.values() for idxs in rhs_map.values())
     if total == 0:
-        raise ValueError("fd_compliance_ratio found no non-null LHS values")
+        raise InsufficientDataError("fd_compliance_ratio found no non-null LHS values")
 
     violating: list[int] = []
     conforming = 0
