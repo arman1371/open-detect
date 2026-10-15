@@ -2,6 +2,19 @@
 
 <!-- version list -->
 
+## v0.2.4 (2026-10-15)
+
+### Bug Fixes
+
+- **auto-validate**: Rewrite FMDV-V segment DP, coarse signature, ceil off-by-one
+  ([#28](https://github.com/arman1371/open-detect/pull/28),
+  [`e5bcac1`](https://github.com/arman1371/open-detect/commit/e5bcac1c810f7c05ee5295587ed1dd4bc3c30bb9))
+
+---
+
+**Full Changelog**: [v0.2.3...v0.2.4](https://github.com/arman1371/open-detect/compare/v0.2.3...v0.2.4)
+
+
 ## v0.2.3 (2026-10-15)
 
 ### Bug Fixes
