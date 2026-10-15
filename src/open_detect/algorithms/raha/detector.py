@@ -77,14 +77,13 @@ class RahaDetector(ErrorDetectionAlgorithm):
         """
         from open_detect.validation import _ensure_dataframe_is_spark, _validate_literal_value, _check_unknown_kwargs
 
-        # Known kwargs accepted by RahaDetector.detect()
-        accepted_kwargs = {"conflict_resolution", "variant", "labeler"}
-        _check_unknown_kwargs(kwargs, accepted_kwargs)
-
+        # Validate literal keyword arguments first (before spark check)
+        # This ensures invalid literal values are caught regardless of PySpark availability
         if conflict_resolution is not None:
             _validate_literal_value(conflict_resolution, ("homogeneity", "majority"), "conflict_resolution")
         if variant is not None:
             _validate_literal_value(variant, ("A", "B"), "variant")
+        _check_unknown_kwargs(kwargs, {"conflict_resolution", "variant", "labeler"})
         _ensure_dataframe_is_spark(data, "data")
 
         df = data
