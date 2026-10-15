@@ -56,7 +56,8 @@ def perturb_uniqueness(values: Sequence[object], epsilon: float) -> Perturbation
     budget = _max_drop(len(values), epsilon)
     dropped = tuple(all_dupes[:budget])
 
-    remaining = [v for i, v in enumerate(values) if i not in set(dropped)]
+    dropped_set = set(dropped)
+    remaining = [v for i, v in enumerate(values) if i not in dropped_set]
     theta_after = uniqueness_ratio(remaining) if len(remaining) >= 2 else _UNDEFINED_AFTER_HIGH
     return PerturbationOutcome(
         theta_before=theta_before,
