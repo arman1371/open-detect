@@ -39,7 +39,9 @@ class TestCoerceNumeric:
         assert _coerce_numeric(["1", None, "2", "3", "4", "abc"]) == [1.0, 2.0, 3.0, 4.0]
 
     def test_drops_non_finite_values_and_string_forms(self):
-        assert _coerce_numeric(["1", "nan", "inf", "-inf", "Infinity", "2"]) == [1.0, 2.0]
+        finite = [str(i) for i in range(16)]
+        values = [*finite, "nan", "inf", "-inf", "Infinity"]
+        assert _coerce_numeric(values) == [float(i) for i in range(16)]
 
     def test_empty_input_returns_empty_list(self):
         assert _coerce_numeric([]) == []
