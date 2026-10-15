@@ -1,4 +1,4 @@
-.PHONY: install dev-install lint format type-check test test-fast cov build clean benchmark benchmark-real-world-gov benchmark-all
+.PHONY: install dev-install lint format type-check test test-fast cov build clean benchmark benchmark-real-world-gov benchmark-all benchmark-profile benchmark-diff
 
 install:
 	uv sync --no-dev
@@ -32,6 +32,20 @@ benchmark-real-world-gov:
 	uv run python benchmarks/real_world_gov/run_benchmark.py
 
 benchmark-all: benchmark benchmark-real-world-gov
+
+# Opt-in perf profile: Uni-Detect detections snapshot + Spark job counts per phase
+# (writes benchmarks/*/results/profile/$(PROFILE_NAME)/{detections.csv,perf.json}).
+# `make benchmark-profile PROFILE_NAME=baseline` regenerates the committed baseline.
+PROFILE_NAME ?= latest
+
+benchmark-profile:
+	uv run python benchmarks/wiki_subset/run_benchmark.py --profile-dir benchmarks/wiki_subset/results/profile/$(PROFILE_NAME)
+	uv run python benchmarks/real_world_gov/run_benchmark.py --profile-dir benchmarks/real_world_gov/results/profile/$(PROFILE_NAME)
+
+# Diff the latest profile run against the committed baseline snapshot; non-zero exit on any difference.
+benchmark-diff:
+	uv run python benchmarks/common/snapshot.py diff benchmarks/wiki_subset/results/profile/baseline benchmarks/wiki_subset/results/profile/latest
+	uv run python benchmarks/common/snapshot.py diff benchmarks/real_world_gov/results/profile/baseline benchmarks/real_world_gov/results/profile/latest
 
 build:
 	uv build
