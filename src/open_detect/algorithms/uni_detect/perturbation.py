@@ -19,7 +19,7 @@ from open_detect.algorithms.uni_detect.metrics.functional_dependency import (
     fd_compliance_ratio,
     minority_violation_rows,
 )
-from open_detect.algorithms.uni_detect.metrics.outliers import max_mad
+from open_detect.algorithms.uni_detect.metrics.outliers import finite_floats, max_mad
 from open_detect.algorithms.uni_detect.metrics.spelling import (
     differing_token_lengths,
     min_pairwise_edit_distance,
@@ -67,9 +67,21 @@ def perturb_uniqueness(values: Sequence[object], epsilon: float) -> Perturbation
 
 
 def perturb_numeric_outlier(values: Sequence[float], epsilon: float) -> PerturbationOutcome:
-    """Drop the single most outlying value by MAD-score (paper Section 3.1)."""
-    result = max_mad(values)
-    clean = [v for v in values if v is not None]
+    """Drop the single most outlying value by MAD-score (paper Section 3.1).
+
+    Non-finite values (NaN, +/-inf, including string forms) are filtered out once up
+    front; ``dropped_indices`` indexes into the remaining finite values. With fewer than
+    two finite values there is nothing to score, so a no-perturbation outcome (no dropped
+    indices, both thetas 0.0) is returned.
+    """
+    clean, _ = finite_floats(values)
+    if len(clean) < 2:
+        return PerturbationOutcome(
+            theta_before=_UNDEFINED_AFTER_LOW,
+            theta_after=_UNDEFINED_AFTER_LOW,
+            dropped_indices=(),
+        )
+    result = max_mad(clean)
     remaining = [v for i, v in enumerate(clean) if i != result.index]
     theta_after = max_mad(remaining).score if len(remaining) >= 2 else _UNDEFINED_AFTER_LOW
     return PerturbationOutcome(
@@ -83,12 +95,17 @@ def perturb_numeric_outlier(values: Sequence[float], epsilon: float) -> Perturba
 def perturb_spelling(
     values: Sequence[object], epsilon: float, max_block_size: int = 500
 ) -> PerturbationOutcome:
-    """Drop one value from the closest (min edit-distance) pair (paper Section 3.2)."""
+    """Drop the closest (min edit-distance) pair's first value (paper Section 3.2).
+
+    MPD is taken over distinct values, so every occurrence of the dropped value is
+    removed and ``dropped_indices`` lists all of them (ascending).
+    """
     mpd_before = min_pairwise_edit_distance(values, max_block_size=max_block_size)
     clean = [str(v) for v in values if v is not None]
-    remaining = [v for i, v in enumerate(clean) if i != mpd_before.index_u]
+    dropped = tuple(i for i, v in enumerate(clean) if v == mpd_before.value_u)
+    remaining = [v for v in clean if v != mpd_before.value_u]
     mpd_after: float
-    if len(remaining) >= 2:
+    if len(set(remaining)) >= 2:
         try:
             mpd_after = float(
                 min_pairwise_edit_distance(remaining, max_block_size=max_block_size).mpd
@@ -103,7 +120,7 @@ def perturb_spelling(
     return PerturbationOutcome(
         theta_before=float(mpd_before.mpd),
         theta_after=float(mpd_after),
-        dropped_indices=(mpd_before.index_u,),
+        dropped_indices=dropped,
         evidence={
             "pair": (mpd_before.value_u, mpd_before.value_v),
             "avg_differing_token_length": avg_token_length,
