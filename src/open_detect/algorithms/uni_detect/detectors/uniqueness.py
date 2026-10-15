@@ -9,6 +9,7 @@ from open_detect.algorithms.uni_detect.detectors.schema import CANDIDATE_SCHEMA
 from open_detect.algorithms.uni_detect.failures import FailureCounts
 from open_detect.algorithms.uni_detect.featurization import build_uniqueness_bucket
 from open_detect.algorithms.uni_detect.perturbation import perturb_uniqueness
+from open_detect.algorithms.uni_detect.strategies import get_spec
 from open_detect.core.enums import ErrorType
 
 if TYPE_CHECKING:
@@ -44,7 +45,7 @@ class UniquenessDetector(BaseDetector):
         cfg = self.config
         token_map = self.store.load_token_stats_map()
         broadcast_tdf = self.spark.sparkContext.broadcast(token_map)
-        min_rows = 5
+        min_rows = get_spec(self.error_type).min_rows
         tracker = self._new_failure_tracker()
 
         def compute(batches):

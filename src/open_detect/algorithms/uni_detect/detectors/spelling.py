@@ -9,6 +9,7 @@ from open_detect.algorithms.uni_detect.detectors.schema import CANDIDATE_SCHEMA
 from open_detect.algorithms.uni_detect.failures import FailureCounts
 from open_detect.algorithms.uni_detect.featurization import build_spelling_bucket
 from open_detect.algorithms.uni_detect.perturbation import perturb_spelling
+from open_detect.algorithms.uni_detect.strategies import get_spec
 from open_detect.core.enums import ErrorType
 
 if TYPE_CHECKING:
@@ -42,7 +43,7 @@ class SpellingDetector(BaseDetector):
         import pandas as pd
 
         cfg = self.config
-        min_rows = 3
+        min_rows = get_spec(self.error_type).min_rows
         tracker = self._new_failure_tracker()
 
         def compute(batches):
