@@ -75,13 +75,17 @@ class RahaDetector(ErrorDetectionAlgorithm):
             (evaluation) or :class:`~open_detect.algorithms.raha.labeling.CallableLabeler`
             (a real human/UI) for results matching the paper.
         """
-        from open_detect.validation import _ensure_dataframe_is_spark, _validate_literal_value
+        from open_detect.validation import _ensure_dataframe_is_spark, _validate_literal_value, _check_unknown_kwargs
 
-        _ensure_dataframe_is_spark(data, "data")
+        # Known kwargs accepted by RahaDetector.detect()
+        accepted_kwargs = {"conflict_resolution", "variant", "labeler"}
+        _check_unknown_kwargs(kwargs, accepted_kwargs)
+
         if conflict_resolution is not None:
             _validate_literal_value(conflict_resolution, ("homogeneity", "majority"), "conflict_resolution")
         if variant is not None:
             _validate_literal_value(variant, ("A", "B"), "variant")
+        _ensure_dataframe_is_spark(data, "data")
 
         df = data
         n = len(df)
