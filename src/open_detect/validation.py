@@ -105,10 +105,45 @@ def _check_dataframe_is_spark(df: Any, param_name: str = "data") -> None:
         pass
 
 
+def _check_dataframe_is_spark(df: Any, param_name: str = "data") -> None:
+    """Validate that data is a Spark DataFrame (when PySpark is available)."""
+    try:
+        from pyspark.sql import DataFrame as SparkDataFrame
+
+        if not isinstance(df, SparkDataFrame):
+            raise ValidationError(
+                f"{param_name} must be a pyspark.sql.DataFrame, "
+                f"got {type(df).__name__}"
+            )
+    except ImportError:
+        # PySpark not available; skip this check
+        pass
+
+
+def _ensure_dataframe_is_spark(df: Any, param_name: str = "data") -> None:
+    """Runtime guard: validate that data is a Spark DataFrame.
+
+    No-op if pyspark is not available, which is fine for pandas-only environments.
+    This is separate from _check_dataframe_is_spark which raises ValidationError.
+    """
+    try:
+        from pyspark.sql import DataFrame as SparkDataFrame
+
+        if not isinstance(df, SparkDataFrame):
+            raise ValidationError(
+                f"{param_name} must be a pyspark.sql.DataFrame, "
+                f"got {type(df).__name__}"
+            )
+    except ImportError:
+        # PySpark not available; this is fine for pandas-only environments
+        pass
+
+
 __all__ = [
     "_check_unknown_kwargs",
     "_check_expected_type",
     "_validate_literal_value",
     "_check_columns_unique",
     "_check_dataframe_is_spark",
+    "_ensure_dataframe_is_spark",
 ]
