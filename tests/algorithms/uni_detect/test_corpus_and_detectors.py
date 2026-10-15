@@ -324,7 +324,9 @@ class TestCorpusBuilderAndDetectors:
             "John Brown",
             "Patricia Davis",
             "Robert Miller",
-        ] * 20 + ["James Smith"]  # 101 values, 1 duplicate -> ~99% unique
+        ] * 20 + [
+            "James Smith"
+        ]  # 101 values, 1 duplicate -> ~99% unique
         fp_fqn = f"{catalog}.{schema}.target_fp_uniqueness"
         _write_table(spark, fp_fqn, [{"name": v} for v in fp_values], ["name"])
 
