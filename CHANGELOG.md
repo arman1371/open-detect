@@ -2,6 +2,19 @@
 
 <!-- version list -->
 
+## v0.2.2 (2026-10-15)
+
+### Bug Fixes
+
+- **uni-detect**: Config validation + persisted epsilon/bucket config (OPE-72)
+  ([#24](https://github.com/arman1371/open-detect/pull/24),
+  [`43e9bde`](https://github.com/arman1371/open-detect/commit/43e9bde471ac9f820906597ddfcb7c3749aacdae))
+
+---
+
+**Full Changelog**: [v0.2.1...v0.2.2](https://github.com/arman1371/open-detect/compare/v0.2.1...v0.2.2)
+
+
 ## Unreleased
 
 - **Corpus metadata format addition:** the corpus-statistics build now records its configuration
