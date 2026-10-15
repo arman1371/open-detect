@@ -19,6 +19,7 @@ import heapq
 import itertools
 import logging
 from collections.abc import Iterator
+from functools import lru_cache
 
 from open_detect.algorithms.auto_validate.hierarchy import (
     ROOT_PATTERN,
@@ -136,6 +137,7 @@ def _best_first_patterns(
             heapq.heappush(heap, (new_cost, key))
 
 
+@lru_cache(maxsize=2048)
 def patterns_of(
     value: str,
     tau: int | None = None,

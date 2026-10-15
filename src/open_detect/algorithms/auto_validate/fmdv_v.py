@@ -11,9 +11,11 @@ within each segment), then applies FMDV-V vertically.
 
 ## Alignment strategy
 
-Values are tokenized into **coarse** token classes (``<symbol>``, ``<num>``,
-``<letter>``).  Two values have the same *coarse signature* when their
-token-class sequences are identical.
+Values are tokenized with the shared tokenizer
+(:func:`~open_detect.algorithms.auto_validate.hierarchy.tokenize`).  Two values
+have the same *coarse signature* when their token-class sequences (one class
+per token, not per character) are identical, so ``"Jan 5"`` and ``"Jan 15"``
+fall in the same group.
 
 - **Exact MSA** (the ideal): multi-sequence alignment (Carrillo & Lipman
   1988) over the token sequences.  Exponential in the worst case.
@@ -32,14 +34,13 @@ and an approximation otherwise.  Documented as a fidelity note.
 
 from __future__ import annotations
 
-import math
 from collections.abc import Callable
 
 import pandas as pd
 
 from open_detect.algorithms.auto_validate.config import AutoValidateConfig
-from open_detect.algorithms.auto_validate.fmdv import InferredPattern, _clean
-from open_detect.algorithms.auto_validate.hierarchy import matches
+from open_detect.algorithms.auto_validate.fmdv import InferredPattern, _clean, min_conforming
+from open_detect.algorithms.auto_validate.hierarchy import matches, tokenize
 from open_detect.algorithms.auto_validate.index import PatternIndex
 from open_detect.algorithms.auto_validate.patterns import patterns_of, sorted_patterns
 
@@ -120,7 +121,7 @@ def fmdv_vh(
     patterns = [s.pattern for s in all_patterns]
     return InferredPattern(
         pattern=patterns[0] if len(patterns) == 1 else patterns,  # type: ignore[arg-type]
-        fpr_t=total_fpr,
+        fpr_t=min(1.0, total_fpr),
         cov_t=total_cov,
         theta_c=theta_c,
         variant="fmdv_vh",
@@ -128,16 +129,8 @@ def fmdv_vh(
 
 
 def _coarse_signature(value: str) -> tuple[str, ...]:
-    """Coarse token class sequence: <symbol>, <num>, or <letter> per run."""
-    return tuple(_coarse_class(ch) for ch in value)
-
-
-def _coarse_class(ch: str) -> str:
-    if ch.isdigit():
-        return "<num>"
-    if ch.isalpha():
-        return "<letter>"
-    return "<symbol>"
+    """Token-class sequence of ``value``: one class per token, not per character."""
+    return tuple(token.char_class for token in tokenize(value))
 
 
 def _segment_dp(
@@ -147,67 +140,66 @@ def _segment_dp(
     variant: str,
     solve_segment: Callable[[list[str], PatternIndex, AutoValidateConfig], InferredPattern | None],
 ) -> InferredPattern | None:
-    """Run the shared vertical-cut DP and aggregate the chosen segments.
+    """Run the shared vertical-cut DP over token positions and aggregate the segments.
 
-    ``solve_segment`` is the per-segment FMDV variant (single-segment FMDV for
-    ``fmdv_v``; FMDV-H for ``fmdv_vh``).  Returns ``None`` when no feasible
-    segmentation exists.
+    ``values`` must share one token-class signature, so token position ``p``
+    lines up across all values.  A segment ``(i, j)`` is the column slice of
+    tokens ``i..j-1`` of every value, rejoined into a string.  ``solve_segment``
+    is the per-segment FMDV variant (single-segment FMDV for ``fmdv_v``; FMDV-H
+    for ``fmdv_vh``).  Returns ``None`` when no feasible segmentation exists.
     """
-    n = len(values)
-    if n == 0:
+    if not values:
         return None
-
-    INF = float("inf")
-    dp: list[list[float]] = [[INF] * n for _ in range(n)]
-    parent: list[list[int | None]] = [[None] * n for _ in range(n)]
+    token_rows = [[token.text for token in tokenize(v)] for v in values]
+    n_tokens = len(token_rows[0])
+    if any(len(row) != n_tokens for row in token_rows):
+        raise ValueError("values must share a token-class signature")
 
     # Paper Def. 2 enforces e_i - s_i < tau (strict), so the widest admissible
-    # segment is tau-1 tokens.  A segment of exactly tau tokens is not
-    # permitted; skip both the no-split leaf and any split candidate wider
-    # than tau-1.
+    # segment is tau-1 tokens.  Only that band of start positions is ever
+    # looked at, so dp/parent are 1-D arrays indexed by segment end.
     max_width = config.tau - 1
 
-    for length in range(1, n + 1):
-        if length > max_width:
-            continue
-        for i in range(0, n - length + 1):
-            j = i + length - 1
-            seg = solve_segment(values[i : j + 1], index, config)
-            best_cost = seg.fpr_t if seg else INF
+    memo: dict[tuple[int, int], InferredPattern | None] = {}
 
-            for t in range(i, j):
-                left = dp[i][t]
-                right = dp[t + 1][j]
-                if left < INF and right < INF and left + right < best_cost:
-                    best_cost = left + right
-                    parent[i][j] = t
-            dp[i][j] = best_cost
+    def segment(i: int, j: int) -> InferredPattern | None:
+        key = (i, j)
+        if key not in memo:
+            memo[key] = solve_segment(["".join(row[i:j]) for row in token_rows], index, config)
+        return memo[key]
 
-    if dp[0][n - 1] >= INF:
+    inf = float("inf")
+    # dp[j]: minimal summed FPR of a segmentation of tokens 0..j-1.
+    dp = [inf] * (n_tokens + 1)
+    parent = [-1] * (n_tokens + 1)
+    dp[0] = 0.0
+    for j in range(1, n_tokens + 1):
+        for i in range(max(0, j - max_width), j):
+            if dp[i] == inf:
+                continue
+            seg = segment(i, j)
+            if seg is None:
+                continue
+            cost = dp[i] + seg.fpr_t
+            if cost < dp[j]:
+                dp[j] = cost
+                parent[j] = i
+
+    if dp[n_tokens] == inf:
         return None
 
-    segments: list[list[str]] = []
-    i, j = 0, n - 1
-    while i <= j:
-        p = parent[i][j]
-        if p is None:
-            segments.append(values[i : j + 1])
-            i = j + 1
-        else:
-            segments.append(values[i : p + 1])
-            i = p + 1
-
-    total_fpr = 0.0
-    total_cov = 0
     best_segments: list[InferredPattern] = []
-    for seg_vals in segments:
-        seg = solve_segment(seg_vals, index, config)
-        if seg is None:
-            return None
-        total_fpr += seg.fpr_t
-        total_cov += seg.cov_t
+    j = n_tokens
+    while j > 0:
+        i = parent[j]
+        seg = segment(i, j)
+        assert seg is not None
         best_segments.append(seg)
+        j = i
+    best_segments.reverse()
 
+    total_fpr = min(1.0, sum(s.fpr_t for s in best_segments))
+    total_cov = sum(s.cov_t for s in best_segments)
     theta_c = sum(s.theta_c * s.cov_t for s in best_segments) / total_cov if total_cov else 0.0
     patterns = [s.pattern for s in best_segments]
     return InferredPattern(
@@ -258,8 +250,7 @@ def _fmdv_single_segment(
         fpr_t, cov_t = entry
         if fpr_t > config.r or cov_t < config.m:
             continue
-        n_match = sum(1 for v in values if matches(pattern, v))
-        if n_match != len(values):
+        if not all(matches(pattern, v) for v in values):
             continue
         key = (fpr_t, -cov_t, pattern)
         if best is None or key < best["key"]:
@@ -285,7 +276,7 @@ def _fmdv_h_single(
     if not values:
         return None
     # Paper Eqn 16: h must match at least ceil((1-theta)|C|) values.
-    min_conforming = math.ceil((1.0 - config.theta) * len(values))
+    required = min_conforming(config.theta, len(values))
 
     candidate_set: set[str] = set()
     for v in values:
@@ -301,7 +292,7 @@ def _fmdv_h_single(
         if fpr_t > config.r or cov_t < config.m:
             continue
         n_match = sum(1 for v in values if matches(pattern, v))
-        if n_match < min_conforming:
+        if n_match < required:
             continue
         imp = 1.0 - n_match / len(values)
         key = (fpr_t, imp, -cov_t, pattern)
