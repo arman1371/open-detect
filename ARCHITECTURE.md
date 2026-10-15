@@ -1,9 +1,8 @@
 # Architecture
 
-This document maps each part of three papers -- Wang & He's Uni-Detect
-(SIGMOD 2019), Mahdavi et al.'s Raha (SIGMOD 2019) and Song & He's
-Auto-Validate (SIGMOD 2021) -- onto this codebase, and explains the decisions
-each paper's translation into a shared library required.
+- [Uni-Detect architecture](algorithms/uni-detect-architecture.md)
+- [Raha architecture](algorithms/raha-architecture.md)
+- [Auto-Validate architecture](algorithms/auto-validate-architecture.md)
 
 - Uni-Detect: Sections 1-7.
 - Raha: Sections 8-12.
