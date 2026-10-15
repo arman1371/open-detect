@@ -98,3 +98,24 @@ class TestUniDetectConfig:
         assert config.corpus_stats_fqn == "main.data_quality.open_detect_corpus_stats"
         assert config.token_stats_fqn == "main.data_quality.open_detect_token_stats"
         assert config.detections_fqn == "main.data_quality.open_detect_detections"
+
+
+class TestRedactEvidence:
+    def test_defaults_to_none(self):
+        assert UniDetectConfig(location=UnityCatalogLocation("c", "s")).redact_evidence == "none"
+
+    @pytest.mark.parametrize("mode", ["none", "hash", "drop"])
+    def test_accepts_valid_modes(self, mode):
+        cfg = UniDetectConfig(location=UnityCatalogLocation("c", "s"), redact_evidence=mode)
+        assert cfg.redact_evidence == mode
+
+    def test_rejects_unknown_mode(self):
+        with pytest.raises(ConfigurationError, match="redact_evidence"):
+            UniDetectConfig(location=UnityCatalogLocation("c", "s"), redact_evidence="mask")
+
+    def test_not_part_of_build_fingerprint(self):
+        loc = UnityCatalogLocation("c", "s")
+        assert (
+            UniDetectConfig(location=loc).build_fingerprint()
+            == UniDetectConfig(location=loc, redact_evidence="drop").build_fingerprint()
+        )

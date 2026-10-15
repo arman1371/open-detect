@@ -10,7 +10,7 @@ from __future__ import annotations
 import math
 from collections.abc import Sequence
 from dataclasses import dataclass, field
-from typing import Any
+from typing import Any, Literal
 
 from open_detect.exceptions import ConfigurationError
 
@@ -109,6 +109,12 @@ class UniDetectConfig:
         target columns that may fail to score on the executors (and are
         skipped) before a :class:`~open_detect.exceptions.DataQualityError`
         is raised. ``0`` fails on the first skipped item; ``1`` never fails.
+    redact_evidence:
+        Privacy control for raw cell values (duplicate values, FD violating
+        examples, outlier value, misspelled pair) stored in ``evidence_json``:
+        ``"none"`` keeps them, ``"hash"`` replaces each with a truncated
+        SHA-256 digest, ``"drop"`` removes them. Does not affect the corpus
+        statistics, so it is not part of :meth:`build_fingerprint`.
     """
 
     location: UnityCatalogLocation
@@ -125,6 +131,7 @@ class UniDetectConfig:
     detections_table: str = "open_detect_detections"
     allow_corpus_config_mismatch: bool = False
     max_failure_ratio: float = 0.01
+    redact_evidence: Literal["none", "hash", "drop"] = "none"
 
     def __post_init__(self) -> None:
         if not 0 < self.epsilon <= 1:
@@ -143,6 +150,10 @@ class UniDetectConfig:
         for edges_field in ("row_count_edges", "prevalence_edges", "token_length_edges"):
             object.__setattr__(
                 self, edges_field, _validate_edges(edges_field, getattr(self, edges_field))
+            )
+        if self.redact_evidence not in ("none", "hash", "drop"):
+            raise ConfigurationError(
+                f"redact_evidence must be 'none', 'hash' or 'drop', got {self.redact_evidence!r}"
             )
         if not 0 <= self.max_failure_ratio <= 1:
             raise ConfigurationError(

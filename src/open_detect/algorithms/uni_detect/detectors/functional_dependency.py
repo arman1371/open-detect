@@ -94,7 +94,8 @@ class FunctionalDependencyDetector(BaseDetector):
                                         for i in outcome.dropped_indices[:10]
                                     ],
                                     **outcome.evidence,
-                                }
+                                },
+                                cfg.redact_evidence,
                             ),
                         }
                     )

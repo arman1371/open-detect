@@ -21,6 +21,7 @@ from itertools import combinations
 from rapidfuzz.distance import Levenshtein
 
 from open_detect.algorithms.uni_detect.metrics.base import drop_nulls, require_min_size
+from open_detect.exceptions import InsufficientDataError
 
 
 @dataclass(frozen=True, slots=True)
@@ -98,7 +99,8 @@ def min_pairwise_edit_distance(
                 f"column ({len(clean)} values) exceeds max_block_size={max_block_size}; "
                 "increase max_block_size or pre-bucket the column."
             )
-    assert best is not None  # len(clean) >= 2 (require_min_size) guarantees at least one pair
+    if best is None:  # unreachable: require_min_size guarantees >= 1 comparable pair
+        raise InsufficientDataError("min_pairwise_edit_distance found no comparable value pair")
     return best
 
 

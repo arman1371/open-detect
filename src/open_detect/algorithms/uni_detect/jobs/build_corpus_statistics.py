@@ -24,7 +24,7 @@ from open_detect.algorithms.uni_detect.config import UniDetectConfig, UnityCatal
 from open_detect.algorithms.uni_detect.pipeline import UniDetect
 from open_detect.algorithms.uni_detect.spark_utils import get_spark
 from open_detect.core.enums import ErrorType
-from open_detect.logging_utils import get_logger
+from open_detect.logging_utils import configure_logging, get_logger
 
 logger = get_logger(__name__)
 
@@ -60,6 +60,7 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
 
 
 def main(argv: list[str] | None = None) -> None:
+    configure_logging()
     args = parse_args(argv)
     spark = get_spark()
 
