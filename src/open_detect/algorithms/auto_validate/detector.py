@@ -36,6 +36,30 @@ from open_detect.algorithms.auto_validate.fmdv_v import fmdv_v, fmdv_vh
 from open_detect.algorithms.auto_validate.hierarchy import matches
 from open_detect.algorithms.auto_validate.index import PatternIndex, build_pattern_index
 from open_detect.algorithms.base import AlgorithmResult, CellResult, ErrorDetectionAlgorithm
+from open_detect.exceptions import ValidationError
+from open_detect.validation import _check_unknown_kwargs
+
+
+def _check_columns_present(columns: list[str] | None, df_columns: list[str], skip_missing: bool = False) -> None:
+    """Validate that requested columns exist in the DataFrame.
+
+    Parameters
+    ----------
+    columns:
+        The list of columns requested by the caller (may be None for all).
+    df_columns:
+        The list of columns actually present in the DataFrame.
+    skip_missing:
+        If True, silently skip missing columns. If False (default), raise
+        ValidationError listing any missing columns.
+    """
+    if columns is None:
+        return
+    missing = [c for c in columns if c not in df_columns]
+    if missing and not skip_missing:
+        raise ValidationError(
+            f"Requested column(s) not found in DataFrame: {', '.join(missing)}"
+        )
 
 #: Mapping from config.variant to the pattern-inference function.
 _DISPATCH: dict[str, Any] = {
@@ -98,6 +122,7 @@ class AutoValidateAlgorithm(ErrorDetectionAlgorithm):
         *,
         table_id: str = "table",
         columns: list[str] | None = None,
+        skip_missing: bool = False,
         **kwargs: Any,
     ) -> AlgorithmResult:
         """Run Auto-Validate against a single dirty table.
@@ -111,7 +136,14 @@ class AutoValidateAlgorithm(ErrorDetectionAlgorithm):
         columns:
             If given, only these columns are scanned. ``None`` means all
             columns of ``data``.
+        skip_missing:
+            If ``False`` (default), raise :class:`ValidationError` when any
+            requested column is absent from ``data``. If ``True``, missing
+            columns are silently skipped.
         """
+        _check_unknown_kwargs(kwargs, {"table_id", "columns", "skip_missing"}, "detect")
+        _check_columns_present(columns, list(data.columns), skip_missing=skip_missing)
+
         if len(data) == 0 or data.shape[1] == 0:
             return AlgorithmResult(algorithm=self.name, cells=())
 
