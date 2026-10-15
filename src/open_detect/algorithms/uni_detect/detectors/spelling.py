@@ -4,7 +4,10 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from open_detect.algorithms.uni_detect.detectors.base import BaseDetector
+from open_detect.algorithms.uni_detect.detectors.base import (
+    BaseDetector,
+    make_evidence_json,
+)
 from open_detect.algorithms.uni_detect.detectors.schema import CANDIDATE_SCHEMA
 from open_detect.algorithms.uni_detect.failures import FailureCounts
 from open_detect.algorithms.uni_detect.featurization import build_spelling_bucket
@@ -47,6 +50,26 @@ def _score_column(clean_vals, num_rows, cfg: UniDetectConfig):
     return outcome, bucket
 
 
+def _build_row(tid, col, vals, outcome, bucket, cfg: UniDetectConfig) -> dict:
+    """Build one candidate row from the perturbation outcome for a column.
+
+    Maps ``outcome.dropped_indices`` (which index into the null-dropped list) back to
+    original 0-based row positions via ``_drop_nulls`` / ``_original_row_ids``.
+    """
+    _, orig_positions = _drop_nulls(vals)
+    row_ids = _original_row_ids(outcome.dropped_indices, orig_positions)
+    return {
+        "candidate_id": f"{tid}::{col}::spelling::{row_ids[0]}",
+        "table_id": tid,
+        "column_names": [col],
+        "row_ids": row_ids,
+        "feature_bucket": bucket.as_key(),
+        "theta_before": outcome.theta_before,
+        "theta_after": outcome.theta_after,
+        "evidence_json": make_evidence_json(outcome.evidence, cfg.redact_evidence),
+    }
+
+
 class SpellingDetector(BaseDetector):
     error_type = ErrorType.SPELLING
 
@@ -58,8 +81,6 @@ class SpellingDetector(BaseDetector):
         tracker = self._new_failure_tracker()
 
         def compute(batches):
-            from open_detect.algorithms.uni_detect.detectors.base import make_evidence_json
-
             for batch in batches:
                 counts = FailureCounts()
                 rows: list[dict] = []
@@ -70,29 +91,14 @@ class SpellingDetector(BaseDetector):
                     batch["values"],
                     strict=True,
                 ):
-                    clean_vals, orig_positions = _drop_nulls(vals)
+                    clean_vals = [v for v in vals if v is not None]
                     if len(clean_vals) < min_rows:
                         continue
                     scored = counts.attempt(_score_column, clean_vals, int(n), cfg)
                     if scored is None:
                         continue
                     outcome, bucket = scored
-
-                    row_ids = _original_row_ids(outcome.dropped_indices, orig_positions)
-                    rows.append(
-                        {
-                            "candidate_id": f"{tid}::{col}::spelling::{row_ids[0]}",
-                            "table_id": tid,
-                            "column_names": [col],
-                            "row_ids": row_ids,
-                            "feature_bucket": bucket.as_key(),
-                            "theta_before": outcome.theta_before,
-                            "theta_after": outcome.theta_after,
-                            "evidence_json": make_evidence_json(
-                                outcome.evidence, cfg.redact_evidence
-                            ),
-                        }
-                    )
+                    rows.append(_build_row(tid, col, vals, outcome, bucket, cfg))
                 tracker.flush(counts)
                 yield pd.DataFrame(rows, columns=[f.name for f in CANDIDATE_SCHEMA.fields])
 
