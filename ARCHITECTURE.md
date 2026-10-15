@@ -423,15 +423,14 @@ algorithm is actually constructed.
 4. **FMDV-VH composition order.**  The paper (§5.5) says "horizontal first
    then vertical".  Our interpretation: partition values by coarse signature
    into vertical groups, then within each group apply FMDV-H (theta
-   tolerance), then DP across groups.  The per-group H-cut tolerates
-   outliers before vertical segmentation.  At detection time a value is
-   valid if it matches **its own coarse-signature group's** pattern.
-   `_value_matches` (`detector.py`) therefore treats a list pattern
-   (multi-group `fmdv_v`/`fmdv_vh`) as a **disjunction over groups**; because
-   the coarse-signature groups partition the column, per-group match is the
-   correct combined-validation semantics (paper Eqns 8-10).  This was a
-   detection-time bug fix in commit 5976e33 (previously only `pattern[0]`
-   was consulted, so values in every other group were falsely flagged).
+   tolerance), then DP over token positions.  The per-group H-cut tolerates
+   outliers before vertical segmentation.  A list pattern is one pattern per
+   vertical segment, so at detection time `_value_matches` (`detector.py`)
+   and the drift check (`drift.py`) share `hierarchy.matches_segments`: the
+   value's tokens are split left to right into one slice per segment, every
+   slice must match its segment's pattern, and the slices must consume every
+   token.  A one-element list or plain string behaves exactly like
+   `hierarchy.matches`.
 5. **No corpus-free fallback.**  `fmdv`/`fmdv_h`/`fmdv_v`/`fmdv_vh` require
    a `PatternIndex`; without one, callers must raise `IndexNotBuiltError`.
    This follows from the paper's requirement that `T` be a background

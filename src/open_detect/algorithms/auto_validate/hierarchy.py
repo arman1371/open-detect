@@ -16,6 +16,7 @@ alphabet".
 from __future__ import annotations
 
 import re
+from collections.abc import Sequence
 from dataclasses import dataclass
 from functools import lru_cache
 
@@ -258,3 +259,25 @@ def matches(pattern: str, value: str) -> bool:
         elif not _part_matches(cls, count, token.text):
             return False
     return True
+
+
+def matches_segments(segments: Sequence[str], value: str) -> bool:
+    """Whether ``value`` conforms to a vertical-cut pattern list.
+
+    The value's tokens are split left to right into consecutive slices, one per
+    segment pattern, each as wide as that pattern. The value conforms only if
+    every slice matches its pattern and the slices consume all of its tokens.
+    A one-element list is equivalent to :func:`matches` on that pattern.
+    """
+    if len(segments) == 1:
+        return matches(segments[0], value)
+    tokens = tokenize(value)
+    pos = 0
+    for segment in segments:
+        end = pos + len(_parse(segment))
+        if end > len(tokens):
+            return False
+        if not matches(segment, "".join(t.text for t in tokens[pos:end])):
+            return False
+        pos = end
+    return pos == len(tokens)
