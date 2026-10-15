@@ -103,9 +103,12 @@ disallow_untyped_defs = false
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-addopts = "-ra -q"
+addopts = "-ra -q --strict-config --strict-markers"
+# Only silence deprecations raised from the third-party Spark stack; deprecations
+# in our own code (or other dependencies) stay visible.
 filterwarnings = [
-  "ignore::DeprecationWarning",
+  "ignore::DeprecationWarning:pyspark.*",
+  "ignore::DeprecationWarning:py4j.*",
 ]
 
 [tool.semantic_release]

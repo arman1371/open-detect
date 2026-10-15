@@ -20,10 +20,15 @@ entry-point group -- see :mod:`open_detect.algorithms.registry`.
 
 from importlib.metadata import PackageNotFoundError
 from importlib.metadata import version as _pkg_version
+from typing import TYPE_CHECKING, Any
 
 from open_detect.algorithms.uni_detect.config import UniDetectConfig, UnityCatalogLocation
 from open_detect.core.enums import ColumnDataType, ComparisonDirection, ErrorType
 from open_detect.core.models import Candidate, Detection, FeatureBucket, MetricObservation
+
+if TYPE_CHECKING:
+    from open_detect.algorithms import get_algorithm, list_algorithms
+    from open_detect.algorithms.uni_detect.pipeline import UniDetect
 
 __all__ = [
     "ColumnDataType",
@@ -46,7 +51,7 @@ except PackageNotFoundError:  # source tree without install
     __version__ = "0+unknown"
 
 
-def __getattr__(name: str):
+def __getattr__(name: str) -> Any:
     # Lazy imports: open_detect.algorithms.uni_detect.pipeline.UniDetect requires pyspark and
     # open_detect.algorithms.raha requires scikit-learn, both optional
     # dependencies the pure-Python core (metrics/featurization/enums) does
