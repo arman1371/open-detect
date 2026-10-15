@@ -2,6 +2,19 @@
 
 <!-- version list -->
 
+## v0.2.6 (2026-10-15)
+
+### Bug Fixes
+
+- **auto_validate**: Drift check against full vertical-cut pattern list (BUG-9)
+  ([#26](https://github.com/arman1371/open-detect/pull/26),
+  [`8899b60`](https://github.com/arman1371/open-detect/commit/8899b6047d819878694d107f1c0b5f7770481093))
+
+---
+
+**Full Changelog**: [v0.2.5...v0.2.6](https://github.com/arman1371/open-detect/compare/v0.2.5...v0.2.6)
+
+
 ## v0.2.5 (2026-10-15)
 
 ### Bug Fixes
