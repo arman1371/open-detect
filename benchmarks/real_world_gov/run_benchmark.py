@@ -45,6 +45,7 @@ sys.path.insert(0, str(BENCHMARK_DIR))
 from dataset_utils import DATASETS, dataset_paths, load_changes, load_csv  # noqa: E402
 
 from common.metrics import confusion_metrics  # noqa: E402
+from common.profile import UniDetectProfile, maybe_scope  # noqa: E402
 from common.spark_session import SparkUnavailable, git_commit, spark_session  # noqa: E402
 
 RESULTS_DIR = BENCHMARK_DIR / "results"
@@ -114,8 +115,17 @@ def _dataset_frames() -> dict[str, dict]:
     return frames
 
 
-def run_uni_detect(frames: dict[str, dict]) -> tuple[list[dict], dict, float]:
-    """Score every dataset's dirty table with Uni-Detect. Returns (targets, metrics, duration_seconds)."""
+def run_uni_detect(
+    frames: dict[str, dict], profile: UniDetectProfile | None = None
+) -> tuple[list[dict], dict, float]:
+    """Score every dataset's dirty table with Uni-Detect. Returns (targets, metrics, duration_seconds).
+
+    ``profile`` (opt-in, ``--profile-dir``) records Spark job/stage counts per
+    phase and the detections snapshot; ``None`` leaves the run untouched. When
+    profiling, an extra per-detector ``detect()`` pass runs *after* the
+    measured one (so the main timings stay clean) to get job counts per
+    detector, which the single all-error-types ``detect()`` call can't give.
+    """
     from open_detect.algorithms.uni_detect.config import UnityCatalogLocation
     from open_detect.algorithms.uni_detect.pipeline import UniDetect
     from open_detect.core.enums import ErrorType
@@ -124,7 +134,11 @@ def run_uni_detect(frames: dict[str, dict]) -> tuple[list[dict], dict, float]:
     config = _build_config(uc_location)
 
     start = time.perf_counter()
-    with spark_session(TEST_CATALOG, TEST_SCHEMA, driver_memory="8g") as spark:
+    with spark_session(
+        TEST_CATALOG, TEST_SCHEMA, driver_memory="8g", count_jobs=profile is not None
+    ) as spark:
+        if profile is not None:
+            profile.attach(spark)
         ud = UniDetect(config, spark=spark)
 
         clean_fqns: dict[str, str] = {}
@@ -147,12 +161,21 @@ def run_uni_detect(frames: dict[str, dict]) -> tuple[list[dict], dict, float]:
         # NAMESPACE`; ensure_schema_exists() issues `CREATE CATALOG`, a
         # Unity-Catalog-only DDL statement a local, non-Unity-Catalog
         # `spark_catalog` doesn't support.
-        ud.build_corpus_statistics(
-            list(clean_fqns.values()), error_types=list(ErrorType), create_schema=False
-        )
+        with maybe_scope(profile, "build_corpus_statistics[all]"):
+            ud.build_corpus_statistics(
+                list(clean_fqns.values()), error_types=list(ErrorType), create_schema=False
+            )
 
         # Online: score the dirty (really-corrupted) versions against it.
-        detections = ud.detect(list(dirty_fqns.values()), error_types=list(ErrorType)).toPandas()
+        with maybe_scope(profile, "detect[all]"):
+            detections = ud.detect(
+                list(dirty_fqns.values()), error_types=list(ErrorType)
+            ).toPandas()
+        if profile is not None:
+            profile.add_detections(detections)
+            for error_type in ErrorType:
+                with maybe_scope(profile, f"detect[{error_type.value}]"):
+                    ud.detect(list(dirty_fqns.values()), error_types=[error_type]).toPandas()
 
         fqn_to_dataset = {fqn: name for name, fqn in dirty_fqns.items()}
 
@@ -187,6 +210,8 @@ def run_uni_detect(frames: dict[str, dict]) -> tuple[list[dict], dict, float]:
                     }
                 )
     duration = time.perf_counter() - start
+    if profile is not None:
+        profile.finalize(git_commit(REPO_ROOT), duration)
 
     overall = confusion_metrics(targets)
     by_dataset = {
@@ -388,7 +413,7 @@ def run_auto_validate(frames: dict[str, dict]) -> tuple[list[dict], dict, dict, 
     )
 
 
-def run() -> dict:
+def run(profile: UniDetectProfile | None = None) -> dict:
     frames = _dataset_frames()
     algorithms: dict[str, dict] = {}
 
@@ -439,7 +464,7 @@ def run() -> dict:
         )
     else:
         try:
-            ud_targets, ud_metrics, ud_duration = run_uni_detect(frames)
+            ud_targets, ud_metrics, ud_duration = run_uni_detect(frames, profile)
         except SparkUnavailable as exc:
             print(
                 f"Could not start a local Delta-enabled Spark session; skipping uni_detect: {exc}"
@@ -520,11 +545,21 @@ def main() -> None:
         action="store_true",
         help="Overwrite results/baseline.json with this run's results.",
     )
+    parser.add_argument(
+        "--profile-dir",
+        type=Path,
+        default=None,
+        help=(
+            "Opt-in: write the Uni-Detect detections snapshot (detections.csv) and "
+            "per-phase Spark job counts/timings (perf.json) into this directory."
+        ),
+    )
     args = parser.parse_args()
 
     RESULTS_DIR.mkdir(parents=True, exist_ok=True)
 
-    results = run()
+    profile = UniDetectProfile(args.profile_dir, "real_world_gov") if args.profile_dir else None
+    results = run(profile)
 
     LATEST_FILE.write_text(json.dumps(results, indent=2) + "\n")
 

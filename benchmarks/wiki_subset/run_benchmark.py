@@ -41,6 +41,7 @@ REPO_ROOT = BENCHMARK_DIR.parent.parent
 sys.path.insert(0, str(BENCHMARK_DIR.parent))
 from common.comparison import comparison_table_markdown  # noqa: E402
 from common.metrics import confusion_metrics  # noqa: E402
+from common.profile import UniDetectProfile, maybe_scope  # noqa: E402
 from common.spark_session import SparkUnavailable, git_commit, spark_session  # noqa: E402
 
 DATA_DIR = BENCHMARK_DIR / "data"
@@ -135,8 +136,12 @@ def _build_config(uc_location):
     )
 
 
-def run_uni_detect() -> tuple[list[dict], dict, float]:
-    """Score every eval target with Uni-Detect. Returns (targets, metrics, duration_seconds)."""
+def run_uni_detect(profile: UniDetectProfile | None = None) -> tuple[list[dict], dict, float]:
+    """Score every eval target with Uni-Detect. Returns (targets, metrics, duration_seconds).
+
+    ``profile`` (opt-in, ``--profile-dir``) records Spark job/stage counts per
+    phase and the detections snapshot; ``None`` leaves the run untouched.
+    """
     from open_detect.algorithms.uni_detect.config import UnityCatalogLocation
     from open_detect.algorithms.uni_detect.pipeline import UniDetect
     from open_detect.core.enums import ErrorType
@@ -145,17 +150,20 @@ def run_uni_detect() -> tuple[list[dict], dict, float]:
     config = _build_config(uc_location)
 
     start = time.perf_counter()
-    with spark_session(TEST_CATALOG, TEST_SCHEMA) as spark:
+    with spark_session(TEST_CATALOG, TEST_SCHEMA, count_jobs=profile is not None) as spark:
+        if profile is not None:
+            profile.attach(spark)
         ud = UniDetect(config, spark=spark)
         targets = _load_targets(spark)
 
         for error_type in ERROR_TYPES:
             corpus_tables = _load_corpus_tables(spark, error_type)
-            ud.build_corpus_statistics(
-                corpus_tables,
-                error_types=[ErrorType(error_type)],
-                create_schema=False,
-            )
+            with maybe_scope(profile, f"build_corpus_statistics[{error_type}]"):
+                ud.build_corpus_statistics(
+                    corpus_tables,
+                    error_types=[ErrorType(error_type)],
+                    create_schema=False,
+                )
 
         target_rows: list[dict] = []
         for error_type in ERROR_TYPES:
@@ -163,7 +171,10 @@ def run_uni_detect() -> tuple[list[dict], dict, float]:
             if not type_targets:
                 continue
             fqns = [t["_fqn"] for t in type_targets]
-            result = ud.detect(fqns, error_types=[ErrorType(error_type)]).toPandas()
+            with maybe_scope(profile, f"detect[{error_type}]"):
+                result = ud.detect(fqns, error_types=[ErrorType(error_type)]).toPandas()
+            if profile is not None:
+                profile.add_detections(result)
             for target in type_targets:
                 rows = result[result["table_id"] == target["_fqn"]]
                 predicted_significant = (
@@ -182,6 +193,8 @@ def run_uni_detect() -> tuple[list[dict], dict, float]:
                     }
                 )
     duration = time.perf_counter() - start
+    if profile is not None:
+        profile.finalize(git_commit(REPO_ROOT), duration)
 
     overall = confusion_metrics(target_rows)
     by_type = {
@@ -457,7 +470,7 @@ def run_raha() -> tuple[list[dict], dict, dict, float]:
     return target_rows, _metrics(target_rows), _metrics(cell_rows), duration
 
 
-def run() -> dict:
+def run(profile: UniDetectProfile | None = None) -> dict:
     algorithms: dict[str, dict] = {}
 
     try:
@@ -489,7 +502,7 @@ def run() -> dict:
         )
     else:
         try:
-            ud_targets, ud_metrics, ud_duration = run_uni_detect()
+            ud_targets, ud_metrics, ud_duration = run_uni_detect(profile)
         except SparkUnavailable as exc:
             print(
                 f"Could not start a local Delta-enabled Spark session; skipping uni_detect: {exc}"
@@ -591,11 +604,21 @@ def main() -> None:
         action="store_true",
         help="Overwrite results/baseline.json with this run's results.",
     )
+    parser.add_argument(
+        "--profile-dir",
+        type=Path,
+        default=None,
+        help=(
+            "Opt-in: write the Uni-Detect detections snapshot (detections.csv) and "
+            "per-phase Spark job counts/timings (perf.json) into this directory."
+        ),
+    )
     args = parser.parse_args()
 
     RESULTS_DIR.mkdir(parents=True, exist_ok=True)
 
-    results = run()
+    profile = UniDetectProfile(args.profile_dir, "wiki_subset") if args.profile_dir else None
+    results = run(profile)
 
     LATEST_FILE.write_text(json.dumps(results, indent=2) + "\n")
 
