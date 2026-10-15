@@ -30,7 +30,7 @@ from open_detect.algorithms.uni_detect.corpus.schema import CORPUS_STATS_SCHEMA
 from open_detect.algorithms.uni_detect.failures import FailureCounts, FailureTracker
 from open_detect.algorithms.uni_detect.strategies import get_spec
 from open_detect.core.enums import ErrorType
-from open_detect.exceptions import InsufficientDataError
+from open_detect.exceptions import InsufficientDataError, ValidationError
 from open_detect.logging_utils import get_logger, log_duration
 
 if TYPE_CHECKING:
@@ -380,7 +380,7 @@ def _score_single_column(
         )
         return bucket, outcome
 
-    raise ValueError(f"Unsupported single-column error type: {error_type}")
+    raise ValidationError(f"Unsupported single-column error type: {error_type}")
 
 
 def _coerce_numeric(values: list[str]) -> list[float]:

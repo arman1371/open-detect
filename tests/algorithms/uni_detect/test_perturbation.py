@@ -120,7 +120,7 @@ class TestPerturbSpelling:
         # One close pair (found via blocking) plus enough uniquely-blocked
         # values that, once the pair's first value is dropped, no block has
         # >= 2 members and the remainder exceeds max_block_size -- forcing
-        # the internal re-scoring call to raise ValueError, which
+        # the internal re-scoring to find no comparable pair, which
         # perturb_spelling must translate into the "undefined after" sentinel.
         values = ["aa000", "aa001", "bb1", "cc22", "dd333", "ee4444", "ff55555"]
         outcome = perturb_spelling(values, epsilon=0.5, max_block_size=3)

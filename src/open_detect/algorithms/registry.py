@@ -24,7 +24,7 @@ from collections.abc import Callable
 from importlib import metadata
 from typing import TYPE_CHECKING
 
-from open_detect.exceptions import OpenDetectError
+from open_detect.exceptions import UnknownAlgorithmError
 
 if TYPE_CHECKING:
     from open_detect.algorithms.base import ErrorDetectionAlgorithm
@@ -33,10 +33,6 @@ _ENTRY_POINT_GROUP = "open_detect.algorithms"
 
 _registry: dict[str, Callable[[], type[ErrorDetectionAlgorithm]]] = {}
 _entry_points_loaded = False
-
-
-class UnknownAlgorithmError(OpenDetectError):
-    """Raised when :func:`get_algorithm_class` is asked for an unregistered name."""
 
 
 def register_lazy(name: str, factory: Callable[[], type[ErrorDetectionAlgorithm]]) -> None:
