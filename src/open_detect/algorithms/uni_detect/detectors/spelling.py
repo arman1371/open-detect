@@ -20,6 +20,17 @@ if TYPE_CHECKING:
     from open_detect.algorithms.uni_detect.config import UniDetectConfig
 
 
+def _drop_nulls(vals: Sequence[object]) -> tuple[list[object], list[int]]:
+    """Return non-null values plus each one's 0-based position in ``vals``."""
+    positions = [i for i, v in enumerate(vals) if v is not None]
+    return [vals[i] for i in positions], positions
+
+
+def _original_row_ids(dropped_indices: Sequence[int], positions: Sequence[int]) -> list[str]:
+    """Map indices into the null-dropped list back to original row ids (order preserved)."""
+    return [str(positions[i]) for i in dropped_indices]
+
+
 def _score_column(clean_vals, num_rows, cfg: UniDetectConfig):
     """Return ``(outcome, bucket)`` for one column's non-null values."""
     outcome = perturb_spelling(
@@ -59,7 +70,7 @@ class SpellingDetector(BaseDetector):
                     batch["values"],
                     strict=True,
                 ):
-                    clean_vals = [v for v in vals if v is not None]
+                    clean_vals, orig_positions = _drop_nulls(vals)
                     if len(clean_vals) < min_rows:
                         continue
                     scored = counts.attempt(_score_column, clean_vals, int(n), cfg)
@@ -67,12 +78,13 @@ class SpellingDetector(BaseDetector):
                         continue
                     outcome, bucket = scored
 
+                    row_ids = _original_row_ids(outcome.dropped_indices, orig_positions)
                     rows.append(
                         {
-                            "candidate_id": f"{tid}::{col}::spelling::{outcome.dropped_indices[0]}",
+                            "candidate_id": f"{tid}::{col}::spelling::{row_ids[0]}",
                             "table_id": tid,
                             "column_names": [col],
-                            "row_ids": [str(i) for i in outcome.dropped_indices],
+                            "row_ids": row_ids,
                             "feature_bucket": bucket.as_key(),
                             "theta_before": outcome.theta_before,
                             "theta_after": outcome.theta_after,
