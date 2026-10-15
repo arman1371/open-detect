@@ -98,6 +98,15 @@ nav:
       - Raha: algorithms/raha.md
       - Auto-Validate: algorithms/auto-validate.md
       - Uni-Detect: algorithms/uni-detect.md
+  - Project:
+      - Benchmarks: benchmarks.md
+      - Architecture: architecture.md
+      - Algorithm architectures:
+          - Uni-Detect: algorithms/uni-detect-architecture.md
+          - Raha: algorithms/raha-architecture.md
+          - Auto-Validate: algorithms/auto-validate-architecture.md
+      - Changelog: changelog.md
+      - Contributing: contributing.md
   - Guides:
       - Choosing an algorithm: guides/choosing-an-algorithm.md
       - Comparing algorithms: guides/comparing-algorithms.md
@@ -111,11 +120,6 @@ nav:
       - Auto-Validate: reference/auto-validate.md
       - Uni-Detect: reference/uni-detect.md
       - Errors: reference/exceptions.md
-  - Project:
-      - Benchmarks: benchmarks.md
-      - Architecture: architecture.md
-      - Changelog: changelog.md
-      - Contributing: contributing.md
 
 validation:
   omitted_files: warn
