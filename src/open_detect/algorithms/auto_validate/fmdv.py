@@ -73,8 +73,7 @@ def fmdv(
             continue
         # h must belong to H(C) = ∩P(v) \\ {".*"}, i.e. it must match every
         # value in the query column (Imp_D(h) == 0).
-        n_match = sum(1 for v in clean if matches(pattern, v))
-        if n_match != len(clean):
+        if not all(matches(pattern, v) for v in clean):
             continue
         # Deterministic ordering: minimize FPR_T, then corpus coverage (more
         # evidence = more trusted), then lexicographic.  The paper is silent
@@ -116,7 +115,7 @@ def fmdv_h(
     # Paper Eqn 16: h must match at least ceil((1-theta)|C|) values.  Ceiling
     # (not truncation) is required so that e.g. theta=0.1 over 3 values needs
     # all 3 matches, not merely 2.
-    min_conforming = math.ceil((1.0 - config.theta) * len(clean))
+    required = min_conforming(config.theta, len(clean))
 
     candidate_set: set[str] = set()
     for v in clean:
@@ -132,7 +131,7 @@ def fmdv_h(
         if fpr_t > config.r or cov_t < config.m:
             continue
         n_match = sum(1 for v in clean if matches(pattern, v))
-        if n_match < min_conforming:
+        if n_match < required:
             continue
         imp = 1.0 - n_match / len(clean)
         key = (fpr_t, imp, -cov_t, pattern)
@@ -155,6 +154,17 @@ def fmdv_h(
         theta_c=theta_c,
         variant="fmdv_h",
     )
+
+
+def min_conforming(theta: float, n: int) -> int:
+    """``ceil((1 - theta) * n)`` without float-noise off-by-ones (Eqn 16).
+
+    ``(1.0 - 0.41) * 100`` evaluates to ``59.00000000000001``, whose plain
+    ``ceil`` is 60 instead of 59.  Rounding to 9 decimals first absorbs the
+    representation error; it is exact for any ``theta`` with at most 9
+    decimal digits.
+    """
+    return math.ceil(round((1.0 - theta) * n, 9))
 
 
 def _clean(values: pd.Series) -> list[str]:

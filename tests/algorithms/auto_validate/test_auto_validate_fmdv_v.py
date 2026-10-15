@@ -2,16 +2,26 @@
 
 from __future__ import annotations
 
+import math
+from fractions import Fraction
 from typing import TYPE_CHECKING
 
 import pandas as pd
+import pytest
 
 if TYPE_CHECKING:
     from open_detect.algorithms.auto_validate.config import AutoValidateConfig
     from open_detect.algorithms.auto_validate.index import PatternIndex
 
 from open_detect.algorithms.auto_validate.config import AutoValidateConfig
-from open_detect.algorithms.auto_validate.fmdv_v import fmdv_v, fmdv_vh
+from open_detect.algorithms.auto_validate.fmdv import InferredPattern, min_conforming
+from open_detect.algorithms.auto_validate.fmdv_v import (
+    _coarse_signature,
+    _fmdv_single_segment,
+    _segment_dp,
+    fmdv_v,
+    fmdv_vh,
+)
 from open_detect.algorithms.auto_validate.index import build_pattern_index
 
 
@@ -118,19 +128,108 @@ class TestFmdvVh:
 
     def test_tau_boundary_segment_width_strict(self):
         """Def. 2 enforces e_i - s_i < tau (strict): a segment of exactly tau
-        tokens is not permitted.  With tau=3 the max admissible segment width
-        is 2 tokens, so 3 single-char values (each 1 token) in one coarse
-        group should return None; with tau=4 they should succeed."""
-        # Single-char values share the "<letter>" coarse signature.
-        corpus = [["a", "b", "c"]]
-        cfg_tau3 = AutoValidateConfig(m=1, tau=3)
-        index_tau3 = build_pattern_index(corpus, cfg_tau3)
-        values = pd.Series(["a", "b", "c"])
-        # 3 tokens > max_width tau-1=2 => infeasible as a single segment.
-        assert fmdv_v(values, index_tau3, cfg_tau3) is None
-        # With tau=4, max_width=3 allows the segment.
-        cfg_tau4 = AutoValidateConfig(m=1, tau=4)
-        index_tau4 = build_pattern_index(corpus, cfg_tau4)
-        result = fmdv_v(values, index_tau4, cfg_tau4)
+        tokens is not permitted.  Values like ``a-b`` have 3 tokens, so with
+        tau=3 no single segment fits (max width 2) and the DP must cut the
+        value; with tau=4 the whole value is one segment."""
+        corpus = [["a-b", "c-d"], ["a-", "c-"], ["b", "d"]]
+        values = pd.Series(["a-b", "c-d"])
+        cfg_tau3 = AutoValidateConfig(m=1, tau=3, r=1.0)
+        result3 = fmdv_v(values, build_pattern_index(corpus, cfg_tau3), cfg_tau3)
+        assert result3 is not None
+        assert isinstance(result3.pattern, list)
+        assert len(result3.pattern) == 2
+        cfg_tau4 = AutoValidateConfig(m=1, tau=4, r=1.0)
+        result4 = fmdv_v(values, build_pattern_index(corpus, cfg_tau4), cfg_tau4)
+        assert result4 is not None
+        assert isinstance(result4.pattern, str)
+
+
+def _date_values(n: int) -> list[str]:
+    months = ["Jan", "Feb", "Mar", "Apr"]
+    return [f"{months[i % 4]} {1 + (i * 7) % 28}" for i in range(n)]
+
+
+def _date_index(cfg: AutoValidateConfig) -> PatternIndex:
+    return build_pattern_index([_date_values(40), _date_values(30)], cfg)
+
+
+class TestLargeGroups:
+    """BUG-1: the DP used to run over rows, so any group of >= 8 values returned None."""
+
+    @pytest.mark.parametrize("n", [7, 8, 9, 20, 50])
+    @pytest.mark.parametrize("fn", [fmdv_v, fmdv_vh])
+    def test_group_size_returns_result(self, n, fn):
+        cfg = AutoValidateConfig(m=1, tau=8, r=1.0)
+        result = fn(pd.Series(_date_values(n)), _date_index(cfg), cfg)
         assert result is not None
-        assert result.variant == "fmdv_v"
+        assert 0.0 <= 1.0 - result.fpr_t <= 1.0
+
+
+class TestSegmentDp:
+    def test_multi_segment_cut_over_token_positions(self):
+        """A 5-token value with tau=4 (max width 3) needs >= 2 segments."""
+        values = ["ab-12-cd", "xy-34-zz", "qq-99-aa"]
+        cfg = AutoValidateConfig(m=1, tau=4, r=1.0)
+        corpus = [["ab-12", "xy-34"], ["-cd", "-zz"], ["ab", "xy"], ["12-cd", "34-zz"]]
+        index = build_pattern_index(corpus, cfg)
+        result = _segment_dp(values, index, cfg, "fmdv_v", _fmdv_single_segment)
+        assert result is not None
+        assert isinstance(result.pattern, list)
+        assert len(result.pattern) >= 2
+
+    def test_segments_solved_independently(self):
+        """Each segment is solved: total FPR is the sum of the per-segment FPRs."""
+        calls: list[tuple[str, ...]] = []
+
+        def solve(vals, _index, _cfg):
+            calls.append(tuple(vals))
+            return InferredPattern(
+                pattern=vals[0], fpr_t=0.01, cov_t=1, theta_c=0.0, variant="fmdv"
+            )
+
+        cfg = AutoValidateConfig(m=1, tau=3, r=1.0)
+        index = build_pattern_index([["a"]], cfg)
+        result = _segment_dp(["a+b/c", "d+e/f"], index, cfg, "fmdv_v", solve)
+        assert result is not None
+        # 5 tokens, max width 2 => exactly 3 segments, hence fpr_t == 0.03.
+        assert isinstance(result.pattern, list)
+        assert len(result.pattern) == 3
+        assert result.fpr_t == pytest.approx(0.03)
+        # solve_segment results are memoized per (start, end) span.
+        assert len(calls) == len(set(calls))
+
+    def test_infeasible_segment_returns_none(self):
+        cfg = AutoValidateConfig(m=1, tau=4)
+        index = build_pattern_index([["a"]], cfg)
+        assert _segment_dp(["a-b"], index, cfg, "fmdv_v", lambda *_: None) is None
+
+
+class TestCoarseSignature:
+    def test_variable_width_tokens_share_a_group(self):
+        assert _coarse_signature("Jan 5") == _coarse_signature("Jan 15")
+        assert _coarse_signature("Jan 5") != _coarse_signature("5 Jan")
+
+    def test_fpr_stays_a_probability(self):
+        """fpr_t summed across groups/segments must keep 1 - fpr_t within [0, 1]."""
+        cfg = AutoValidateConfig(m=1, tau=8, r=1.0)
+        values = pd.Series(_date_values(20) + ["10:00:00", "11:00:00", "abc", "123", "a-b-c"])
+        corpus = [_date_values(30), ["10:00:00", "11:00:00"], ["abc", "abd"], ["123", "456"]]
+        corpus.append(["a-b-c", "d-e-f"])
+        index = build_pattern_index(corpus, cfg)
+        for fn in (fmdv_v, fmdv_vh):
+            result = fn(values, index, cfg)
+            assert result is not None
+            assert 0.0 <= 1.0 - result.fpr_t <= 1.0
+
+
+class TestMinConforming:
+    def test_matches_exact_rational_ceil(self):
+        thetas = [i / 100 for i in range(101)] + [0.005, 0.125, 0.333, 0.999]
+        for theta in thetas:
+            exact = Fraction(1) - Fraction(str(theta))
+            for n in range(1, 1001):
+                expected = math.ceil(exact * n)
+                assert min_conforming(theta, n) == expected, (theta, n)
+
+    def test_known_float_noise_case(self):
+        assert min_conforming(0.41, 100) == 59
