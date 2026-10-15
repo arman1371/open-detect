@@ -186,12 +186,15 @@ class TestFmdvVhMixedSignatures:
         assert result in feasible
 
     def test_deterministic(self):
-        assert self._run(fmdv_vh) == self._run(fmdv_vh)
+        first = self._run(fmdv_vh)
+        second = self._run(fmdv_vh)
+        assert first == second
 
     def test_matches_fmdv_v_selection_shape(self):
         v = self._run(fmdv_v)
         vh = self._run(fmdv_vh)
-        assert v is not None and vh is not None
+        assert v is not None
+        assert vh is not None
         assert v.pattern == vh.pattern
         assert (v.fpr_t, v.cov_t) == (vh.fpr_t, vh.cov_t)
 
