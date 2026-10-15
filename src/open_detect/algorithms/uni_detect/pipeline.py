@@ -65,6 +65,25 @@ class UniDetect:
             ErrorType.FUNCTIONAL_DEPENDENCY: FunctionalDependencyDetector(self.spark, config),
         }
 
+    def _validate_inputs(
+        self,
+        table_names: Sequence[str] | None = None,
+        error_types: Sequence[ErrorType] | None = None,
+        **kwargs: Any,
+    ) -> None:
+        """Run shared validation before the online detection phase."""
+        from open_detect.validation import _reject_unknown_kwargs, _ensure_sequence_of_str
+
+        _reject_unknown_kwargs(
+            kwargs,
+            allowed={"table_names", "error_types"},
+            param_name="detect",
+        )
+        if table_names is not None:
+            _ensure_sequence_of_str(table_names, "table_names")
+        if error_types is not None:
+            _ensure_sequence_of_str(error_types, "error_types")
+
     # ------------------------------------------------------------------
     # Offline: "learning" phase (paper Sec. 2.2.3)
     # ------------------------------------------------------------------
@@ -142,13 +161,22 @@ class UniDetect:
         self,
         table_names: Sequence[str],
         error_types: Sequence[ErrorType] | None = None,
+        **kwargs: Any,
     ) -> DataFrame:
         """Score ``table_names`` for the requested error types and rank all results together.
 
         Returns a single DataFrame unioning every requested detector's
         output, sorted ascending by ``lr_ratio`` (Definition 3: smaller is
         more surprising, i.e. more likely a real error).
+
+        Raises
+        ------
+        ValidationError
+            If ``kwargs`` contains unrecognised parameters, or if
+            ``table_names`` / ``error_types`` are not a sequence of ``str``.
         """
+        self._validate_inputs(table_names=table_names, error_types=error_types, **kwargs)
+
         from pyspark.sql import functions as F
 
         error_types = tuple(error_types) if error_types else tuple(ErrorType)

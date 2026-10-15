@@ -14,7 +14,7 @@ the paper maps onto this package's modules.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Literal
 
 import numpy as np
 
@@ -45,6 +45,8 @@ class RahaDetector(ErrorDetectionAlgorithm):
         data: pd.DataFrame,
         *,
         table_id: str = "table",
+        conflict_resolution: Literal["homogeneity", "majority"] | None = None,
+        variant: Literal["A", "B"] | None = None,
         labeler: Labeler | None = None,
         **kwargs: Any,
     ) -> AlgorithmResult:
@@ -58,6 +60,13 @@ class RahaDetector(ErrorDetectionAlgorithm):
             from ``data`` itself plus a handful of labels.
         table_id:
             Stamped onto every result cell; purely descriptive.
+        conflict_resolution:
+            Rule for resolving contradicting user labels when propagating them
+            (Section 4.4): ``"homogeneity"`` or ``"majority"``. If not supplied,
+            the config default is used.
+        variant:
+            Variant label for the column being scanned. Must be one of ``"A"``
+            or ``"B"``. If not supplied, the config default is used.
         labeler:
             Answers "is this cell dirty?" for the tuples Raha samples
             (Section 4.3). Defaults to :class:`~open_detect.algorithms.raha.labeling.HeuristicLabeler`,
@@ -66,6 +75,14 @@ class RahaDetector(ErrorDetectionAlgorithm):
             (evaluation) or :class:`~open_detect.algorithms.raha.labeling.CallableLabeler`
             (a real human/UI) for results matching the paper.
         """
+        from open_detect.validation import _ensure_dataframe_is_spark, _validate_literal_value
+
+        _ensure_dataframe_is_spark(data, "data")
+        if conflict_resolution is not None:
+            _validate_literal_value(conflict_resolution, ("homogeneity", "majority"), "conflict_resolution")
+        if variant is not None:
+            _validate_literal_value(variant, ("A", "B"), "variant")
+
         df = data
         n = len(df)
         if n == 0 or df.shape[1] == 0:
@@ -102,6 +119,12 @@ class RahaDetector(ErrorDetectionAlgorithm):
                 labeled_rows.add(position)
                 k += 1
 
+            # Caches for result materialisation optimisation:
+            # fired_cache: maps feature profile tuple -> fired_strategies list
+            fired_cache: dict[tuple[str, ...], list[str]] = {}
+            # evidence_cache: maps (source, frozen_fired_strategies) -> shared evidence dict
+            evidence_cache: dict[tuple[str, tuple[str, ...]], dict[str, list[str]]] = {}
+
             cells: list[CellResult] = []
             for col in df.columns:
                 propagated = propagate_labels(
@@ -126,11 +149,25 @@ class RahaDetector(ErrorDetectionAlgorithm):
                         is_error = bool(predictions.is_error[position])
                         score = float(predictions.score[position])
 
-                    fired = [
-                        name
-                        for name, flagged in zip(feature_names, matrix[position], strict=True)
-                        if flagged
-                    ]
+                    # Precompute `fired` per unique feature row profile (key 1: tuple of flagged names)
+                    fired_key = tuple(name for name, flagged in zip(feature_names, matrix[position], strict=True) if flagged)
+                    if fired_key not in fired_cache:
+                        fired_cache[fired_key] = [
+                            name
+                            for name, flagged in zip(feature_names, matrix[position], strict=True)
+                            if flagged
+                        ]
+                    fired = fired_cache[fired_key]
+
+                    # Share evidence dict per (source, fired_strategies) tuple (key 2: (source, frozen fired))
+                    evidence_key = (source, tuple(fired))
+                    if evidence_key not in evidence_cache:
+                        evidence_cache[evidence_key] = {
+                            "source": source,
+                            "fired_strategies": fired,
+                        }
+                    evidence = evidence_cache[evidence_key]
+
                     cells.append(
                         CellResult(
                             table_id=table_id,
@@ -139,7 +176,7 @@ class RahaDetector(ErrorDetectionAlgorithm):
                             algorithm=self.name,
                             is_error=is_error,
                             score=score,
-                            evidence={"source": source, "fired_strategies": fired},
+                            evidence=evidence,
                         )
                     )
 
