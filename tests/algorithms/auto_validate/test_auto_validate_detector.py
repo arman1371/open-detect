@@ -230,6 +230,27 @@ class TestAutoValidateDetector:
         assert result is None
 
 
+class TestMixedSignatureColumn:
+    """fmdv_vh keeps one signature group's segmentation; other groups are flagged."""
+
+    def test_only_cells_outside_best_group_are_flagged(self):
+        detector = AutoValidateAlgorithm(AutoValidateConfig(m=1, tau=16))
+        detector.build_index(
+            [pd.Series(["2024-01-15", "2024-02-20"]), pd.Series(["Jan 5", "Feb 10", "Mar 3"])]
+        )
+        column = pd.Series(["2024-01-15", "Jan 5", "2024-02-20", "Feb 10"])
+
+        inferred = detector.infer_pattern(column)
+        assert inferred is not None
+        assert inferred.variant == "fmdv_vh"
+
+        result = detector.detect(pd.DataFrame({"c": column}))
+        flagged = [c.row_index for c in result.cells if c.is_error]
+        assert len(result.cells) == 4
+        assert len(flagged) == 2
+        assert flagged in ([0, 2], [1, 3])
+
+
 class TestValueMatchesSegmentAligned:
     """A vertical-cut pattern list is segment-aligned, not "any pattern matches"."""
 
