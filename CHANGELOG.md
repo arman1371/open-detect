@@ -2,6 +2,19 @@
 
 <!-- version list -->
 
+## v0.2.5 (2026-10-15)
+
+### Bug Fixes
+
+- **uni-detect**: Spelling MPD dedupe, numeric non-finite handling, MPD blocking (OPE-71)
+  ([#30](https://github.com/arman1371/open-detect/pull/30),
+  [`1862498`](https://github.com/arman1371/open-detect/commit/1862498fb9ebdfd0ad43ac324bca1cb05ca49449))
+
+---
+
+**Full Changelog**: [v0.2.4...v0.2.5](https://github.com/arman1371/open-detect/compare/v0.2.4...v0.2.5)
+
+
 ## v0.2.4 (2026-10-15)
 
 ### Bug Fixes
@@ -43,6 +56,17 @@
 
 ## Unreleased
 
+- **Corpus semantics change (spelling) -- rebuild existing corpora:** `min_pairwise_edit_distance`
+  now computes MPD over *distinct* values, so exact duplicates no longer land in the MPD=0 bucket
+  or get flagged as misspellings (columns with fewer than two distinct values are "not
+  computable"). Spelling blocking was also widened (prefix and suffix keys, shifted length
+  buckets, exhaustive comparison up to `max_mpd_block_size` distinct values), so it no longer
+  misses distance-1 pairs such as `apple`/`ppple`; MPD values and thetas therefore differ from
+  corpora built by earlier versions. Rebuild spelling corpora (`build_corpus_statistics`).
+- **Fix (numeric outliers):** NaN, +/-inf and their string forms (`"nan"`, `"inf"`, `"-Infinity"`)
+  are now filtered once before scoring, in both corpus building and detection. Previously a NaN
+  shifted the dropped index onto the wrong element and `inf` was accepted as data. Numeric-outlier
+  corpora built from columns containing such values should be rebuilt.
 - **Corpus metadata format addition:** the corpus-statistics build now records its configuration
   (`epsilon`, `laplace_smoothing`, `max_mpd_block_size`, `max_fd_column_pairs_per_table`, and all
   bucket edge tuples, as JSON) as one Delta table property per error type
