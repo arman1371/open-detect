@@ -10,6 +10,8 @@ from __future__ import annotations
 
 from unittest.mock import MagicMock, patch
 
+import pytest
+
 from open_detect.algorithms.uni_detect.jobs.run_detection import main, parse_args
 from open_detect.core.enums import ErrorType
 
@@ -30,6 +32,8 @@ class TestParseArgs:
         assert args.schema == "data_quality"
         assert args.target_tables == "main.sales.orders"
         assert args.alpha == 0.05
+        assert args.epsilon == 0.01
+        assert args.allow_config_mismatch is False
         assert args.top_k is None
         assert args.write_results is False
 
@@ -161,3 +165,29 @@ class TestMain:
             )
 
             ud.write_detections.assert_called_once_with(detections, mode="append")
+
+
+class TestEpsilonAndMismatchFlags:
+    def test_help_lists_epsilon(self, capsys):
+        with pytest.raises(SystemExit):
+            parse_args(["--help"])
+        assert "--epsilon" in capsys.readouterr().out
+
+    def test_epsilon_and_override_are_wired_into_config(self):
+        with (
+            patch("open_detect.algorithms.uni_detect.jobs.run_detection.get_spark"),
+            patch(
+                "open_detect.algorithms.uni_detect.jobs.run_detection.UniDetect"
+            ) as mock_pipeline_cls,
+        ):
+            ud = mock_pipeline_cls.return_value
+            ud.detect.return_value.where.return_value.count.return_value = 0
+
+            main(
+                ["--catalog", "main", "--schema", "s", "--target-tables", "t"]
+                + ["--epsilon", "0.2", "--allow-config-mismatch"]
+            )
+
+            config = mock_pipeline_cls.call_args.args[0]
+            assert config.epsilon == 0.2
+            assert config.allow_corpus_config_mismatch is True

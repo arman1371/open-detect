@@ -45,7 +45,9 @@ library's tables live and which catalog is scanned for the corpus.
     | `--catalog`, `--schema` | yes | Where `open-detect`'s own tables live |
     | `--target-tables` | yes | Comma-separated fully-qualified tables to scan |
     | `--error-types` | no | Comma-separated subset of error types (default: all) |
+    | `--epsilon` | no | Maximum perturbation size (default `0.01`); must match the corpus build |
     | `--alpha` | no | Significance level (default `0.05`) |
+    | `--allow-config-mismatch` | no | Log instead of failing when the corpus was built with a different epsilon/bucket configuration |
     | `--top-k` | no | Keep only the K most surprising results |
     | `--write-results` | no | Append results to the detections table |
 

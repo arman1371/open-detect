@@ -41,7 +41,19 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         default=",".join(e.value for e in ErrorType),
         help="Comma-separated subset of: " + ",".join(e.value for e in ErrorType),
     )
+    parser.add_argument(
+        "--epsilon",
+        type=float,
+        default=0.01,
+        help="Maximum perturbation size; must match the value the corpus was built with",
+    )
     parser.add_argument("--alpha", type=float, default=0.05)
+    parser.add_argument(
+        "--allow-config-mismatch",
+        action="store_true",
+        help="Log, instead of failing, when the corpus was built with a different "
+        "epsilon/bucket configuration than the one used for detection",
+    )
     parser.add_argument(
         "--top-k", type=int, default=None, help="Only keep the top-K most surprising results"
     )
@@ -61,7 +73,10 @@ def main(argv: list[str] | None = None) -> None:
     error_types = [ErrorType(e.strip()) for e in args.error_types.split(",") if e.strip()]
 
     config = UniDetectConfig(
-        location=UnityCatalogLocation(catalog=args.catalog, schema=args.schema), alpha=args.alpha
+        location=UnityCatalogLocation(catalog=args.catalog, schema=args.schema),
+        epsilon=args.epsilon,
+        alpha=args.alpha,
+        allow_corpus_config_mismatch=args.allow_config_mismatch,
     )
     ud = UniDetect(config, spark=spark)
     detections = ud.detect(target_tables, error_types=error_types)

@@ -129,7 +129,9 @@ See [`UniDetectConfig`](../reference/uni-detect.md#open_detect.algorithms.uni_de
 | `location` | required | `UnityCatalogLocation(catalog, schema)` for the library's own tables |
 | `alpha` | `0.05` | Significance level. Lower gives fewer, higher-confidence detections. |
 | `epsilon` | `0.01` | Maximum perturbation size for row-level error types |
-| `laplace_smoothing` | `1.0` | Keeps zero-support buckets from yielding a perfect `0` ratio |
+| `laplace_smoothing` | `1.0` | Must be finite and `> 0`; keeps zero-support buckets from yielding a perfect `0` ratio |
+| `row_count_edges`, `prevalence_edges`, `token_length_edges` | see `config.py` | Bucket edges; must be non-empty, finite and strictly increasing |
+| `allow_corpus_config_mismatch` | `False` | Detection fails if the corpus was built with a different `epsilon`/bucket configuration; `True` logs and proceeds |
 | `max_mpd_block_size` | `500` | Bounds pairwise spelling comparisons on skewed columns |
 | `max_fd_column_pairs_per_table` | `200` | Bounds FD candidates per table |
 | `max_failure_ratio` | `0.01` | Fraction of columns/pairs that may fail to score on executors (and are skipped, with a single WARNING summary) before `DataQualityError` is raised. `0` = fail on any skip, `1` = never fail |
