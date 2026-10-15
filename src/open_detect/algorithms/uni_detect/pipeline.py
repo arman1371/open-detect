@@ -28,7 +28,7 @@ from open_detect.algorithms.uni_detect.detectors import (
 )
 from open_detect.algorithms.uni_detect.spark_utils import get_spark
 from open_detect.core.enums import ErrorType
-from open_detect.exceptions import ValidationError
+from open_detect.exceptions import ConfigurationError, ValidationError
 from open_detect.logging_utils import get_logger, log_duration
 
 if TYPE_CHECKING:
@@ -40,6 +40,16 @@ logger = get_logger(__name__)
 
 _SINGLE_COLUMN_TYPES = (ErrorType.UNIQUENESS, ErrorType.NUMERIC_OUTLIER, ErrorType.SPELLING)
 _TOKEN_DEPENDENT_TYPES = (ErrorType.UNIQUENESS, ErrorType.FUNCTIONAL_DEPENDENCY)
+
+
+def _require_columns(columns_df: DataFrame | None) -> DataFrame:
+    """Narrow ``columns_df`` to a DataFrame; unlike ``assert`` this survives ``python -O``."""
+    if columns_df is None:
+        raise ConfigurationError(
+            "The ingested columns DataFrame is missing for a column-based error type; "
+            "this indicates an inconsistent error_types selection."
+        )
+    return columns_df
 
 
 class UniDetect:
@@ -98,9 +108,8 @@ class UniDetect:
                 columns_df.count()  # materialize the cache deterministically
 
         if needs_tokens:
-            assert columns_df is not None  # guaranteed by `needs_columns or needs_tokens` above
             with log_duration(logger, "build_token_stats"):
-                token_stats = ingestor.build_token_stats(columns_df)
+                token_stats = ingestor.build_token_stats(_require_columns(columns_df))
                 token_stats.write.format("delta").mode("overwrite").saveAsTable(
                     self.config.token_stats_fqn
                 )
@@ -111,14 +120,11 @@ class UniDetect:
 
         for error_type in error_types:
             if error_type is ErrorType.UNIQUENESS:
-                assert columns_df is not None  # guaranteed by needs_columns above
-                stats = builder.build_uniqueness_stats(columns_df, token_map)
+                stats = builder.build_uniqueness_stats(_require_columns(columns_df), token_map)
             elif error_type is ErrorType.NUMERIC_OUTLIER:
-                assert columns_df is not None  # guaranteed by needs_columns above
-                stats = builder.build_outlier_stats(columns_df)
+                stats = builder.build_outlier_stats(_require_columns(columns_df))
             elif error_type is ErrorType.SPELLING:
-                assert columns_df is not None  # guaranteed by needs_columns above
-                stats = builder.build_spelling_stats(columns_df)
+                stats = builder.build_spelling_stats(_require_columns(columns_df))
             elif error_type is ErrorType.FUNCTIONAL_DEPENDENCY:
                 pairs_df = ingestor.ingest_column_pairs(table_names)
                 stats = builder.build_fd_stats(pairs_df, token_map)

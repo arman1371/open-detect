@@ -73,7 +73,9 @@ class NumericOutlierDetector(BaseDetector):
                             "feature_bucket": bucket.as_key(),
                             "theta_before": outcome.theta_before,
                             "theta_after": outcome.theta_after,
-                            "evidence_json": make_evidence_json(outcome.evidence),
+                            "evidence_json": make_evidence_json(
+                                outcome.evidence, cfg.redact_evidence
+                            ),
                         }
                     )
                 tracker.flush(counts)

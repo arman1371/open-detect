@@ -16,23 +16,37 @@ Two registration paths feed the same registry:
    group becomes available through :func:`get_algorithm` /
    :func:`list_algorithms` with no code changes here -- this is the extension
    point for "add more algorithms later" without editing this library.
+
+   Plugins are loaded eagerly during discovery so a broken or non-conforming
+   plugin is logged at WARNING and skipped rather than crashing a later
+   lookup. Discovery only runs when a name is not already registered (or when
+   listing), so resolving a built-in never imports third-party code.
+
+All registry mutation and the discovery once-flag are guarded by a re-entrant
+lock, so concurrent first lookups from several threads are safe.
 """
 
 from __future__ import annotations
 
+import threading
 from collections.abc import Callable
 from importlib import metadata
 from typing import TYPE_CHECKING
 
 from open_detect.exceptions import UnknownAlgorithmError
+from open_detect.logging_utils import get_logger
 
 if TYPE_CHECKING:
     from open_detect.algorithms.base import ErrorDetectionAlgorithm
+
+logger = get_logger(__name__)
 
 _ENTRY_POINT_GROUP = "open_detect.algorithms"
 
 _registry: dict[str, Callable[[], type[ErrorDetectionAlgorithm]]] = {}
 _entry_points_loaded = False
+# Re-entrant: a plugin imported during discovery may itself call register_algorithm().
+_lock = threading.RLock()
 
 
 def register_lazy(name: str, factory: Callable[[], type[ErrorDetectionAlgorithm]]) -> None:
@@ -41,7 +55,8 @@ def register_lazy(name: str, factory: Callable[[], type[ErrorDetectionAlgorithm]
     Re-registering an existing name overwrites it -- useful for tests and for
     a downstream project intentionally swapping out a built-in algorithm.
     """
-    _registry[name] = factory
+    with _lock:
+        _registry[name] = factory
 
 
 def register_algorithm(
@@ -60,31 +75,62 @@ def register_algorithm(
     return decorator
 
 
+def _constant_factory(
+    cls: type[ErrorDetectionAlgorithm],
+) -> Callable[[], type[ErrorDetectionAlgorithm]]:
+    return lambda: cls
+
+
 def _load_entry_points() -> None:
     global _entry_points_loaded
-    if _entry_points_loaded:
-        return
-    _entry_points_loaded = True
-    try:
-        eps = metadata.entry_points(group=_ENTRY_POINT_GROUP)
-    except Exception:  # pragma: no cover - defensive against malformed metadata
-        return
-    for ep in eps:
-        if ep.name in _registry:
-            continue  # a built-in (or an earlier plugin) already claimed this name
-        register_lazy(ep.name, ep.load)
+    from open_detect.algorithms.base import ErrorDetectionAlgorithm
+
+    with _lock:
+        if _entry_points_loaded:
+            return
+        _entry_points_loaded = True
+        try:
+            eps = metadata.entry_points(group=_ENTRY_POINT_GROUP)
+        except Exception:  # pragma: no cover - defensive against malformed metadata
+            logger.warning("Could not read %r entry points", _ENTRY_POINT_GROUP, exc_info=True)
+            return
+        for ep in eps:
+            if ep.name in _registry:
+                continue  # a built-in (or an earlier plugin) already claimed this name
+            try:
+                cls = ep.load()
+            except Exception:
+                logger.warning(
+                    "Skipping algorithm plugin %r (%s): failed to load",
+                    ep.name,
+                    ep.value,
+                    exc_info=True,
+                )
+                continue
+            if not (isinstance(cls, type) and issubclass(cls, ErrorDetectionAlgorithm)):
+                logger.warning(
+                    "Skipping algorithm plugin %r (%s): %r is not a subclass of "
+                    "ErrorDetectionAlgorithm",
+                    ep.name,
+                    ep.value,
+                    cls,
+                )
+                continue
+            register_lazy(ep.name, _constant_factory(cls))
 
 
 def get_algorithm_class(name: str) -> type[ErrorDetectionAlgorithm]:
     """Resolve ``name`` to its algorithm class, importing it on first use."""
-    _load_entry_points()
-    try:
-        factory = _registry[name]
-    except KeyError:
-        available = ", ".join(sorted(_registry)) or "<none registered>"
-        raise UnknownAlgorithmError(
-            f"Unknown error-detection algorithm {name!r}. Available: {available}"
-        ) from None
+    with _lock:
+        if name not in _registry:
+            _load_entry_points()
+        try:
+            factory = _registry[name]
+        except KeyError:
+            available = ", ".join(sorted(_registry)) or "<none registered>"
+            raise UnknownAlgorithmError(
+                f"Unknown error-detection algorithm {name!r}. Available: {available}"
+            ) from None
     return factory()
 
 
@@ -96,4 +142,5 @@ def get_algorithm(name: str, *args: object, **kwargs: object) -> ErrorDetectionA
 def list_algorithms() -> list[str]:
     """Every registered algorithm name (built-in and plugin-discovered)."""
     _load_entry_points()
-    return sorted(_registry)
+    with _lock:
+        return sorted(_registry)

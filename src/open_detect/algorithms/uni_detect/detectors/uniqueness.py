@@ -86,7 +86,8 @@ class UniquenessDetector(BaseDetector):
                                         :10
                                     ],
                                     **outcome.evidence,
-                                }
+                                },
+                                cfg.redact_evidence,
                             ),
                         }
                     )

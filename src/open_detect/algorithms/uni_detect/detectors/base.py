@@ -17,9 +17,10 @@ different aggregation.
 
 from __future__ import annotations
 
+import hashlib
 import json
 from abc import ABC, abstractmethod
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, Literal
 
 from open_detect.algorithms.uni_detect.config import UniDetectConfig
 from open_detect.algorithms.uni_detect.corpus.ingestion import CorpusIngestor
@@ -98,8 +99,11 @@ class BaseDetector(ABC):
                     self._failure_tracker.check()
                 if n == 0:
                     logger.info(
-                        "No candidates extracted for %s over %s", self.error_type.value, table_names
+                        "No candidates extracted for %s over %d table(s)",
+                        self.error_type.value,
+                        len(table_names),
                     )
+                    logger.debug("Tables scanned: %s", list(table_names))
                     return self._empty_result()
 
                 scored = self.store.batch_score(candidates, self.error_type, spec.direction)
@@ -135,5 +139,33 @@ class BaseDetector(ABC):
         return self.spark.createDataFrame([], schema=DETECTION_RESULT_SCHEMA)
 
 
-def make_evidence_json(evidence: dict) -> str:
-    return json.dumps(evidence, default=str)
+RedactMode = Literal["none", "hash", "drop"]
+
+#: Evidence keys whose values are raw cell values from the scanned tables.
+RAW_VALUE_EVIDENCE_KEYS = frozenset(
+    {"duplicate_values", "violating_examples", "outlier_value", "pair"}
+)
+
+
+def _hash_value(value: Any) -> Any:
+    if isinstance(value, (list, tuple)):
+        return [_hash_value(v) for v in value]
+    return hashlib.sha256(str(value).encode("utf-8")).hexdigest()[:16]
+
+
+def redact_evidence(evidence: dict[str, Any], mode: RedactMode) -> dict[str, Any]:
+    """Drop or SHA-256-hash the raw cell values in ``evidence`` (other keys are kept).
+
+    Hashes are unsalted so equal values stay comparable across runs; low-entropy
+    values can therefore be recovered by dictionary attack -- use ``"drop"`` when
+    that matters.
+    """
+    if mode == "none":
+        return evidence
+    if mode == "drop":
+        return {k: v for k, v in evidence.items() if k not in RAW_VALUE_EVIDENCE_KEYS}
+    return {k: _hash_value(v) if k in RAW_VALUE_EVIDENCE_KEYS else v for k, v in evidence.items()}
+
+
+def make_evidence_json(evidence: dict, redact: RedactMode = "none") -> str:
+    return json.dumps(redact_evidence(evidence, redact), default=str)

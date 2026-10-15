@@ -29,7 +29,7 @@ from itertools import combinations
 from rapidfuzz.distance import Levenshtein
 
 from open_detect.algorithms.uni_detect.metrics.base import drop_nulls, require_min_size
-from open_detect.exceptions import ValidationError
+from open_detect.exceptions import InsufficientDataError, ValidationError
 
 
 @dataclass(frozen=True, slots=True)
@@ -105,7 +105,8 @@ def _search_mpd(values: Sequence[object], max_block_size: int) -> tuple[MPDResul
 
     if len(distinct) <= max_block_size:
         best = _closest_pair(distinct, range(len(distinct)), None)
-        assert best is not None  # >= 2 distinct values guarantees at least one pair
+        if best is None:  # unreachable: >= 2 distinct values guarantees at least one pair
+            raise InsufficientDataError("min_pairwise_edit_distance found no comparable value pair")
         return _result(best), len(distinct)
 
     blocks: dict[tuple[str, str, int], list[int]] = defaultdict(list)
