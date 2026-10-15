@@ -18,7 +18,7 @@ from open_detect.algorithms.uni_detect.config import UniDetectConfig, UnityCatal
 from open_detect.algorithms.uni_detect.pipeline import UniDetect
 from open_detect.algorithms.uni_detect.spark_utils import get_spark
 from open_detect.core.enums import ErrorType
-from open_detect.logging_utils import get_logger
+from open_detect.logging_utils import configure_logging, get_logger
 
 logger = get_logger(__name__)
 
@@ -55,6 +55,12 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         "epsilon/bucket configuration than the one used for detection",
     )
     parser.add_argument(
+        "--redact-evidence",
+        choices=["none", "hash", "drop"],
+        default="none",
+        help="Hash or drop raw cell values stored in each detection's evidence_json",
+    )
+    parser.add_argument(
         "--top-k", type=int, default=None, help="Only keep the top-K most surprising results"
     )
     parser.add_argument(
@@ -66,6 +72,7 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
 
 
 def main(argv: list[str] | None = None) -> None:
+    configure_logging()
     args = parse_args(argv)
     spark = get_spark()
 
@@ -77,6 +84,7 @@ def main(argv: list[str] | None = None) -> None:
         epsilon=args.epsilon,
         alpha=args.alpha,
         allow_corpus_config_mismatch=args.allow_config_mismatch,
+        redact_evidence=args.redact_evidence,
     )
     ud = UniDetect(config, spark=spark)
     detections = ud.detect(target_tables, error_types=error_types)

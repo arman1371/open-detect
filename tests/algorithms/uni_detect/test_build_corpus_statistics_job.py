@@ -132,3 +132,15 @@ class TestMain:
                 main(["--catalog", "main", "--schema", "s", "--corpus-catalog", "main"])
             assert exc_info.value.code == 1
             assert isinstance(exc_info.value.__cause__, InsufficientDataError)
+
+
+def test_main_installs_logging():
+    with (
+        patch("open_detect.algorithms.uni_detect.jobs.build_corpus_statistics.get_spark"),
+        patch("open_detect.algorithms.uni_detect.jobs.build_corpus_statistics.UniDetect"),
+        patch(
+            "open_detect.algorithms.uni_detect.jobs.build_corpus_statistics.configure_logging"
+        ) as mock_configure,
+    ):
+        main(["--catalog", "main", "--schema", "s", "--corpus-tables", "a"])
+    mock_configure.assert_called_once_with()

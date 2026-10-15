@@ -16,8 +16,11 @@ uniformly regardless of how each algorithm computes them. Each algorithm's
 
 from __future__ import annotations
 
+import copy
 from abc import ABC, abstractmethod
+from collections.abc import Mapping
 from dataclasses import dataclass, field
+from types import MappingProxyType
 from typing import TYPE_CHECKING, Any, ClassVar
 
 if TYPE_CHECKING:
@@ -44,6 +47,10 @@ class CellResult:
     probability in ``[0, 1]``) -- it is meant for *within-algorithm* ranking,
     not for comparing raw scores across algorithms. ``is_error`` is the
     normalized, comparable signal.
+
+    ``evidence`` is deep-copied on construction and exposed as a read-only
+    mapping, so results built from one shared dict cannot affect each other
+    and callers cannot mutate a "frozen" result through it.
     """
 
     table_id: str
@@ -52,7 +59,25 @@ class CellResult:
     algorithm: str
     is_error: bool
     score: float
-    evidence: dict[str, Any] = field(default_factory=dict)
+    evidence: Mapping[str, Any] = field(default_factory=dict)
+
+    def __post_init__(self) -> None:
+        object.__setattr__(self, "evidence", MappingProxyType(copy.deepcopy(dict(self.evidence))))
+
+    def __reduce__(self) -> tuple[Any, ...]:
+        # ``mappingproxy`` is not picklable; rebuild from a plain dict instead.
+        return (
+            CellResult,
+            (
+                self.table_id,
+                self.row_index,
+                self.column_name,
+                self.algorithm,
+                self.is_error,
+                self.score,
+                dict(self.evidence),
+            ),
+        )
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -62,7 +87,7 @@ class CellResult:
             "algorithm": self.algorithm,
             "is_error": self.is_error,
             "score": self.score,
-            "evidence": self.evidence,
+            "evidence": copy.deepcopy(dict(self.evidence)),
         }
 
 

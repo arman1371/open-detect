@@ -191,3 +191,37 @@ class TestEpsilonAndMismatchFlags:
             config = mock_pipeline_cls.call_args.args[0]
             assert config.epsilon == 0.2
             assert config.allow_corpus_config_mismatch is True
+
+
+class TestMainConfiguresLogging:
+    def test_main_installs_logging_and_wires_redact_evidence(self):
+        with (
+            patch("open_detect.algorithms.uni_detect.jobs.run_detection.get_spark"),
+            patch(
+                "open_detect.algorithms.uni_detect.jobs.run_detection.UniDetect"
+            ) as mock_pipeline_cls,
+            patch(
+                "open_detect.algorithms.uni_detect.jobs.run_detection.configure_logging"
+            ) as mock_configure,
+        ):
+            detections = MagicMock()
+            detections.where.return_value.count.return_value = 0
+            mock_pipeline_cls.return_value.detect.return_value = detections
+            main(
+                [
+                    "--catalog",
+                    "main",
+                    "--schema",
+                    "s",
+                    "--target-tables",
+                    "main.s.t",
+                    "--redact-evidence",
+                    "hash",
+                ]
+            )
+        mock_configure.assert_called_once_with()
+        assert mock_pipeline_cls.call_args.args[0].redact_evidence == "hash"
+
+    def test_redact_evidence_defaults_to_none(self):
+        args = parse_args(["--catalog", "main", "--schema", "s", "--target-tables", "t"])
+        assert args.redact_evidence == "none"

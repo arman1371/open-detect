@@ -25,7 +25,7 @@ from open_detect.algorithms.uni_detect.pipeline import UniDetect
 from open_detect.algorithms.uni_detect.spark_utils import get_spark
 from open_detect.core.enums import ErrorType
 from open_detect.exceptions import ConfigurationError, InsufficientDataError
-from open_detect.logging_utils import get_logger
+from open_detect.logging_utils import configure_logging, get_logger
 
 logger = get_logger(__name__)
 
@@ -62,6 +62,7 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
 
 def main(argv: list[str] | None = None) -> None:
     """Run the job; the single place where job-level errors become a process exit code."""
+    configure_logging()
     try:
         _run(argv)
     except (ConfigurationError, InsufficientDataError) as exc:

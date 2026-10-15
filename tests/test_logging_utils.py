@@ -42,3 +42,41 @@ class TestLogDuration:
             raise ValueError("boom")
         messages = [r.getMessage() for r in caplog.records]
         assert any("failing_action: failed" in m for m in messages)
+
+
+class TestConfigureLogging:
+    def test_configure_logging_calls_basic_config(self, monkeypatch):
+        from open_detect import logging_utils
+
+        calls = []
+        monkeypatch.setattr(logging, "basicConfig", lambda **kw: calls.append(kw))
+        logging_utils.configure_logging()
+        assert calls == [{"level": logging.INFO, "format": logging_utils.LOG_FORMAT}]
+
+    def test_importing_library_modules_does_not_configure_logging(self):
+        import subprocess
+        import sys
+
+        code = (
+            "import logging, open_detect, open_detect.algorithms, "
+            "open_detect.algorithms.uni_detect.pipeline, "
+            "open_detect.algorithms.uni_detect.jobs.run_detection, "
+            "open_detect.algorithms.uni_detect.jobs.build_corpus_statistics\n"
+            "root = logging.getLogger()\n"
+            "assert root.handlers == [], root.handlers\n"
+            "assert root.level == logging.WARNING, root.level\n"
+        )
+        subprocess.run([sys.executable, "-c", code], check=True)
+
+    def test_library_sources_never_call_basic_config(self):
+        from pathlib import Path
+
+        import open_detect
+
+        pkg = Path(open_detect.__file__).parent
+        offenders = [
+            str(p)
+            for p in pkg.rglob("*.py")
+            if p.name != "logging_utils.py" and "basicConfig" in p.read_text()
+        ]
+        assert offenders == []
