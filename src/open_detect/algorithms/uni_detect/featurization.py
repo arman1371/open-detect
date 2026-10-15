@@ -26,6 +26,8 @@ def bucket_by_edges(value: float, edges: Sequence[int]) -> str:
     ``(50,100]``, ``(100,inf)`` -- matching the bucket notation used
     throughout the paper, e.g. ``{(0-20],(20-50],...,(1000-inf)}``.
     """
+    if not edges:
+        return "(-inf,inf)"
     lower: int | float = float("-inf")
     for edge in edges:
         if value <= edge:

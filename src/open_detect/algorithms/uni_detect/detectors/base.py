@@ -24,6 +24,7 @@ from typing import TYPE_CHECKING
 from open_detect.algorithms.uni_detect.config import UniDetectConfig
 from open_detect.algorithms.uni_detect.corpus.ingestion import CorpusIngestor
 from open_detect.algorithms.uni_detect.corpus.store import CorpusStatsStore
+from open_detect.algorithms.uni_detect.failures import FailureTracker
 from open_detect.algorithms.uni_detect.strategies import get_spec
 from open_detect.core.enums import ErrorType
 from open_detect.logging_utils import get_logger, log_duration
@@ -57,6 +58,7 @@ class BaseDetector(ABC):
         self.spark = spark
         self.config = config
         self.store = CorpusStatsStore(spark, config)
+        self._failure_tracker: FailureTracker | None = None
         self.ingestor = CorpusIngestor(
             spark,
             max_values_per_column=config.max_mpd_block_size * 200,
@@ -66,6 +68,15 @@ class BaseDetector(ABC):
     @abstractmethod
     def extract_candidates(self, table_names: Sequence[str]) -> DataFrame:
         """Return a DataFrame with the columns in :data:`CANDIDATE_COLUMNS`."""
+
+    def _new_failure_tracker(self) -> FailureTracker:
+        """Create the accumulator-backed tracker an ``extract_candidates`` run reports into."""
+        self._failure_tracker = FailureTracker(
+            self.spark.sparkContext,
+            f"extract_candidates[{self.error_type.value}]",
+            self.config.max_failure_ratio,
+        )
+        return self._failure_tracker
 
     def detect(self, table_names: Sequence[str]) -> DataFrame:
         """Run the full Definition-4 pipeline for ``table_names`` and rank results.
@@ -83,6 +94,8 @@ class BaseDetector(ABC):
             candidates.cache()
             try:
                 n = candidates.count()
+                if self._failure_tracker is not None:
+                    self._failure_tracker.check()
                 if n == 0:
                     logger.info(
                         "No candidates extracted for %s over %s", self.error_type.value, table_names

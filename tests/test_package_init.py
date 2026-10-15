@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from importlib.metadata import version
+
 import pytest
 
 import open_detect
@@ -23,3 +25,9 @@ def test_lazy_import_resolves_algorithm_registry_functions():
 def test_lazy_import_raises_for_unknown_attribute():
     with pytest.raises(AttributeError, match="unknown_attribute"):
         _ = open_detect.unknown_attribute
+
+
+def test_version_matches_installed_package_metadata():
+    assert isinstance(open_detect.__version__, str)
+    assert open_detect.__version__
+    assert open_detect.__version__ == version("open-detect")
