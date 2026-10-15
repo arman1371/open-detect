@@ -110,3 +110,55 @@ class TestCheckDrift:
         r2 = check_drift(train, test, pattern, significance=0.05)
         assert r1.p_value == r2.p_value
         assert r1.drifted == r2.drifted
+
+
+class TestCheckDriftVerticalCutPatterns:
+    """BUG-9: conformance must be checked against every segment of the list."""
+
+    def test_later_segment_mismatch_is_drift(self):
+        """First segment matches everywhere; only the second segment drifts."""
+        train = pd.Series(["10:00:00"] * 100)
+        test = pd.Series(["10:00:00"] * 50 + ["10:00:ab"] * 50)
+        pattern = InferredPattern(
+            pattern=["<num>:<num>", ":<num>"], fpr_t=0.0, cov_t=1, theta_c=0.0, variant="fmdv_v"
+        )
+        result = check_drift(train, test, pattern, significance=0.01)
+        assert result.theta_train == pytest.approx(0.0)
+        assert result.theta_test == pytest.approx(0.5)
+        assert result.drifted is True
+
+    def test_all_segments_match_not_drift(self):
+        train = pd.Series(["10:00:00"] * 50 + ["11:30:45"] * 50)
+        test = pd.Series(["10:00:00"] * 50 + ["11:30:45"] * 50)
+        pattern = InferredPattern(
+            pattern=["<num>:<num>", ":<num>"], fpr_t=0.0, cov_t=1, theta_c=0.0, variant="fmdv_v"
+        )
+        result = check_drift(train, test, pattern, significance=0.01)
+        assert result.theta_train == pytest.approx(0.0)
+        assert result.theta_test == pytest.approx(0.0)
+        assert result.drifted is False
+
+    def test_extra_or_missing_tokens_do_not_conform(self):
+        """Slices must consume the whole value; short values do not conform either."""
+        train = pd.Series(["10:00:00"] * 100)
+        test = pd.Series(["10:00:00"] * 50 + ["10:00:00:00"] * 25 + ["10:00"] * 25)
+        pattern = InferredPattern(
+            pattern=["<num>:<num>", ":<num>"], fpr_t=0.0, cov_t=1, theta_c=0.0, variant="fmdv_v"
+        )
+        result = check_drift(train, test, pattern, significance=0.01)
+        assert result.theta_test == pytest.approx(0.5)
+        assert result.drifted is True
+
+    def test_single_element_list_equals_plain_string(self):
+        train = pd.Series(["10:00:00"] * 100)
+        test = pd.Series(["10:00:00"] * 50 + ["N/A"] * 50)
+        as_str = check_drift(train, test, _make_pattern(), significance=0.01)
+        as_list = check_drift(
+            train,
+            test,
+            InferredPattern(
+                pattern=["<num>:<num>:<num>"], fpr_t=0.0, cov_t=1, theta_c=0.0, variant="fmdv_v"
+            ),
+            significance=0.01,
+        )
+        assert as_list == as_str
