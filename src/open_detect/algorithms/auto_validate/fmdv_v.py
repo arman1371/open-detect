@@ -22,10 +22,11 @@ fall in the same group.
 - **Our approach**: group values by coarse signature.  Within each group,
   all values already share the same class sequence, so positional
   alignment is exact — no gaps are needed.  We run DP separately on each
-  group and return the best segment pattern from each group.  Values whose
-  coarse signature is unique (appears only once) are treated as a single
-  segment group.  When no group admits a feasible FMDV pattern, the
-  function returns ``None``.
+  group and return only the best group's segmentation (by FPR, then
+  coverage); values from the other signature groups are reported as
+  non-conforming.  Values whose coarse signature is unique (appears only
+  once) are treated as a single segment group.  When no group admits a
+  feasible FMDV pattern, the function returns ``None``.
 
 This is exact when all values share one coarse signature (the typical case
 for homogeneous machine-generated data, per the paper's own assumption)
@@ -51,29 +52,7 @@ def fmdv_v(
     config: AutoValidateConfig | None = None,
 ) -> InferredPattern | None:
     """Eqn 8-11: vertical cuts via DP on coarse-aligned token segments."""
-    config = config or AutoValidateConfig()
-    clean = _clean(values)
-    if not clean:
-        return None
-
-    # Group by coarse token signature.
-    sig_to_idx: dict[tuple[str, ...], list[int]] = {}
-    for i, v in enumerate(clean):
-        sig = _coarse_signature(v)
-        sig_to_idx.setdefault(sig, []).append(i)
-
-    best_overall: InferredPattern | None = None
-    for indices in sig_to_idx.values():
-        group = [clean[i] for i in indices]
-        if len(group) == 0:
-            continue
-        seg = _segment_fmdv_v(group, index, config)
-        if seg is None:
-            continue
-        if best_overall is None or _infer_cmp(seg, best_overall) < 0:
-            best_overall = seg
-
-    return best_overall
+    return _best_group_segmentation(values, index, config, _segment_fmdv_v)
 
 
 def fmdv_vh(
@@ -83,49 +62,37 @@ def fmdv_vh(
 ) -> InferredPattern | None:
     """FMDV-VH: horizontal cut first (theta), then vertical cuts.
 
-    We apply FMDV-H tolerance to *each* vertical segment separately.  Values
-    are partitioned by coarse signature, and within each segment group we
-    run the horizontal-tolerant DP (:func:`_segment_fmdv_vh`).  The result
-    aggregates per-segment patterns.
+    Values are partitioned by coarse signature; within each group we run the
+    horizontal-tolerant DP (:func:`_segment_fmdv_vh`).  As in :func:`fmdv_v`,
+    only the best group's segmentation is returned; values from other
+    signature groups are reported as non-conforming.
     """
+    return _best_group_segmentation(values, index, config, _segment_fmdv_vh)
+
+
+def _best_group_segmentation(
+    values: pd.Series,
+    index: PatternIndex,
+    config: AutoValidateConfig | None,
+    segment_fn: Callable[[list[str], PatternIndex, AutoValidateConfig], InferredPattern | None],
+) -> InferredPattern | None:
     config = config or AutoValidateConfig()
     clean = _clean(values)
     if not clean:
         return None
 
-    sig_to_idx: dict[tuple[str, ...], list[int]] = {}
-    for i, v in enumerate(clean):
-        sig = _coarse_signature(v)
-        sig_to_idx.setdefault(sig, []).append(i)
+    groups: dict[tuple[str, ...], list[str]] = {}
+    for v in clean:
+        groups.setdefault(_coarse_signature(v), []).append(v)
 
-    all_patterns: list[InferredPattern] = []
-    total_fpr = 0.0
-    total_cov = 0
-    total_theta_c_num = 0.0
-    total_theta_c_den = 0.0
-
-    for indices in sig_to_idx.values():
-        group = [clean[i] for i in indices]
-        seg = _segment_fmdv_vh(group, index, config)
+    best: InferredPattern | None = None
+    for group in groups.values():
+        seg = segment_fn(group, index, config)
         if seg is None:
             continue
-        all_patterns.append(seg)
-        total_fpr += seg.fpr_t
-        total_cov += seg.cov_t
-        total_theta_c_num += seg.theta_c * seg.cov_t  # proportional contribution
-        total_theta_c_den += seg.cov_t
-
-    if not all_patterns:
-        return None
-    theta_c = total_theta_c_num / total_theta_c_den if total_theta_c_den else 0.0
-    patterns = [s.pattern for s in all_patterns]
-    return InferredPattern(
-        pattern=patterns[0] if len(patterns) == 1 else patterns,  # type: ignore[arg-type]
-        fpr_t=min(1.0, total_fpr),
-        cov_t=total_cov,
-        theta_c=theta_c,
-        variant="fmdv_vh",
-    )
+        if best is None or _infer_cmp(seg, best) < 0:
+            best = seg
+    return best
 
 
 def _coarse_signature(value: str) -> tuple[str, ...]:

@@ -17,11 +17,13 @@ from open_detect.algorithms.auto_validate.config import AutoValidateConfig
 from open_detect.algorithms.auto_validate.fmdv import InferredPattern, min_conforming
 from open_detect.algorithms.auto_validate.fmdv_v import (
     _coarse_signature,
+    _fmdv_h_single,
     _fmdv_single_segment,
     _segment_dp,
     fmdv_v,
     fmdv_vh,
 )
+from open_detect.algorithms.auto_validate.hierarchy import matches_segments
 from open_detect.algorithms.auto_validate.index import build_pattern_index
 
 
@@ -151,6 +153,60 @@ def _date_values(n: int) -> list[str]:
 
 def _date_index(cfg: AutoValidateConfig) -> PatternIndex:
     return build_pattern_index([_date_values(40), _date_values(30)], cfg)
+
+
+class TestFmdvVhMixedSignatures:
+    """fmdv_vh returns a single group's segmentation, mirroring fmdv_v."""
+
+    CORPUS = [["2024-01-15", "2024-02-20"], ["Jan 5", "Feb 10", "Mar 3"]]
+    COLUMN = ["2024-01-15", "Jan 5", "2024-02-20", "Feb 10"]
+
+    def _run(self, fn):
+        config = AutoValidateConfig(m=1, tau=16)
+        index = _build_index(self.CORPUS, config)
+        return fn(pd.Series(self.COLUMN), index, config)
+
+    def test_returns_one_group_segmentation(self):
+        result = self._run(fmdv_vh)
+        assert result is not None
+        assert result.variant == "fmdv_vh"
+        patterns = [result.pattern] if isinstance(result.pattern, str) else result.pattern
+        tiled = [v for v in self.COLUMN if matches_segments(patterns, v)]
+        assert len(tiled) == 2
+
+    def test_stats_equal_chosen_group_not_summed(self):
+        config = AutoValidateConfig(m=1, tau=16)
+        index = _build_index(self.CORPUS, config)
+        result = fmdv_vh(pd.Series(self.COLUMN), index, config)
+        per_group = [
+            _segment_dp(g, index, config, "fmdv_vh", _fmdv_h_single)
+            for g in (["2024-01-15", "2024-02-20"], ["Jan 5", "Feb 10"])
+        ]
+        feasible = [g for g in per_group if g is not None]
+        assert result in feasible
+
+    def test_deterministic(self):
+        first = self._run(fmdv_vh)
+        second = self._run(fmdv_vh)
+        assert first == second
+
+    def test_matches_fmdv_v_selection_shape(self):
+        v = self._run(fmdv_v)
+        vh = self._run(fmdv_vh)
+        assert v is not None
+        assert vh is not None
+        assert v.pattern == vh.pattern
+        assert (v.fpr_t, v.cov_t) == (vh.fpr_t, vh.cov_t)
+
+    def test_no_feasible_group_returns_none(self):
+        config = AutoValidateConfig(m=100, tau=16)
+        index = _build_index(self.CORPUS, config)
+        assert fmdv_vh(pd.Series(self.COLUMN), index, config) is None
+
+    def test_empty_column_returns_none(self):
+        config = AutoValidateConfig(m=1, tau=16)
+        index = _build_index(self.CORPUS, config)
+        assert fmdv_vh(pd.Series([], dtype=object), index, config) is None
 
 
 class TestLargeGroups:

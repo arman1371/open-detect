@@ -33,7 +33,7 @@ from open_detect.algorithms.auto_validate.config import AutoValidateConfig
 from open_detect.algorithms.auto_validate.exceptions import IndexNotBuiltError
 from open_detect.algorithms.auto_validate.fmdv import InferredPattern, fmdv, fmdv_h
 from open_detect.algorithms.auto_validate.fmdv_v import fmdv_v, fmdv_vh
-from open_detect.algorithms.auto_validate.hierarchy import matches
+from open_detect.algorithms.auto_validate.hierarchy import matches_segments
 from open_detect.algorithms.auto_validate.index import PatternIndex, build_pattern_index
 from open_detect.algorithms.base import AlgorithmResult, CellResult, ErrorDetectionAlgorithm
 
@@ -172,19 +172,18 @@ def _value_matches(pattern: str | Sequence[str], value: Any) -> bool:
     """Whether ``value`` matches ``pattern`` (nulls return False).
 
     ``pattern`` is the inferred validation pattern: a single string for the
-    single-pattern FMDV variants, or a disjunction of one pattern per coarse
-    signature group for ``fmdv_v``/``fmdv_vh``.  A value is valid if it matches
-    **any** of them -- the groups are a partition of the column, so each value
-    belongs to exactly one group and must satisfy that group's pattern.
+    single-pattern FMDV variants, or one pattern per vertical segment for
+    ``fmdv_v``/``fmdv_vh``.  A segment list is segment-aligned: the value's
+    tokens are split left to right, every slice must match its segment's
+    pattern, and the slices must consume all tokens (see
+    :func:`~open_detect.algorithms.auto_validate.hierarchy.matches_segments`).
     """
     if _is_null(value):
         return False
     text = value if isinstance(value, str) else str(value)
     if not text:
         return False
-    if isinstance(pattern, str):
-        return matches(pattern, text)
-    return any(matches(p, text) for p in pattern)
+    return matches_segments((pattern,) if isinstance(pattern, str) else pattern, text)
 
 
 def _non_null_cells(

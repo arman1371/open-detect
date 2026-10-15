@@ -7,7 +7,7 @@ import pytest
 
 from open_detect.algorithms import get_algorithm, get_algorithm_class, list_algorithms
 from open_detect.algorithms.auto_validate.config import AutoValidateConfig
-from open_detect.algorithms.auto_validate.detector import AutoValidateAlgorithm
+from open_detect.algorithms.auto_validate.detector import AutoValidateAlgorithm, _value_matches
 from open_detect.algorithms.auto_validate.exceptions import IndexNotBuiltError
 from open_detect.algorithms.auto_validate.fmdv import InferredPattern
 from open_detect.algorithms.auto_validate.index import PatternIndex
@@ -221,33 +221,6 @@ class TestAutoValidateDetector:
         assert result.fpr_t >= 0.0
         assert result.cov_t >= 1
 
-    def test_multi_group_pattern_is_a_disjunction(self):
-        """fmdv_v/vh infer one pattern per coarse-signature group; a value is
-        valid if it matches *any* of them, not just the first.
-
-        A column mixing two token-class signatures (e.g. ``2024-01-15`` and
-        ``Jan 5``) used to flag every value from the second group as an error
-        because only ``inferred.pattern[0]`` was consulted.  With the fix, all
-        values match their own group's pattern and are left unflagged.
-        """
-        config = AutoValidateConfig(m=1, tau=16)
-        corpus = [
-            pd.Series(["2024-01-15", "2024-02-20", "2024-03-10"]),
-            pd.Series(["Jan 5", "Feb 10", "Mar 3"]),
-        ]
-        detector = AutoValidateAlgorithm(config)
-        detector.build_index(corpus)
-
-        col = pd.Series(["2024-01-15", "Jan 5", "2024-02-20", "Feb 10"])
-        inferred = detector.infer_pattern(col)
-        assert isinstance(inferred.pattern, list)
-        assert len(inferred.pattern) >= 2
-
-        result = detector.detect(pd.DataFrame({"mixed": col}), table_id="t1")
-        assert len(result.cells) == 4
-        assert all(not cell.is_error for cell in result.cells)
-        assert all(isinstance(cell.evidence["pattern"], list) for cell in result.cells)
-
     def test_infer_pattern_returns_none_when_infeasible(self):
         detector = AutoValidateAlgorithm(AutoValidateConfig(m=100, tau=16))
         corpus = [pd.Series(["a", "b"])]
@@ -255,3 +228,71 @@ class TestAutoValidateDetector:
         # m=100 far exceeds the tiny corpus — no pattern can satisfy it.
         result = detector.infer_pattern(pd.Series(["x", "y"]))
         assert result is None
+
+
+class TestMixedSignatureColumn:
+    """fmdv_vh keeps one signature group's segmentation; other groups are flagged."""
+
+    def test_only_cells_outside_best_group_are_flagged(self):
+        detector = AutoValidateAlgorithm(AutoValidateConfig(m=1, tau=16))
+        detector.build_index(
+            [pd.Series(["2024-01-15", "2024-02-20"]), pd.Series(["Jan 5", "Feb 10", "Mar 3"])]
+        )
+        column = pd.Series(["2024-01-15", "Jan 5", "2024-02-20", "Feb 10"])
+
+        inferred = detector.infer_pattern(column)
+        assert inferred is not None
+        assert inferred.variant == "fmdv_vh"
+
+        result = detector.detect(pd.DataFrame({"c": column}))
+        flagged = [c.row_index for c in result.cells if c.is_error]
+        assert len(result.cells) == 4
+        assert len(flagged) == 2
+        assert flagged in ([0, 2], [1, 3])
+
+
+class TestValueMatchesSegmentAligned:
+    """A vertical-cut pattern list is segment-aligned, not "any pattern matches"."""
+
+    SEGMENTS = ["<num>:<num>", ":<num>"]
+
+    def test_all_segments_match(self):
+        assert _value_matches(self.SEGMENTS, "10:00:00")
+        assert _value_matches(self.SEGMENTS, "9:07:45")
+
+    def test_later_segment_mismatch_does_not_match(self):
+        """The first segment matches ``10:00``; the second rejects ``:ab``."""
+        assert not _value_matches(self.SEGMENTS, "10:00:ab")
+
+    def test_only_first_segment_matching_is_not_enough(self):
+        assert not _value_matches(self.SEGMENTS, "10:00")
+
+    def test_extra_tokens_do_not_match(self):
+        assert not _value_matches(self.SEGMENTS, "10:00:00:00")
+
+    def test_missing_tokens_do_not_match(self):
+        assert not _value_matches(self.SEGMENTS, "10")
+        assert not _value_matches(self.SEGMENTS, "10:00")
+
+    def test_segments_are_not_a_disjunction(self):
+        """A value satisfying just one segment pattern used to pass (``any``)."""
+        assert not _value_matches(["<num>:<num>", ":<num>"], "10:00")
+        assert not _value_matches(["<num>:<num>", ":<num>"], ":00")
+
+    def test_single_element_list_equals_plain_string(self):
+        for value in ("10:00:00", "10:00:ab", "10:00", "N/A"):
+            assert _value_matches(["<num>:<num>:<num>"], value) == _value_matches(
+                "<num>:<num>:<num>", value
+            )
+
+    def test_plain_string_unchanged(self):
+        assert _value_matches("<num>:<num>:<num>", "10:00:00")
+        assert not _value_matches("<num>:<num>:<num>", "10:00:ab")
+
+    def test_nulls_and_blanks_never_match(self):
+        assert not _value_matches(self.SEGMENTS, None)
+        assert not _value_matches(self.SEGMENTS, float("nan"))
+        assert not _value_matches("<num>", "")
+
+    def test_non_string_value_is_stringified(self):
+        assert _value_matches("<num>", 42)
