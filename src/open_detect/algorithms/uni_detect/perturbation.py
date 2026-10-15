@@ -23,7 +23,6 @@ from open_detect.algorithms.uni_detect.metrics.outliers import finite_floats, ma
 from open_detect.algorithms.uni_detect.metrics.spelling import (
     differing_token_lengths,
     min_pairwise_edit_distance,
-    try_min_pairwise_edit_distance,
 )
 from open_detect.algorithms.uni_detect.metrics.uniqueness import (
     duplicate_value_indices,
@@ -105,11 +104,16 @@ def perturb_spelling(
     clean = [str(v) for v in values if v is not None]
     dropped = tuple(i for i, v in enumerate(clean) if v == mpd_before.value_u)
     remaining = [v for v in clean if v != mpd_before.value_u]
-    mpd_after = _UNDEFINED_AFTER_HIGH
+    mpd_after: float
     if len(set(remaining)) >= 2:
-        after = try_min_pairwise_edit_distance(remaining, max_block_size=max_block_size)
-        if after is not None:
-            mpd_after = float(after.mpd)
+        try:
+            mpd_after = float(
+                min_pairwise_edit_distance(remaining, max_block_size=max_block_size).mpd
+            )
+        except ValueError:
+            mpd_after = _UNDEFINED_AFTER_HIGH
+    else:
+        mpd_after = _UNDEFINED_AFTER_HIGH
 
     token_lengths = differing_token_lengths(mpd_before.value_u, mpd_before.value_v)
     avg_token_length = sum(token_lengths) / len(token_lengths)
