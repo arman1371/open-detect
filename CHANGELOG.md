@@ -2,6 +2,19 @@
 
 <!-- version list -->
 
+## v0.2.5 (2026-10-15)
+
+### Bug Fixes
+
+- **uni-detect**: Spelling MPD dedupe, numeric non-finite handling, MPD blocking (OPE-71)
+  ([#30](https://github.com/arman1371/open-detect/pull/30),
+  [`1862498`](https://github.com/arman1371/open-detect/commit/1862498fb9ebdfd0ad43ac324bca1cb05ca49449))
+
+---
+
+**Full Changelog**: [v0.2.4...v0.2.5](https://github.com/arman1371/open-detect/compare/v0.2.4...v0.2.5)
+
+
 ## v0.2.4 (2026-10-15)
 
 ### Bug Fixes
