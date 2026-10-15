@@ -90,7 +90,7 @@ up rather than recomputing them. This codebase keeps that split explicit:
   conditional aggregation — a single Spark job scores an entire batch of
   target columns at once.
 
-This is also why rebuilding statistics for one `error_type` is cheap and
+This is also why rebuilding statistics for one `ErrorType` is cheap and
 independent of the others: `CorpusStatsBuilder.write` uses Delta's
 `replaceWhere` to overwrite only the partitions for the error types being
 rebuilt.

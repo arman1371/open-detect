@@ -100,6 +100,8 @@ that specific cell) for explainability, in the same spirit as Uni-Detect's
 
 2. **Knowledge-base violation detection is omitted** (Section 9 above).
 
+3. **Not implemented: knowledge-base violation (`s_r`).** Requires a live external knowledge base (DBpedia in the paper) and network access to an entity-relationship store -- out of scope for a library meant to run against arbitrary, possibly offline/private data. The paper itself notes Raha "is not limited to these categories" (Section 2.2); a fifth family can be added later as another function returning `dict[str, np.ndarray[bool]]` without touching clustering, labeling, or classification.
+
 3. **Historical strategy filtering (paper Section 5) is not implemented.**
    It is a runtime optimization -- pruning strategies unlikely to help based
    on similarity to previously cleaned columns -- not part of the core
