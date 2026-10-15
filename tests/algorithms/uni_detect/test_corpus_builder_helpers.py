@@ -23,7 +23,7 @@ from open_detect.algorithms.uni_detect.corpus.builder import (
 from open_detect.algorithms.uni_detect.corpus.schema import CORPUS_STATS_SCHEMA
 from open_detect.algorithms.uni_detect.strategies import get_spec
 from open_detect.core.enums import ColumnDataType, ErrorType
-from open_detect.exceptions import InsufficientDataError
+from open_detect.exceptions import InsufficientDataError, ValidationError
 
 
 @pytest.fixture
@@ -145,6 +145,17 @@ class TestScoreSingleColumn:
             )
 
     def test_unsupported_error_type_raises(self, config):
+        with pytest.raises(ValidationError, match="Unsupported single-column error type"):
+            _score_single_column(
+                ErrorType.FUNCTIONAL_DEPENDENCY,
+                ["a", "b"],
+                num_rows=2,
+                column_index=0,
+                token_document_frequency={},
+                cfg=config,
+            )
+
+    def test_unsupported_error_type_is_still_a_value_error(self, config):
         with pytest.raises(ValueError, match="Unsupported single-column error type"):
             _score_single_column(
                 ErrorType.FUNCTIONAL_DEPENDENCY,

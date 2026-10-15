@@ -24,6 +24,17 @@ from importlib.metadata import version as _pkg_version
 from open_detect.algorithms.uni_detect.config import UniDetectConfig, UnityCatalogLocation
 from open_detect.core.enums import ColumnDataType, ComparisonDirection, ErrorType
 from open_detect.core.models import Candidate, Detection, FeatureBucket, MetricObservation
+from open_detect.exceptions import (
+    ConfigurationError,
+    CorpusNotFoundError,
+    DataQualityError,
+    IndexNotBuiltError,
+    InsufficientDataError,
+    OpenDetectError,
+    UnityCatalogError,
+    UnknownAlgorithmError,
+    ValidationError,
+)
 
 __all__ = [
     "ColumnDataType",
@@ -36,6 +47,15 @@ __all__ = [
     "UniDetectConfig",
     "UnityCatalogLocation",
     "UniDetect",
+    "ConfigurationError",
+    "CorpusNotFoundError",
+    "DataQualityError",
+    "IndexNotBuiltError",
+    "InsufficientDataError",
+    "OpenDetectError",
+    "UnityCatalogError",
+    "UnknownAlgorithmError",
+    "ValidationError",
     "get_algorithm",
     "list_algorithms",
 ]

@@ -52,7 +52,7 @@ class TestCorpusBuilderFailureGate:
         warnings = [r for r in caplog.records if r.levelno == logging.WARNING]
         assert len(warnings) == 1
         assert "skipped 1 of 8" in warnings[0].getMessage()
-        assert "ValueError=1" in warnings[0].getMessage()
+        assert "ValidationError=1" in warnings[0].getMessage()
         assert spark.table(config.corpus_stats_fqn).count() == 7
 
     def test_breach_raises_and_nothing_is_written(self, spark, uc_location):

@@ -29,12 +29,13 @@ from open_detect.algorithms.uni_detect.metrics.outliers import (
 from open_detect.algorithms.uni_detect.metrics.spelling import (
     differing_token_lengths,
     min_pairwise_edit_distance,
+    try_min_pairwise_edit_distance,
 )
 from open_detect.algorithms.uni_detect.metrics.uniqueness import (
     duplicate_value_indices,
     uniqueness_ratio,
 )
-from open_detect.exceptions import InsufficientDataError
+from open_detect.exceptions import InsufficientDataError, OpenDetectError, ValidationError
 
 
 class TestDropNulls:
@@ -262,8 +263,18 @@ class TestSpelling:
         # ever reaches size >= 2, and the column is larger than
         # max_block_size -- the bounded global-scan fallback cannot apply.
         values = ["bq1x7", "cw22y8", "dt333z9", "ek4444k0", "fm55555m1", "gn666666n2"]
+        with pytest.raises(ValidationError):
+            min_pairwise_edit_distance(values, max_block_size=3)
         with pytest.raises(ValueError):
             min_pairwise_edit_distance(values, max_block_size=3)
+
+    def test_try_variant_returns_none_when_no_comparable_blocks(self):
+        values = ["bq1x7", "cw22y8", "dt333z9", "ek4444k0", "fm55555m1", "gn666666n2"]
+        assert try_min_pairwise_edit_distance(values, max_block_size=3) is None
+
+    def test_try_variant_matches_strict_variant_otherwise(self):
+        values = ["Kevin Doeling", "Kevin Dowling", "Alan Myerson"]
+        assert try_min_pairwise_edit_distance(values) == min_pairwise_edit_distance(values)
 
     def test_differing_token_lengths_with_unequal_token_counts(self):
         lengths = differing_token_lengths("Kevin Doeling Extra", "Kevin Dowling")
@@ -298,6 +309,8 @@ class TestFunctionalDependency:
         assert dropped == [2]
 
     def test_requires_matching_lengths(self):
+        with pytest.raises(ValidationError):
+            fd_compliance_ratio(["a"], ["b", "c"])
         with pytest.raises(ValueError):
             fd_compliance_ratio(["a"], ["b", "c"])
 
@@ -309,7 +322,9 @@ class TestFunctionalDependency:
         assert result.violating_row_indices == ()
 
     def test_raises_when_every_lhs_value_is_null(self):
-        with pytest.raises(ValueError):
+        with pytest.raises(InsufficientDataError):
+            fd_compliance_ratio([None, None], ["a", "b"])
+        with pytest.raises(OpenDetectError):
             fd_compliance_ratio([None, None], ["a", "b"])
 
     def test_minority_violation_rows_ignores_null_lhs(self):

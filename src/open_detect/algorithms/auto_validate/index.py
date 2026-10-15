@@ -25,6 +25,7 @@ from open_detect.algorithms.auto_validate.config import AutoValidateConfig
 from open_detect.algorithms.auto_validate.hierarchy import matches, token_count
 from open_detect.algorithms.auto_validate.metrics import impurity
 from open_detect.algorithms.auto_validate.patterns import patterns_of
+from open_detect.exceptions import ValidationError
 
 __all__ = ["PatternIndex", "build_pattern_index", "clean_column", "indexable_values"]
 
@@ -128,7 +129,7 @@ def _iter_corpus_columns(corpus: Iterable[object]) -> Iterator[tuple[str, ...]]:
         elif isinstance(item, (list, tuple)):
             yield clean_column(item)
         else:
-            raise TypeError(
+            raise ValidationError(
                 "corpus entries must be pandas Series, DataFrames or sequences of values, "
                 f"got {type(item).__name__}"
             )
