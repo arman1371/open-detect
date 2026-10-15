@@ -34,6 +34,9 @@ class TestCoerceNumeric:
     def test_skips_none_and_unparseable_values(self):
         assert _coerce_numeric(["1", None, "abc", "2"]) == [1.0, 2.0]
 
+    def test_drops_non_finite_values_and_string_forms(self):
+        assert _coerce_numeric(["1", "nan", "inf", "-inf", "Infinity", "2"]) == [1.0, 2.0]
+
     def test_empty_input_returns_empty_list(self):
         assert _coerce_numeric([]) == []
 

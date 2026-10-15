@@ -5,6 +5,7 @@ See paper Section 3.1, Equations (6)-(10).
 
 from __future__ import annotations
 
+import math
 from collections.abc import Sequence
 from dataclasses import dataclass
 
@@ -17,6 +18,30 @@ from open_detect.algorithms.uni_detect.metrics.base import drop_nulls, require_m
 #: infinite. The paper does not address this edge case explicitly; we fall
 #: back to a small epsilon derived from the data's own scale.
 _MIN_MAD_FLOOR = 1e-9
+
+
+def finite_floats(values: Sequence[object]) -> tuple[list[float], list[int]]:
+    """Parse ``values`` to floats, dropping nulls, unparsable and non-finite entries.
+
+    ``NaN``, ``+/-inf`` and their string forms (``"nan"``, ``"inf"``,
+    ``"-Infinity"``) are removed, so the metrics never see them. Returns the
+    surviving floats together with each one's position in ``values``; callers
+    must index only into the returned list (or map back through the returned
+    positions) so a reported index always refers to the right element.
+    """
+    out: list[float] = []
+    positions: list[int] = []
+    for i, v in enumerate(values):
+        if v is None:
+            continue
+        try:
+            f = float(v)  # type: ignore[arg-type]
+        except (TypeError, ValueError):
+            continue
+        if math.isfinite(f):
+            out.append(f)
+            positions.append(i)
+    return out, positions
 
 
 @dataclass(frozen=True, slots=True)

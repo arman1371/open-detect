@@ -311,6 +311,7 @@ def _score_single_column(
         build_spelling_bucket,
         build_uniqueness_bucket,
     )
+    from open_detect.algorithms.uni_detect.metrics.base import require_min_size
     from open_detect.algorithms.uni_detect.perturbation import (
         perturb_numeric_outlier,
         perturb_spelling,
@@ -331,6 +332,7 @@ def _score_single_column(
 
     if error_type is ErrorType.NUMERIC_OUTLIER:
         numeric_values = _coerce_numeric(values)
+        require_min_size(numeric_values, 2, "perturb_numeric_outlier")
         outcome = perturb_numeric_outlier(numeric_values, epsilon=cfg.epsilon)
         bucket = build_outlier_bucket(
             values=numeric_values, num_rows=num_rows, row_count_edges=cfg.row_count_edges
@@ -355,12 +357,7 @@ def _score_single_column(
 
 
 def _coerce_numeric(values: list[str]) -> list[float]:
-    out: list[float] = []
-    for v in values:
-        if v is None:
-            continue
-        try:
-            out.append(float(v))
-        except (TypeError, ValueError):
-            continue
-    return out
+    """Parse to finite floats, dropping nulls, unparsable values and NaN/inf."""
+    from open_detect.algorithms.uni_detect.metrics.outliers import finite_floats
+
+    return finite_floats(values)[0]

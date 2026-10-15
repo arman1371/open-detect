@@ -8,6 +8,8 @@ from open_detect.algorithms.uni_detect.detectors.base import BaseDetector
 from open_detect.algorithms.uni_detect.detectors.schema import CANDIDATE_SCHEMA
 from open_detect.algorithms.uni_detect.failures import FailureCounts
 from open_detect.algorithms.uni_detect.featurization import build_outlier_bucket
+from open_detect.algorithms.uni_detect.metrics.base import require_min_size
+from open_detect.algorithms.uni_detect.metrics.outliers import finite_floats
 from open_detect.algorithms.uni_detect.perturbation import perturb_numeric_outlier
 from open_detect.core.enums import ErrorType
 
@@ -21,6 +23,7 @@ if TYPE_CHECKING:
 
 def _score_column(numeric_vals, num_rows, cfg: UniDetectConfig):
     """Return ``(outcome, bucket)`` for one column's parsed numeric values."""
+    require_min_size(numeric_vals, 2, "perturb_numeric_outlier")
     outcome = perturb_numeric_outlier(numeric_vals, epsilon=cfg.epsilon)
     bucket = build_outlier_bucket(
         values=numeric_vals, num_rows=num_rows, row_count_edges=cfg.row_count_edges
@@ -51,16 +54,7 @@ class NumericOutlierDetector(BaseDetector):
                     batch["values"],
                     strict=True,
                 ):
-                    numeric_vals: list[float] = []
-                    original_index_map: list[int] = []
-                    for i, v in enumerate(vals):
-                        if v is None:
-                            continue
-                        try:
-                            numeric_vals.append(float(v))
-                            original_index_map.append(i)
-                        except (TypeError, ValueError):
-                            continue
+                    numeric_vals, original_index_map = finite_floats(vals)
                     if len(numeric_vals) < min_rows:
                         continue
                     scored = counts.attempt(_score_column, numeric_vals, int(n), cfg)
