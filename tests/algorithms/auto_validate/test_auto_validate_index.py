@@ -15,6 +15,7 @@ from open_detect.algorithms.auto_validate.index import (
     indexable_values,
 )
 from open_detect.algorithms.auto_validate.metrics import impurity
+from open_detect.exceptions import ValidationError
 
 TIME = "<num>:<num>:<num>"
 
@@ -152,7 +153,11 @@ class TestCorpusInputShapes:
         assert index.n_columns == 1
 
     def test_rejects_unsupported_entry(self):
-        with pytest.raises(TypeError, match="corpus entries"):
+        with pytest.raises(ValidationError, match="corpus entries"):
+            build_pattern_index([42], AutoValidateConfig(tau=8, m=1))
+
+    def test_unsupported_entry_is_still_a_value_error(self):
+        with pytest.raises(ValueError, match="corpus entries"):
             build_pattern_index([42], AutoValidateConfig(tau=8, m=1))
 
     def test_empty_corpus(self):

@@ -7,7 +7,12 @@ Example 3/4/5 (numeric outliers), Example 1 (spelling), Example 2
 
 from __future__ import annotations
 
+import random
+import string
+from itertools import combinations
+
 import pytest
+from rapidfuzz.distance import Levenshtein
 
 from open_detect.algorithms.uni_detect.metrics.base import drop_nulls
 from open_detect.algorithms.uni_detect.metrics.functional_dependency import (
@@ -15,6 +20,7 @@ from open_detect.algorithms.uni_detect.metrics.functional_dependency import (
     minority_violation_rows,
 )
 from open_detect.algorithms.uni_detect.metrics.outliers import (
+    finite_floats,
     mad_scores,
     max_mad,
     median_absolute_deviation,
@@ -23,12 +29,13 @@ from open_detect.algorithms.uni_detect.metrics.outliers import (
 from open_detect.algorithms.uni_detect.metrics.spelling import (
     differing_token_lengths,
     min_pairwise_edit_distance,
+    try_min_pairwise_edit_distance,
 )
 from open_detect.algorithms.uni_detect.metrics.uniqueness import (
     duplicate_value_indices,
     uniqueness_ratio,
 )
-from open_detect.exceptions import InsufficientDataError
+from open_detect.exceptions import InsufficientDataError, OpenDetectError, ValidationError
 
 
 class TestDropNulls:
@@ -117,6 +124,79 @@ class TestNumericOutliers:
         assert all(s >= 0 for s in scores)
 
 
+def _brute_force_mpd(values: list[str]) -> int:
+    distinct = list(dict.fromkeys(values))
+    return min(Levenshtein.distance(a, b) for a, b in combinations(distinct, 2))
+
+
+def _random_words(rng: random.Random, n: int, min_len: int = 3, max_len: int = 10) -> list[str]:
+    words: set[str] = set()
+    while len(words) < n:
+        length = rng.randint(min_len, max_len)
+        words.add("".join(rng.choice(string.ascii_lowercase) for _ in range(length)))
+    return sorted(words)
+
+
+def _single_edit(rng: random.Random, word: str) -> str:
+    kind = rng.choice("sid")
+    i = rng.randrange(len(word))
+    if kind == "s":
+        return (
+            word[:i]
+            + rng.choice([c for c in string.ascii_lowercase if c != word[i]])
+            + word[i + 1 :]
+        )
+    if kind == "i":
+        return word[:i] + rng.choice(string.ascii_lowercase) + word[i:]
+    return word[:i] + word[i + 1 :]
+
+
+class TestFiniteFloats:
+    def test_drops_nulls_unparsable_and_non_finite(self):
+        vals = [1, None, "2.5", "abc", float("nan"), float("inf"), "-inf", "nan", "Infinity", 3]
+        out, positions = finite_floats(vals)
+        assert out == [1.0, 2.5, 3.0]
+        assert positions == [0, 2, 9]
+
+    def test_empty(self):
+        assert finite_floats([]) == ([], [])
+
+
+class TestSpellingBlocking:
+    """BUG-11: blocking must not miss the true minimum pair (distance 1)."""
+
+    def test_substitution_in_prefix_is_found(self):
+        # Old blocking keyed on the first two chars: 'ap' != 'pp' -> pair never compared.
+        filler = _random_words(random.Random(0), 30, min_len=8, max_len=12)
+        result = min_pairwise_edit_distance([*filler, "apple", "ppple"], max_block_size=10)
+        assert result.mpd == 1
+        assert {result.value_u, result.value_v} == {"apple", "ppple"}
+
+    def test_insertion_across_length_bucket_boundary_is_found(self):
+        # len 5 -> bucket 1, len 6 -> bucket 2: the old keys never co-located them.
+        filler = _random_words(random.Random(0), 30, min_len=8, max_len=12)
+        result = min_pairwise_edit_distance([*filler, "apple", "applez"], max_block_size=10)
+        assert result.mpd == 1
+        assert {result.value_u, result.value_v} == {"apple", "applez"}
+
+    def test_matches_brute_force_for_single_planted_typo(self):
+        rng = random.Random(1234)
+        for _ in range(150):
+            base = _random_words(rng, rng.choice([30, 60, 100]))
+            typo = _single_edit(rng, rng.choice(base))
+            column = [*base, typo] if typo not in base else base
+            rng.shuffle(column)
+            # max_block_size below n forces the blocking path.
+            got = min_pairwise_edit_distance(column, max_block_size=20).mpd
+            assert got == _brute_force_mpd(column)
+
+    def test_small_columns_are_exact(self):
+        rng = random.Random(7)
+        for _ in range(50):
+            column = _random_words(rng, 40)
+            assert min_pairwise_edit_distance(column).mpd == _brute_force_mpd(column)
+
+
 class TestSpelling:
     def test_paper_example_1_kevin_doeling(self):
         column = ["Kevin Doeling", "Kevin Dowling", "Alan Myerson", "Rob Morrow"]
@@ -148,9 +228,25 @@ class TestSpelling:
         with pytest.raises(InsufficientDataError):
             min_pairwise_edit_distance(["only-one"])
 
-    def test_identical_values_give_zero_distance(self):
-        result = min_pairwise_edit_distance(["a", "a", "b"])
-        assert result.mpd == 0
+    def test_exact_duplicates_are_collapsed(self):
+        result = min_pairwise_edit_distance(["red", "red", "blue"])
+        assert result.mpd == Levenshtein.distance("red", "blue")
+        assert {result.value_u, result.value_v} == {"red", "blue"}
+
+    def test_indices_point_at_first_occurrence(self):
+        result = min_pairwise_edit_distance(["x", "red", "red", "bed"])
+        assert (result.value_u, result.value_v) == ("red", "bed")
+        assert (result.index_u, result.index_v) == (1, 3)
+
+    def test_all_identical_values_are_not_computable(self):
+        with pytest.raises(InsufficientDataError):
+            min_pairwise_edit_distance(["a", "a"])
+        with pytest.raises(InsufficientDataError):
+            min_pairwise_edit_distance(["a", "a", None, "a"])
+
+    def test_stringified_duplicates_collapse(self):
+        with pytest.raises(InsufficientDataError):
+            min_pairwise_edit_distance([1, "1", 1])
 
     def test_oversized_block_is_deterministically_subsampled(self):
         # All 20 values share the same (prefix, length-bucket) blocking key,
@@ -163,12 +259,22 @@ class TestSpelling:
         assert result == min_pairwise_edit_distance(values, max_block_size=5)
 
     def test_raises_when_no_blocks_and_column_exceeds_max_block_size(self):
-        # Every value has a distinct (prefix, length-bucket) key, so no block
+        # Values share no prefix/suffix blocking key, so no block
         # ever reaches size >= 2, and the column is larger than
         # max_block_size -- the bounded global-scan fallback cannot apply.
-        values = ["b1", "c22", "d333", "e4444", "f55555", "g666666"]
+        values = ["bq1x7", "cw22y8", "dt333z9", "ek4444k0", "fm55555m1", "gn666666n2"]
+        with pytest.raises(ValidationError):
+            min_pairwise_edit_distance(values, max_block_size=3)
         with pytest.raises(ValueError):
             min_pairwise_edit_distance(values, max_block_size=3)
+
+    def test_try_variant_returns_none_when_no_comparable_blocks(self):
+        values = ["bq1x7", "cw22y8", "dt333z9", "ek4444k0", "fm55555m1", "gn666666n2"]
+        assert try_min_pairwise_edit_distance(values, max_block_size=3) is None
+
+    def test_try_variant_matches_strict_variant_otherwise(self):
+        values = ["Kevin Doeling", "Kevin Dowling", "Alan Myerson"]
+        assert try_min_pairwise_edit_distance(values) == min_pairwise_edit_distance(values)
 
     def test_differing_token_lengths_with_unequal_token_counts(self):
         lengths = differing_token_lengths("Kevin Doeling Extra", "Kevin Dowling")
@@ -203,6 +309,8 @@ class TestFunctionalDependency:
         assert dropped == [2]
 
     def test_requires_matching_lengths(self):
+        with pytest.raises(ValidationError):
+            fd_compliance_ratio(["a"], ["b", "c"])
         with pytest.raises(ValueError):
             fd_compliance_ratio(["a"], ["b", "c"])
 
@@ -214,7 +322,9 @@ class TestFunctionalDependency:
         assert result.violating_row_indices == ()
 
     def test_raises_when_every_lhs_value_is_null(self):
-        with pytest.raises(ValueError):
+        with pytest.raises(InsufficientDataError):
+            fd_compliance_ratio([None, None], ["a", "b"])
+        with pytest.raises(OpenDetectError):
             fd_compliance_ratio([None, None], ["a", "b"])
 
     def test_minority_violation_rows_ignores_null_lhs(self):

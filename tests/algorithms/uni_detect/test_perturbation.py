@@ -5,6 +5,7 @@ feed the likelihood-ratio test.
 from __future__ import annotations
 
 import pytest
+from rapidfuzz.distance import Levenshtein
 
 from open_detect.algorithms.uni_detect.perturbation import (
     perturb_functional_dependency,
@@ -12,6 +13,7 @@ from open_detect.algorithms.uni_detect.perturbation import (
     perturb_spelling,
     perturb_uniqueness,
 )
+from open_detect.exceptions import InsufficientDataError
 
 
 class TestPerturbUniqueness:
@@ -55,7 +57,58 @@ class TestPerturbNumericOutlier:
         assert after_plus < after_minus
 
 
+class TestPerturbNumericNonFinite:
+    def test_nan_does_not_shift_dropped_index(self):
+        outcome = perturb_numeric_outlier([1, 2, 3, float("nan"), 1000], epsilon=0.5)
+        assert outcome.evidence["outlier_value"] == 1000.0
+        # index refers to the finite-filtered list [1, 2, 3, 1000]
+        assert outcome.dropped_indices == (3,)
+
+    def test_inf_is_never_a_candidate_or_accepted(self):
+        outcome = perturb_numeric_outlier([1, 2, float("inf"), 3, 100], epsilon=0.5)
+        assert outcome.evidence["outlier_value"] == 100.0
+        assert outcome.dropped_indices == (3,)
+        assert outcome.theta_before < 1e6
+
+    def test_string_non_finite_forms_are_filtered(self):
+        values = [1, 2, "nan", "inf", "-inf", "infinity", 3, 1000]
+        outcome = perturb_numeric_outlier(values, epsilon=0.5)  # type: ignore[arg-type]
+        assert outcome.evidence["outlier_value"] == 1000.0
+        assert outcome.dropped_indices == (3,)
+
+    @pytest.mark.parametrize(
+        "values",
+        [
+            [float("nan"), float("inf"), float("-inf")],
+            ["nan", "inf"],
+            [1.0, float("nan")],
+            [],
+        ],
+    )
+    def test_too_few_finite_values_returns_no_perturbation(self, values):
+        outcome = perturb_numeric_outlier(values, epsilon=0.5)
+        assert outcome.dropped_indices == ()
+        assert outcome.theta_before == 0.0
+        assert outcome.theta_after == 0.0
+
+
 class TestPerturbSpelling:
+    def test_exact_duplicates_are_not_flagged_as_misspellings(self):
+        outcome = perturb_spelling(["red", "red", "blue"], epsilon=0.5)
+        assert outcome.theta_before == Levenshtein.distance("red", "blue")
+        assert set(outcome.evidence["pair"]) == {"red", "blue"}
+
+    def test_all_values_identical_is_not_computable(self):
+        with pytest.raises(InsufficientDataError):
+            perturb_spelling(["a", "a", "a"], epsilon=0.5)
+
+    def test_dropping_a_value_removes_every_occurrence(self):
+        column = ["Kevin Doeling", "Kevin Doeling", "Kevin Dowling", "Alan Myerson", "Rob Morrow"]
+        outcome = perturb_spelling(column, epsilon=0.5)
+        assert outcome.theta_before == 1.0
+        assert outcome.theta_after > 1.0
+        assert outcome.dropped_indices == (0, 1)
+
     def test_paper_example_1(self):
         column = ["Kevin Doeling", "Kevin Dowling", "Alan Myerson", "Rob Morrow"]
         outcome = perturb_spelling(column, epsilon=0.5)
@@ -67,7 +120,7 @@ class TestPerturbSpelling:
         # One close pair (found via blocking) plus enough uniquely-blocked
         # values that, once the pair's first value is dropped, no block has
         # >= 2 members and the remainder exceeds max_block_size -- forcing
-        # the internal re-scoring call to raise ValueError, which
+        # the internal re-scoring to find no comparable pair, which
         # perturb_spelling must translate into the "undefined after" sentinel.
         values = ["aa000", "aa001", "bb1", "cc22", "dd333", "ee4444", "ff55555"]
         outcome = perturb_spelling(values, epsilon=0.5, max_block_size=3)

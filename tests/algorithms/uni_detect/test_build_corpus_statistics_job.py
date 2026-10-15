@@ -12,6 +12,7 @@ import pytest
 
 from open_detect.algorithms.uni_detect.jobs.build_corpus_statistics import main, parse_args
 from open_detect.core.enums import ErrorType
+from open_detect.exceptions import ConfigurationError, InsufficientDataError
 
 
 class TestParseArgs:
@@ -110,8 +111,10 @@ class TestMain:
             "open_detect.algorithms.uni_detect.jobs.build_corpus_statistics.get_spark"
         ) as mock_get_spark:
             mock_get_spark.return_value = MagicMock()
-            with pytest.raises(SystemExit):
+            with pytest.raises(SystemExit) as exc_info:
                 main(["--catalog", "main", "--schema", "s"])
+            assert exc_info.value.code == 1
+            assert isinstance(exc_info.value.__cause__, ConfigurationError)
 
     def test_exits_when_no_corpus_tables_resolved(self):
         with (
@@ -125,8 +128,10 @@ class TestMain:
             mock_get_spark.return_value = MagicMock()
             mock_list_tables.return_value = []
 
-            with pytest.raises(SystemExit):
+            with pytest.raises(SystemExit) as exc_info:
                 main(["--catalog", "main", "--schema", "s", "--corpus-catalog", "main"])
+            assert exc_info.value.code == 1
+            assert isinstance(exc_info.value.__cause__, InsufficientDataError)
 
 
 def test_main_installs_logging():

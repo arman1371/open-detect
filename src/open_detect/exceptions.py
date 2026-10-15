@@ -2,6 +2,12 @@
 
 All library-raised exceptions derive from :class:`OpenDetectError` so callers
 can catch broadly (``except OpenDetectError``) or narrowly.
+
+Choosing a type:
+
+- bad caller input (wrong shape/type/value of an argument) -> :class:`ValidationError`
+- an invalid or inconsistent configuration -> :class:`ConfigurationError`
+- not enough data to compute a result -> :class:`InsufficientDataError`
 """
 
 from __future__ import annotations
@@ -11,8 +17,19 @@ class OpenDetectError(Exception):
     """Base class for all open_detect errors."""
 
 
+class ValidationError(OpenDetectError, ValueError):
+    """Raised when a caller passes an invalid argument or malformed input.
+
+    Also a :exc:`ValueError`, so existing ``except ValueError`` callers keep working.
+    """
+
+
 class ConfigurationError(OpenDetectError):
-    """Raised when a :class:`~open_detect.algorithms.uni_detect.config.UniDetectConfig` is invalid."""
+    """Raised for invalid or missing configuration.
+
+    E.g. an invalid :class:`~open_detect.algorithms.uni_detect.config.UniDetectConfig`
+    or missing job arguments. Use :class:`ValidationError` for bad call arguments.
+    """
 
 
 class CorpusNotFoundError(OpenDetectError):
@@ -24,7 +41,23 @@ class UnityCatalogError(OpenDetectError):
 
 
 class InsufficientDataError(OpenDetectError):
-    """Raised when a target column/table does not have enough data to score."""
+    """Raised when a target column/table does not have enough data to score.
+
+    Not a :exc:`ValueError`: the executor-side failure accounting treats it as
+    "not applicable" rather than as a data-quality failure.
+    """
+
+
+class UnknownAlgorithmError(OpenDetectError):
+    """Raised when an algorithm name is not registered."""
+
+
+class IndexNotBuiltError(OpenDetectError):
+    """Raised when an Auto-Validate query runs before the offline index exists.
+
+    The corpus ``T`` is a required input: FPR_T and Cov_T are defined only
+    relative to it, so there is deliberately no corpus-free fallback.
+    """
 
 
 class DataQualityError(OpenDetectError):

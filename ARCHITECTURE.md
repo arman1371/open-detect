@@ -1,9 +1,13 @@
 # Architecture
 
-This document maps each part of two papers -- Wang & He's Uni-Detect
-(SIGMOD 2019) and Mahdavi et al.'s Raha (SIGMOD 2019) -- onto this codebase,
-and explains the decisions each paper's translation into a shared library
-required.
+This document maps each part of three papers -- Wang & He's Uni-Detect
+(SIGMOD 2019), Mahdavi et al.'s Raha (SIGMOD 2019) and Song & He's
+Auto-Validate (SIGMOD 2021) -- onto this codebase, and explains the decisions
+each paper's translation into a shared library required.
+
+- Uni-Detect: Sections 1-7.
+- Raha: Sections 8-12.
+- Auto-Validate: the final part of this document (unnumbered).
 
 ## 0. The multi-algorithm framework
 
@@ -19,7 +23,7 @@ interchangeable error-detection algorithms:
 - `algorithms/registry.py` -- maps a name (`"uni_detect"`, `"raha"`, ...) to
   a class, resolved lazily so that requesting one algorithm never imports
   another's optional dependencies (`pyspark` for Uni-Detect, `scikit-learn`
-  for Raha). Third-party algorithms register the same way via the
+  and `scipy` for Raha). Third-party algorithms register the same way via the
   `open_detect.algorithms` Python entry-point group, with no changes to this
   repository.
 - `algorithms/uni_detect/` -- Uni-Detect's own implementation (Sections 1-7
@@ -33,6 +37,11 @@ interchangeable error-detection algorithms:
 - `algorithms/raha/` -- Raha's own implementation (Section 8 below), built
   directly against the shared contract since it has no pre-existing
   standalone pipeline to adapt.
+- `algorithms/auto_validate/` -- Auto-Validate's own implementation (the
+  Auto-Validate part below): a generalization hierarchy and pattern index
+  built offline from a corpus of columns, then FMDV pattern inference and
+  cell matching online. pandas-native; `scipy` is imported lazily and only
+  by the drift test.
 
 Each algorithm is a self-contained subpackage; only code shared by several
 algorithms lives at the package root, and `tests/` mirrors this layout:
@@ -220,7 +229,7 @@ explanation (Figures 2 and 4 in the paper).
 
 ## 8. Code map
 
-Raha's Algorithm 1 maps onto `src/open_detect.algorithms/raha/` module-by-step:
+Raha's Algorithm 1 maps onto `src/open_detect/algorithms/raha/` module-by-step:
 
 | Algorithm 1 step | Paper section | Code |
 |---|---|---|
@@ -354,7 +363,7 @@ that specific cell) for explainability, in the same spirit as Uni-Detect's
 | FMDV-V (Eqns 8-11) | Sec 3 | `fmdv_v.py::fmdv_v` |
 | FMDV-VH (paper-spec §5.5) | Sec 4 | `fmdv_v.py::fmdv_vh` |
 | Drift test (Sec 4) | Sec 5.4 | `drift.py::check_drift` |
-| Detector, registry | — | `detector.py::AutoValidateAlgorithm` (OPE-26) |
+| Detector, registry | — | `detector.py::AutoValidateAlgorithm` |
 
 ## Config
 
@@ -398,7 +407,7 @@ that specific cell) for explainability, in the same spirit as Uni-Detect's
   before `build_index`.
 
 Registry: `_load_auto_validate()` → `register_lazy("auto_validate", ...)` in
-`src/open_detect.algorithms/__init__.py`.  `open_detect.algorithms` import path
+`src/open_detect/algorithms/__init__.py`.  `open_detect.algorithms` import path
 never imports scipy/pyspark/sklearn — those are lazy-loaded only when the
 algorithm is actually constructed.
 
@@ -430,8 +439,8 @@ algorithm is actually constructed.
    (multi-group `fmdv_v`/`fmdv_vh`) as a **disjunction over groups**; because
    the coarse-signature groups partition the column, per-group match is the
    correct combined-validation semantics (paper Eqns 8-10).  This was a
-   detection-time bug fix in commit 5976e33 (previously only `pattern[0]`
-   was consulted, so values in every other group were falsely flagged).
+   detection-time fix (previously only `pattern[0]` was consulted, so values
+   in every other group were falsely flagged).
 5. **No corpus-free fallback.**  `fmdv`/`fmdv_h`/`fmdv_v`/`fmdv_vh` require
    a `PatternIndex`; without one, callers must raise `IndexNotBuiltError`.
    This follows from the paper's requirement that `T` be a background
@@ -441,8 +450,8 @@ algorithm is actually constructed.
    `0.0` for unflagged cells — a ranking-only extension documented here.
 7. **Drift test not wired into `detect`.**  `detect` does not call
    `check_drift` because a single-table scan has no "future" column to
-   compare against.  This is a fidelity question for the independent
-   reviewer (paper-spec §8.8).
+   compare against.  Callers who have a later snapshot of the column can call
+   `check_drift` directly.
 8. **`P(v)` for T-side counting uses all values (weighted by multiplicity).**
    Impurity is computed over every value in the column, not distinct values
    only, consistent with Eqn 1.
@@ -468,4 +477,4 @@ algorithm is actually constructed.
 - **Pattern unions**: unsupported in the paper's own profiler.
 - **Spark implementation**: deferred.
 - **Index persistence / parallel offline build**: speed-only, deferred.
-- **Benchmarks**: OPE-22.
+- **Benchmarks**: Auto-Validate is scored alongside the other algorithms in `benchmarks/`.

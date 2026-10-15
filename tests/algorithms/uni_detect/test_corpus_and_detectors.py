@@ -324,9 +324,7 @@ class TestCorpusBuilderAndDetectors:
             "John Brown",
             "Patricia Davis",
             "Robert Miller",
-        ] * 20 + [
-            "James Smith"
-        ]  # 101 values, 1 duplicate -> ~99% unique
+        ] * 20 + ["James Smith"]  # 101 values, 1 duplicate -> ~99% unique
         fp_fqn = f"{catalog}.{schema}.target_fp_uniqueness"
         _write_table(spark, fp_fqn, [{"name": v} for v in fp_values], ["name"])
 
@@ -496,7 +494,7 @@ class TestCorpusBuilderAndDetectors:
         )
 
         fqn = f"{catalog}.{schema}.target_multi"
-        rows = [{"code": f"ICAO{900000+i}", "amount": float(1000 + i)} for i in range(60)]
+        rows = [{"code": f"ICAO{900000 + i}", "amount": float(1000 + i)} for i in range(60)]
         rows[1]["code"] = rows[0]["code"]
         _write_table(spark, fqn, rows, ["code", "amount"])
 
@@ -519,7 +517,7 @@ class TestCorpusBuilderAndDetectors:
         )
 
         fqn = f"{catalog}.{schema}.target_writeback"
-        rows = [{"code": f"ICAO{900000+i}"} for i in range(60)]
+        rows = [{"code": f"ICAO{900000 + i}"} for i in range(60)]
         rows[1]["code"] = rows[0]["code"]
         _write_table(spark, fqn, rows, ["code"])
 

@@ -23,7 +23,7 @@ from open_detect.algorithms.uni_detect.corpus.builder import (
 from open_detect.algorithms.uni_detect.corpus.schema import CORPUS_STATS_SCHEMA
 from open_detect.algorithms.uni_detect.strategies import get_spec
 from open_detect.core.enums import ColumnDataType, ErrorType
-from open_detect.exceptions import InsufficientDataError
+from open_detect.exceptions import InsufficientDataError, ValidationError
 
 
 @pytest.fixture
@@ -37,6 +37,11 @@ class TestCoerceNumeric:
 
     def test_skips_none_and_a_tolerable_share_of_unparseable_values(self):
         assert _coerce_numeric(["1", None, "2", "3", "4", "abc"]) == [1.0, 2.0, 3.0, 4.0]
+
+    def test_drops_non_finite_values_and_string_forms(self):
+        finite = [str(i) for i in range(16)]
+        values = [*finite, "nan", "inf", "-inf", "Infinity"]
+        assert _coerce_numeric(values) == [float(i) for i in range(16)]
 
     def test_empty_input_returns_empty_list(self):
         assert _coerce_numeric([]) == []
@@ -140,6 +145,17 @@ class TestScoreSingleColumn:
             )
 
     def test_unsupported_error_type_raises(self, config):
+        with pytest.raises(ValidationError, match="Unsupported single-column error type"):
+            _score_single_column(
+                ErrorType.FUNCTIONAL_DEPENDENCY,
+                ["a", "b"],
+                num_rows=2,
+                column_index=0,
+                token_document_frequency={},
+                cfg=config,
+            )
+
+    def test_unsupported_error_type_is_still_a_value_error(self, config):
         with pytest.raises(ValueError, match="Unsupported single-column error type"):
             _score_single_column(
                 ErrorType.FUNCTIONAL_DEPENDENCY,

@@ -25,6 +25,17 @@ from typing import TYPE_CHECKING, Any
 from open_detect.algorithms.uni_detect.config import UniDetectConfig, UnityCatalogLocation
 from open_detect.core.enums import ColumnDataType, ComparisonDirection, ErrorType
 from open_detect.core.models import Candidate, Detection, FeatureBucket, MetricObservation
+from open_detect.exceptions import (
+    ConfigurationError,
+    CorpusNotFoundError,
+    DataQualityError,
+    IndexNotBuiltError,
+    InsufficientDataError,
+    OpenDetectError,
+    UnityCatalogError,
+    UnknownAlgorithmError,
+    ValidationError,
+)
 
 if TYPE_CHECKING:
     from open_detect.algorithms import get_algorithm, list_algorithms
@@ -41,6 +52,15 @@ __all__ = [
     "UniDetectConfig",
     "UnityCatalogLocation",
     "UniDetect",
+    "ConfigurationError",
+    "CorpusNotFoundError",
+    "DataQualityError",
+    "IndexNotBuiltError",
+    "InsufficientDataError",
+    "OpenDetectError",
+    "UnityCatalogError",
+    "UnknownAlgorithmError",
+    "ValidationError",
     "get_algorithm",
     "list_algorithms",
 ]

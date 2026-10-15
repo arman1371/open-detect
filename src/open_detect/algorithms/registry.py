@@ -33,7 +33,7 @@ from collections.abc import Callable
 from importlib import metadata
 from typing import TYPE_CHECKING
 
-from open_detect.exceptions import OpenDetectError
+from open_detect.exceptions import UnknownAlgorithmError
 from open_detect.logging_utils import get_logger
 
 if TYPE_CHECKING:
@@ -47,10 +47,6 @@ _registry: dict[str, Callable[[], type[ErrorDetectionAlgorithm]]] = {}
 _entry_points_loaded = False
 # Re-entrant: a plugin imported during discovery may itself call register_algorithm().
 _lock = threading.RLock()
-
-
-class UnknownAlgorithmError(OpenDetectError):
-    """Raised when :func:`get_algorithm_class` is asked for an unregistered name."""
 
 
 def register_lazy(name: str, factory: Callable[[], type[ErrorDetectionAlgorithm]]) -> None:

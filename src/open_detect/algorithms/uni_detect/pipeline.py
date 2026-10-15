@@ -28,7 +28,7 @@ from open_detect.algorithms.uni_detect.detectors import (
 )
 from open_detect.algorithms.uni_detect.spark_utils import get_spark
 from open_detect.core.enums import ErrorType
-from open_detect.exceptions import ConfigurationError
+from open_detect.exceptions import ConfigurationError, ValidationError
 from open_detect.logging_utils import get_logger, log_duration
 
 if TYPE_CHECKING:
@@ -129,7 +129,7 @@ class UniDetect:
                 pairs_df = ingestor.ingest_column_pairs(table_names)
                 stats = builder.build_fd_stats(pairs_df, token_map)
             else:  # pragma: no cover - exhaustive over ErrorType
-                raise ValueError(f"Unknown error type: {error_type}")
+                raise ValidationError(f"Unknown error type: {error_type}")
             builder.write(stats, mode="overwrite", error_types=[error_type])
 
         if columns_df is not None:
