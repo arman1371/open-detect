@@ -1,0 +1,73 @@
+name: Dependency caps spike (pyspark x pyarrow x numpy)
+
+# OPE-66 PR H: decide whether the `spark` extra caps (pyarrow<15, numpy<2) can be widened.
+# Runs on a Java-capable runner (Temurin 17), installs the locked dev environment, then
+# force-installs each pyarrow/numpy combination and runs (1) an Arrow smoke script covering
+# toPandas / pandas_udf / mapInPandas with array columns and (2) the Spark-marked tests.
+#
+# Manual / advisory only: never part of `ci-passed`. Read the per-leg results in the run
+# summary; a green leg means that combination is safe to allow.
+
+on:
+  workflow_dispatch:
+  # Also runs on PRs that touch the spike itself, so the workflow can be verified before merge.
+  pull_request:
+    paths:
+      - .github/workflows/caps-spike.yml
+      - .github/scripts/arrow_smoke.py
+
+permissions:
+  contents: read
+
+concurrency:
+  group: caps-spike-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  spike:
+    name: pyarrow ${{ matrix.pyarrow }} / numpy ${{ matrix.numpy }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # Control: exactly what the caps allow today.
+          - { pyarrow: "14.0.2", numpy: "1.26.4" }
+          # Widen pyarrow only (numpy stays 1.x).
+          - { pyarrow: "15.0.2", numpy: "1.26.4" }
+          - { pyarrow: "16.1.0", numpy: "1.26.4" }
+          - { pyarrow: "17.0.0", numpy: "1.26.4" }
+          # Widen both (pyarrow>=16 ships NumPy 2 compatible wheels).
+          - { pyarrow: "16.1.0", numpy: "2.0.2" }
+          - { pyarrow: "17.0.0", numpy: "2.2.6" }
+          # What Dependabot PRs #9 / #12 propose; informational, expected to be unsupported by pyspark 3.5.
+          - { pyarrow: "25.0.1", numpy: "2.2.6" }
+    env:
+      UV_PYTHON: "3.11"
+      TMPDIR: /tmp
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v10.2.0
+        with:
+          enable-cache: true
+      - uses: actions/setup-java@v6
+        with:
+          distribution: "temurin"
+          java-version: "17"
+      - uses: actions/cache@v6
+        with:
+          path: /tmp/open_detect-test-jars
+          key: ${{ runner.os }}-delta-jars-${{ hashFiles('uv.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-delta-jars-
+      - run: uv sync
+      - name: Override pyarrow / numpy for this leg
+        run: uv pip install "pyarrow==${{ matrix.pyarrow }}" "numpy==${{ matrix.numpy }}"
+      - name: Show resolved versions
+        run: uv run --no-sync python -c "import pyspark, pyarrow, numpy, pandas; print('pyspark', pyspark.__version__, 'pyarrow', pyarrow.__version__, 'numpy', numpy.__version__, 'pandas', pandas.__version__)"
+      - name: Arrow smoke (toPandas / pandas_udf / mapInPandas with array columns)
+        run: uv run --no-sync python .github/scripts/arrow_smoke.py
+      - name: Spark-marked tests
+        # `-m spark` needs the marker from the spark-marker PR; falls back to the full suite.
+        run: uv run --no-sync pytest -m spark -p no:cacheprovider || { rc=$?; [ $rc -eq 5 ] && uv run --no-sync pytest -p no:cacheprovider; }
