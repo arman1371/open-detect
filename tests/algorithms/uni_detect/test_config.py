@@ -2,9 +2,12 @@
 
 from __future__ import annotations
 
+import json
+
 import pytest
 
 from open_detect.algorithms.uni_detect.config import UniDetectConfig, UnityCatalogLocation
+from open_detect.algorithms.uni_detect.featurization import bucket_by_edges
 from open_detect.exceptions import ConfigurationError
 
 
@@ -40,13 +43,42 @@ class TestUniDetectConfig:
         with pytest.raises(ConfigurationError):
             UniDetectConfig(location=self._location(), alpha=alpha)
 
-    def test_rejects_negative_laplace_smoothing(self):
-        with pytest.raises(ConfigurationError):
-            UniDetectConfig(location=self._location(), laplace_smoothing=-1.0)
+    @pytest.mark.parametrize("smoothing", [0, 0.0, -1.0, float("nan"), float("inf"), None])
+    def test_rejects_invalid_laplace_smoothing(self, smoothing):
+        with pytest.raises(ConfigurationError, match="laplace_smoothing"):
+            UniDetectConfig(location=self._location(), laplace_smoothing=smoothing)
 
-    def test_accepts_zero_laplace_smoothing(self):
-        config = UniDetectConfig(location=self._location(), laplace_smoothing=0.0)
-        assert config.laplace_smoothing == 0.0
+    def test_accepts_tiny_positive_laplace_smoothing(self):
+        config = UniDetectConfig(location=self._location(), laplace_smoothing=1e-12)
+        assert config.laplace_smoothing == 1e-12
+
+    @pytest.mark.parametrize("name", ["row_count_edges", "prevalence_edges", "token_length_edges"])
+    @pytest.mark.parametrize(
+        "edges",
+        [(), (5, 5), (10, 5), (1, 3, 2), (1, float("nan")), (1, float("inf")), (float("-inf"), 1)],
+    )
+    def test_rejects_invalid_edges(self, name, edges):
+        with pytest.raises(ConfigurationError, match=name):
+            UniDetectConfig(location=self._location(), **{name: edges})
+
+    def test_accepts_single_edge_and_normalizes_lists_to_tuples(self):
+        config = UniDetectConfig(location=self._location(), row_count_edges=[10])
+        assert config.row_count_edges == (10,)
+
+    def test_validated_edges_never_break_bucketing(self):
+        config = UniDetectConfig(location=self._location(), row_count_edges=(10,))
+        assert bucket_by_edges(5, config.row_count_edges) == "(-inf,10]"
+        assert bucket_by_edges(50, config.row_count_edges) == "(10,inf)"
+
+    def test_bucket_by_edges_tolerates_empty_edges(self):
+        assert bucket_by_edges(5, ()) == "(-inf,inf)"
+
+    def test_build_fingerprint_is_json_round_trippable(self):
+        config = UniDetectConfig(location=self._location(), epsilon=0.02)
+        fingerprint = config.build_fingerprint()
+        assert json.loads(json.dumps(fingerprint)) == fingerprint
+        assert fingerprint["epsilon"] == 0.02
+        assert fingerprint["row_count_edges"] == list(config.row_count_edges)
 
     @pytest.mark.parametrize("max_mpd_block_size", [0, 1, -5])
     def test_rejects_too_small_max_mpd_block_size(self, max_mpd_block_size):

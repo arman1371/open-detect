@@ -26,6 +26,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from open_detect.algorithms.uni_detect.config import UniDetectConfig
+from open_detect.algorithms.uni_detect.corpus.build_metadata import verify_build_config
 from open_detect.core.enums import ComparisonDirection, ErrorType
 from open_detect.exceptions import CorpusNotFoundError
 from open_detect.logging_utils import get_logger, log_duration
@@ -45,9 +46,11 @@ class CorpusStatsStore:
         Active Spark session.
     config:
         Must match the :class:`~open_detect.algorithms.uni_detect.config.UniDetectConfig` used to
-        build the statistics (same table location); ``epsilon``/bucket edges
-        only matter transitively, through what is already baked into the
-        materialized table.
+        build the statistics (same table location). ``epsilon``/bucket edges
+        are baked into the materialized table, so :meth:`load` compares them
+        against the build configuration persisted on the table and raises
+        :class:`~open_detect.exceptions.ConfigurationError` on mismatch
+        (unless ``config.allow_corpus_config_mismatch`` is set).
     """
 
     def __init__(self, spark: SparkSession, config: UniDetectConfig) -> None:
@@ -70,6 +73,7 @@ class CorpusStatsStore:
             )
         from pyspark.sql import functions as F
 
+        verify_build_config(self.spark, self.config.corpus_stats_fqn, error_type, self.config)
         table = self.spark.table(self.config.corpus_stats_fqn)
         return table.where(F.col("error_type") == error_type.value)
 

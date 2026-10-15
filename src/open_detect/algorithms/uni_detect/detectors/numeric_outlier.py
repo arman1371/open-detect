@@ -6,12 +6,30 @@ from typing import TYPE_CHECKING
 
 from open_detect.algorithms.uni_detect.detectors.base import BaseDetector
 from open_detect.algorithms.uni_detect.detectors.schema import CANDIDATE_SCHEMA
+from open_detect.algorithms.uni_detect.failures import FailureCounts
+from open_detect.algorithms.uni_detect.featurization import build_outlier_bucket
+from open_detect.algorithms.uni_detect.metrics.base import require_min_size
+from open_detect.algorithms.uni_detect.metrics.outliers import finite_floats
+from open_detect.algorithms.uni_detect.perturbation import perturb_numeric_outlier
+from open_detect.algorithms.uni_detect.strategies import get_spec
 from open_detect.core.enums import ErrorType
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
 
     from pyspark.sql import DataFrame
+
+    from open_detect.algorithms.uni_detect.config import UniDetectConfig
+
+
+def _score_column(numeric_vals, num_rows, cfg: UniDetectConfig):
+    """Return ``(outcome, bucket)`` for one column's parsed numeric values."""
+    require_min_size(numeric_vals, 2, "perturb_numeric_outlier")
+    outcome = perturb_numeric_outlier(numeric_vals, epsilon=cfg.epsilon)
+    bucket = build_outlier_bucket(
+        values=numeric_vals, num_rows=num_rows, row_count_edges=cfg.row_count_edges
+    )
+    return outcome, bucket
 
 
 class NumericOutlierDetector(BaseDetector):
@@ -21,14 +39,14 @@ class NumericOutlierDetector(BaseDetector):
         import pandas as pd
 
         cfg = self.config
-        min_rows = 5
+        min_rows = get_spec(self.error_type).min_rows
+        tracker = self._new_failure_tracker()
 
         def compute(batches):
             from open_detect.algorithms.uni_detect.detectors.base import make_evidence_json
-            from open_detect.algorithms.uni_detect.featurization import build_outlier_bucket
-            from open_detect.algorithms.uni_detect.perturbation import perturb_numeric_outlier
 
             for batch in batches:
+                counts = FailureCounts()
                 rows: list[dict] = []
                 for tid, col, n, vals in zip(
                     batch["table_id"],
@@ -37,27 +55,13 @@ class NumericOutlierDetector(BaseDetector):
                     batch["values"],
                     strict=True,
                 ):
-                    numeric_vals: list[float] = []
-                    original_index_map: list[int] = []
-                    for i, v in enumerate(vals):
-                        if v is None:
-                            continue
-                        try:
-                            numeric_vals.append(float(v))
-                            original_index_map.append(i)
-                        except (TypeError, ValueError):
-                            continue
+                    numeric_vals, original_index_map = finite_floats(vals)
                     if len(numeric_vals) < min_rows:
                         continue
-                    try:
-                        outcome = perturb_numeric_outlier(numeric_vals, epsilon=cfg.epsilon)
-                        bucket = build_outlier_bucket(
-                            values=numeric_vals,
-                            num_rows=int(n),
-                            row_count_edges=cfg.row_count_edges,
-                        )
-                    except Exception:  # noqa: BLE001
+                    scored = counts.attempt(_score_column, numeric_vals, int(n), cfg)
+                    if scored is None:
                         continue
+                    outcome, bucket = scored
 
                     dropped_original = [original_index_map[i] for i in outcome.dropped_indices]
                     rows.append(
@@ -72,6 +76,7 @@ class NumericOutlierDetector(BaseDetector):
                             "evidence_json": make_evidence_json(outcome.evidence),
                         }
                     )
+                tracker.flush(counts)
                 yield pd.DataFrame(rows, columns=[f.name for f in CANDIDATE_SCHEMA.fields])
 
         columns_df = self.ingestor.ingest_columns(table_names)

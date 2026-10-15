@@ -7,7 +7,10 @@ perturbation budgets, and Unity Catalog table locations.
 
 from __future__ import annotations
 
+import math
+from collections.abc import Sequence
 from dataclasses import dataclass, field
+from typing import Any
 
 from open_detect.exceptions import ConfigurationError
 
@@ -19,6 +22,27 @@ DEFAULT_PREVALENCE_EDGES: tuple[int, ...] = (50, 100, 1000, 10_000, 100_000)
 
 #: Token-length buckets used for the spelling MPD featurization (paper Sec. 3.2).
 DEFAULT_TOKEN_LENGTH_EDGES: tuple[int, ...] = (5, 10, 15, 20)
+
+
+def _validate_edges(name: str, edges: Sequence[float]) -> tuple[float, ...]:
+    """Check that bucket ``edges`` are non-empty, finite and strictly increasing."""
+    try:
+        normalized = tuple(edges)
+    except TypeError:
+        raise ConfigurationError(f"{name} must be a sequence of numbers, got {edges!r}") from None
+    if not normalized:
+        raise ConfigurationError(f"{name} must contain at least one edge")
+    for edge in normalized:
+        if isinstance(edge, bool) or not isinstance(edge, (int, float)) or not math.isfinite(edge):
+            raise ConfigurationError(f"{name} must contain only finite numbers, got {edge!r}")
+    for lower, upper in zip(normalized, normalized[1:], strict=False):
+        if upper <= lower:
+            raise ConfigurationError(f"{name} must be strictly increasing, got {normalized!r}")
+    return normalized
+
+
+#: Bumped whenever :meth:`UniDetectConfig.build_fingerprint` changes shape.
+BUILD_FINGERPRINT_VERSION = 1
 
 
 @dataclass(frozen=True)
@@ -75,6 +99,16 @@ class UniDetectConfig:
     detections_table:
         Name (unqualified) of the table detection results are optionally
         appended to.
+    allow_corpus_config_mismatch:
+        By default detection refuses to read a corpus whose persisted build
+        configuration (see :meth:`build_fingerprint`) differs from this one,
+        since epsilon and bucket edges are baked into the materialized
+        statistics. Set to ``True`` to log the mismatch and proceed anyway.
+    max_failure_ratio:
+        Maximum tolerated fraction (``0 <= x <= 1``) of corpus columns /
+        target columns that may fail to score on the executors (and are
+        skipped) before a :class:`~open_detect.exceptions.DataQualityError`
+        is raised. ``0`` fails on the first skipped item; ``1`` never fails.
     """
 
     location: UnityCatalogLocation
@@ -89,18 +123,51 @@ class UniDetectConfig:
     corpus_stats_table: str = "open_detect_corpus_stats"
     token_stats_table: str = "open_detect_token_stats"
     detections_table: str = "open_detect_detections"
+    allow_corpus_config_mismatch: bool = False
+    max_failure_ratio: float = 0.01
 
     def __post_init__(self) -> None:
         if not 0 < self.epsilon <= 1:
             raise ConfigurationError(f"epsilon must be in (0, 1], got {self.epsilon}")
         if not 0 < self.alpha < 1:
             raise ConfigurationError(f"alpha must be in (0, 1), got {self.alpha}")
-        if self.laplace_smoothing < 0:
-            raise ConfigurationError("laplace_smoothing must be >= 0")
+        smoothing = self.laplace_smoothing
+        if not (isinstance(smoothing, (int, float)) and math.isfinite(smoothing) and smoothing > 0):
+            raise ConfigurationError(
+                f"laplace_smoothing must be a finite number > 0, got {self.laplace_smoothing}"
+            )
         if self.max_mpd_block_size < 2:
             raise ConfigurationError("max_mpd_block_size must be >= 2")
         if self.max_fd_column_pairs_per_table < 1:
             raise ConfigurationError("max_fd_column_pairs_per_table must be >= 1")
+        for edges_field in ("row_count_edges", "prevalence_edges", "token_length_edges"):
+            object.__setattr__(
+                self, edges_field, _validate_edges(edges_field, getattr(self, edges_field))
+            )
+        if not 0 <= self.max_failure_ratio <= 1:
+            raise ConfigurationError(
+                f"max_failure_ratio must be in [0, 1], got {self.max_failure_ratio}"
+            )
+
+    def build_fingerprint(self) -> dict[str, Any]:
+        """JSON-serializable settings that shape (or score against) the corpus statistics.
+
+        Persisted next to the corpus-statistics table by the builder and
+        compared by the detection-side store, so a corpus is never silently
+        scored with a different epsilon or bucket layout than it was built with.
+        """
+        return {
+            "format_version": BUILD_FINGERPRINT_VERSION,
+            "epsilon": self.epsilon,
+            "laplace_smoothing": self.laplace_smoothing,
+            "max_mpd_block_size": self.max_mpd_block_size,
+            "max_fd_column_pairs_per_table": self.max_fd_column_pairs_per_table,
+            "row_count_edges": list(self.row_count_edges),
+            "prevalence_edges": list(self.prevalence_edges),
+            # Not named "token_length_edges": Spark redacts table-property values
+            # containing "token" (spark.redaction.regex), which would corrupt the JSON.
+            "length_edges": list(self.token_length_edges),
+        }
 
     @property
     def corpus_stats_fqn(self) -> str:

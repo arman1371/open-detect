@@ -18,8 +18,10 @@ function in this package consumes.
 
 from __future__ import annotations
 
+import hashlib
+import heapq
 from collections.abc import Sequence
-from itertools import combinations
+from itertools import permutations
 from typing import TYPE_CHECKING
 
 from open_detect.algorithms.uni_detect.corpus.schema import (
@@ -35,6 +37,29 @@ if TYPE_CHECKING:
 logger = get_logger(__name__)
 
 
+def select_fd_column_pairs(
+    table_id: str, column_names: Sequence[str], max_pairs: int
+) -> list[tuple[int, int]]:
+    """Pick the ordered ``(lhs_idx, rhs_idx)`` candidate pairs for one table.
+
+    Both directions (A->B and B->A) are candidates. When there are more than
+    ``max_pairs`` the survivors are those with the smallest stable hash of
+    ``(table_id, lhs_name, rhs_name)``, so the selection depends only on the
+    table and its column *names* -- not on column order -- and is identical
+    across runs and processes (``hashlib``, unlike ``hash()``, is unsalted).
+    """
+
+    def sort_key(pair: tuple[int, int]) -> tuple[bytes, int, int]:
+        lhs, rhs = pair
+        digest = hashlib.sha256(
+            f"{table_id}\x00{column_names[lhs]}\x00{column_names[rhs]}".encode()
+        ).digest()
+        return digest, lhs, rhs
+
+    candidates = permutations(range(len(column_names)), 2)
+    return heapq.nsmallest(max_pairs, candidates, key=sort_key)
+
+
 class CorpusIngestor:
     """Builds ``corpus_columns``, ``corpus_column_pairs`` and ``token_stats``.
 
@@ -47,8 +72,10 @@ class CorpusIngestor:
         corpus column. Uses ``DataFrame.limit`` *before* aggregation, so cost
         is bounded regardless of the source table's true size.
     max_fd_column_pairs_per_table:
-        Caps the number of LHS/RHS candidate pairs generated per table,
-        avoiding an O(columns^2) blow-up on very wide tables.
+        Caps the number of ordered LHS/RHS candidate pairs generated per
+        table, avoiding an O(columns^2) blow-up on very wide tables. Over the
+        cap, pairs are sampled deterministically (see
+        :func:`select_fd_column_pairs`).
     """
 
     def __init__(
@@ -139,25 +166,30 @@ class CorpusIngestor:
         if num_rows == 0:
             return []
 
-        pairs = list(combinations(range(len(columns)), 2))[: self.max_fd_column_pairs_per_table]
+        pairs = select_fd_column_pairs(fqn, columns, self.max_fd_column_pairs_per_table)
         frames: list[DataFrame] = []
         for lhs_idx, rhs_idx in pairs:
             lhs_col, rhs_col = columns[lhs_idx], columns[rhs_idx]
-            sampled = df.select(
-                F.col(f"`{lhs_col}`").cast("string").alias("lhs"),
-                F.col(f"`{rhs_col}`").cast("string").alias("rhs"),
-            ).limit(self.max_values_per_column)
-            per_pair = sampled.agg(
-                F.collect_list("lhs").alias("lhs_values"),
-                F.collect_list("rhs").alias("rhs_values"),
-            ).select(
+            # Collect (lhs, rhs) as one struct, keeping only rows where both
+            # sides are non-null: collecting the columns independently drops
+            # nulls independently, leaving arrays of different lengths whose
+            # positions no longer refer to the same rows.
+            sampled = (
+                df.select(
+                    F.col(f"`{lhs_col}`").cast("string").alias("lhs"),
+                    F.col(f"`{rhs_col}`").cast("string").alias("rhs"),
+                )
+                .where(F.col("lhs").isNotNull() & F.col("rhs").isNotNull())
+                .limit(self.max_values_per_column)
+            )
+            per_pair = sampled.agg(F.collect_list(F.struct("lhs", "rhs")).alias("pairs")).select(
                 F.lit(fqn).alias("table_id"),
                 F.lit(lhs_col).alias("lhs_column"),
                 F.lit(rhs_col).alias("rhs_column"),
                 F.lit(rhs_idx).alias("rhs_column_index"),
                 F.lit(num_rows).alias("num_rows"),
-                "lhs_values",
-                "rhs_values",
+                F.col("pairs.lhs").alias("lhs_values"),
+                F.col("pairs.rhs").alias("rhs_values"),
             )
             frames.append(per_pair)
         return frames

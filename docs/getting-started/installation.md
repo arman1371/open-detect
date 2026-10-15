@@ -53,8 +53,8 @@ uv sync          # runtime + dev dependencies, including pyspark and delta-spark
 
 ```python
 >>> import open_detect
->>> open_detect.__version__
-'0.2.0'
+>>> open_detect.__version__  # read from the installed package metadata
+'x.y.z'
 >>> from open_detect.algorithms import list_algorithms
 >>> list_algorithms()
 ['auto_validate', 'raha', 'uni_detect']

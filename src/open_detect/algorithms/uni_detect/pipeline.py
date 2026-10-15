@@ -123,7 +123,7 @@ class UniDetect:
                 stats = builder.build_fd_stats(pairs_df, token_map)
             else:  # pragma: no cover - exhaustive over ErrorType
                 raise ValueError(f"Unknown error type: {error_type}")
-            builder.write(stats, mode="overwrite")
+            builder.write(stats, mode="overwrite", error_types=[error_type])
 
         if columns_df is not None:
             columns_df.unpersist()

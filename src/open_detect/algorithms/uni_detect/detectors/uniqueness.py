@@ -6,12 +6,34 @@ from typing import TYPE_CHECKING
 
 from open_detect.algorithms.uni_detect.detectors.base import BaseDetector
 from open_detect.algorithms.uni_detect.detectors.schema import CANDIDATE_SCHEMA
+from open_detect.algorithms.uni_detect.failures import FailureCounts
+from open_detect.algorithms.uni_detect.featurization import build_uniqueness_bucket
+from open_detect.algorithms.uni_detect.perturbation import perturb_uniqueness
+from open_detect.algorithms.uni_detect.strategies import get_spec
 from open_detect.core.enums import ErrorType
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
 
     from pyspark.sql import DataFrame
+
+    from open_detect.algorithms.uni_detect.config import UniDetectConfig
+
+
+def _score_column(vals, num_rows, column_index, token_document_frequency, cfg: UniDetectConfig):
+    """Return ``(outcome, bucket)``, or ``None`` when there is nothing to flag."""
+    outcome = perturb_uniqueness(vals, epsilon=cfg.epsilon)
+    if not outcome.dropped_indices:
+        return None
+    bucket = build_uniqueness_bucket(
+        values=vals,
+        num_rows=num_rows,
+        column_index=column_index,
+        token_document_frequency=token_document_frequency,
+        row_count_edges=cfg.row_count_edges,
+        prevalence_edges=cfg.prevalence_edges,
+    )
+    return outcome, bucket
 
 
 class UniquenessDetector(BaseDetector):
@@ -23,15 +45,15 @@ class UniquenessDetector(BaseDetector):
         cfg = self.config
         token_map = self.store.load_token_stats_map()
         broadcast_tdf = self.spark.sparkContext.broadcast(token_map)
-        min_rows = 5
+        min_rows = get_spec(self.error_type).min_rows
+        tracker = self._new_failure_tracker()
 
         def compute(batches):
             from open_detect.algorithms.uni_detect.detectors.base import make_evidence_json
-            from open_detect.algorithms.uni_detect.featurization import build_uniqueness_bucket
-            from open_detect.algorithms.uni_detect.perturbation import perturb_uniqueness
 
             tdf = broadcast_tdf.value
             for batch in batches:
+                counts = FailureCounts()
                 rows: list[dict] = []
                 for tid, col, idx, n, vals in zip(
                     batch["table_id"],
@@ -44,20 +66,10 @@ class UniquenessDetector(BaseDetector):
                     vals = list(vals)
                     if len(vals) < min_rows:
                         continue
-                    try:
-                        outcome = perturb_uniqueness(vals, epsilon=cfg.epsilon)
-                        if not outcome.dropped_indices:
-                            continue
-                        bucket = build_uniqueness_bucket(
-                            values=vals,
-                            num_rows=int(n),
-                            column_index=int(idx),
-                            token_document_frequency=tdf,
-                            row_count_edges=cfg.row_count_edges,
-                            prevalence_edges=cfg.prevalence_edges,
-                        )
-                    except Exception:  # noqa: BLE001
+                    scored = counts.attempt(_score_column, vals, int(n), int(idx), tdf, cfg)
+                    if scored is None:
                         continue
+                    outcome, bucket = scored
 
                     rows.append(
                         {
@@ -78,6 +90,7 @@ class UniquenessDetector(BaseDetector):
                             ),
                         }
                     )
+                tracker.flush(counts)
                 yield pd.DataFrame(rows, columns=[f.name for f in CANDIDATE_SCHEMA.fields])
 
         columns_df = self.ingestor.ingest_columns(table_names)
