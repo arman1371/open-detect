@@ -7,6 +7,7 @@ import pytest
 from open_detect.exceptions import (
     ConfigurationError,
     CorpusNotFoundError,
+    DataQualityError,
     InsufficientDataError,
     OpenDetectError,
     UnityCatalogError,
@@ -15,7 +16,13 @@ from open_detect.exceptions import (
 
 @pytest.mark.parametrize(
     "exc_class",
-    [ConfigurationError, CorpusNotFoundError, UnityCatalogError, InsufficientDataError],
+    [
+        ConfigurationError,
+        CorpusNotFoundError,
+        UnityCatalogError,
+        InsufficientDataError,
+        DataQualityError,
+    ],
 )
 def test_all_errors_derive_from_open_detect_error(exc_class):
     assert issubclass(exc_class, OpenDetectError)

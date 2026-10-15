@@ -25,3 +25,12 @@ class UnityCatalogError(OpenDetectError):
 
 class InsufficientDataError(OpenDetectError):
     """Raised when a target column/table does not have enough data to score."""
+
+
+class DataQualityError(OpenDetectError):
+    """Raised when too many corpus/target items fail to score on the executors.
+
+    The failure ratio exceeded ``UniDetectConfig.max_failure_ratio``, so the
+    resulting statistics or detections would be built on a silently biased
+    sample.
+    """

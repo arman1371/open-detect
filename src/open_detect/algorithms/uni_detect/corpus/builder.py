@@ -20,11 +20,13 @@ than padded with nulls -- exactly the row-count-changing transformation
 
 from __future__ import annotations
 
+import weakref
 from typing import TYPE_CHECKING
 
 from open_detect.algorithms.uni_detect.config import UniDetectConfig
 from open_detect.algorithms.uni_detect.corpus.build_metadata import write_build_config
 from open_detect.algorithms.uni_detect.corpus.schema import CORPUS_STATS_SCHEMA
+from open_detect.algorithms.uni_detect.failures import FailureCounts, FailureTracker
 from open_detect.core.enums import ErrorType
 from open_detect.logging_utils import get_logger, log_duration
 
@@ -59,6 +61,12 @@ class CorpusStatsBuilder:
     def __init__(self, spark: SparkSession, config: UniDetectConfig) -> None:
         self.spark = spark
         self.config = config
+        self._trackers: weakref.WeakKeyDictionary[DataFrame, FailureTracker] = (
+            weakref.WeakKeyDictionary()
+        )
+
+    def _new_tracker(self, label: str) -> FailureTracker:
+        return FailureTracker(self.spark.sparkContext, label, self.config.max_failure_ratio)
 
     def build_uniqueness_stats(
         self, corpus_columns: DataFrame, token_document_frequency: dict[str, int]
@@ -87,14 +95,12 @@ class CorpusStatsBuilder:
         cfg = self.config
         broadcast_tdf = self.spark.sparkContext.broadcast(token_document_frequency)
 
-        def compute(batches):
-            from open_detect.algorithms.uni_detect.featurization import (
-                build_functional_dependency_bucket,
-            )
-            from open_detect.algorithms.uni_detect.perturbation import perturb_functional_dependency
+        tracker = self._new_tracker("build_fd_stats")
 
+        def compute(batches):
             tdf = broadcast_tdf.value
             for batch in batches:
+                counts = FailureCounts()
                 out_bucket, out_before, out_after, out_table = [], [], [], []
                 for tid, lhs_vals, rhs_vals, n, rhs_idx in zip(
                     batch["table_id"],
@@ -104,25 +110,24 @@ class CorpusStatsBuilder:
                     batch["rhs_column_index"],
                     strict=True,
                 ):
-                    try:
-                        outcome = perturb_functional_dependency(
-                            list(lhs_vals), list(rhs_vals), epsilon=cfg.epsilon
-                        )
-                        bucket = build_functional_dependency_bucket(
-                            rhs_values=list(rhs_vals),
-                            num_rows=int(n),
-                            rhs_column_index=int(rhs_idx),
-                            token_document_frequency=tdf,
-                            row_count_edges=cfg.row_count_edges,
-                            prevalence_edges=cfg.prevalence_edges,
-                        )
-                    except Exception:  # noqa: BLE001 - one bad corpus row must not fail the job
+                    scored = counts.attempt(
+                        _score_fd_pair,
+                        list(lhs_vals),
+                        list(rhs_vals),
+                        int(n),
+                        int(rhs_idx),
+                        tdf,
+                        cfg,
+                    )
+                    if scored is None:
                         continue
+                    bucket, outcome = scored
                     out_table.append(tid)
                     out_bucket.append(bucket.as_key())
                     out_before.append(outcome.theta_before)
                     out_after.append(outcome.theta_after)
 
+                tracker.flush(counts)
                 yield pd.DataFrame(
                     {
                         "feature_bucket": out_bucket,
@@ -141,6 +146,7 @@ class CorpusStatsBuilder:
             ).mapInPandas(compute, schema=result_schema)
             stats = stats.withColumn("error_type", F.lit(ErrorType.FUNCTIONAL_DEPENDENCY.value))
             stats = stats.select(*[f.name for f in CORPUS_STATS_SCHEMA.fields])
+        self._trackers[stats] = tracker
         return stats
 
     def _build_single_column_stats(
@@ -155,9 +161,12 @@ class CorpusStatsBuilder:
         cfg = self.config
         broadcast_tdf = self.spark.sparkContext.broadcast(token_document_frequency)
 
+        tracker = self._new_tracker(f"build_{error_type.value}_stats")
+
         def compute(batches):
             tdf = broadcast_tdf.value
             for batch in batches:
+                counts = FailureCounts()
                 out_bucket, out_before, out_after, out_table = [], [], [], []
                 for tid, vals, n, idx in zip(
                     batch["table_id"],
@@ -166,19 +175,18 @@ class CorpusStatsBuilder:
                     batch["column_index"],
                     strict=True,
                 ):
-                    try:
-                        bucket, outcome = _score_single_column(
-                            error_type, list(vals), int(n), int(idx), tdf, cfg
-                        )
-                    except (
-                        Exception
-                    ):  # noqa: BLE001 - skip unusable corpus rows, don't fail the job
+                    scored = counts.attempt(
+                        _score_single_column, error_type, list(vals), int(n), int(idx), tdf, cfg
+                    )
+                    if scored is None:
                         continue
+                    bucket, outcome = scored
                     out_table.append(tid)
                     out_bucket.append(bucket.as_key())
                     out_before.append(outcome.theta_before)
                     out_after.append(outcome.theta_after)
 
+                tracker.flush(counts)
                 yield pd.DataFrame(
                     {
                         "feature_bucket": out_bucket,
@@ -195,6 +203,7 @@ class CorpusStatsBuilder:
             ).mapInPandas(compute, schema=result_schema)
             stats = stats.withColumn("error_type", F.lit(error_type.value))
             stats = stats.select(*[f.name for f in CORPUS_STATS_SCHEMA.fields])
+        self._trackers[stats] = tracker
         return stats
 
     def write(
@@ -214,7 +223,30 @@ class CorpusStatsBuilder:
         exists (Delta has nothing to selectively overwrite on a first
         write), so the very first call for a given corpus-stats table falls
         back to a plain create.
+
+        For frames produced by this builder the (small) stats frame is cached
+        and materialized first, so the executor-side skip totals can be
+        logged and ``max_failure_ratio`` enforced *before* anything is
+        written; a breach raises :class:`~open_detect.exceptions.DataQualityError`
+        and leaves the existing table untouched.
         """
+        tracker = self._trackers.pop(stats, None)
+        if tracker is None:
+            self._write(stats, mode, error_types)
+            return
+
+        already_cached = stats.is_cached
+        if not already_cached:
+            stats.cache()
+        try:
+            stats.count()
+            tracker.check()
+            self._write(stats, mode, error_types)
+        finally:
+            if not already_cached:
+                stats.unpersist()
+
+    def _write(self, stats: DataFrame, mode: str, error_types: Sequence[ErrorType] | None) -> None:
         fqn = self.config.corpus_stats_fqn
         table_already_exists = self.spark.catalog.tableExists(fqn)
 
@@ -239,6 +271,31 @@ class CorpusStatsBuilder:
         writer.saveAsTable(fqn)
         write_build_config(self.spark, fqn, error_types, self.config)
         logger.info("Wrote corpus statistics to %s", fqn)
+
+
+def _score_fd_pair(
+    lhs_values: list[str],
+    rhs_values: list[str],
+    num_rows: int,
+    rhs_column_index: int,
+    token_document_frequency: dict[str, int],
+    cfg: UniDetectConfig,
+):
+    from open_detect.algorithms.uni_detect.featurization import (
+        build_functional_dependency_bucket,
+    )
+    from open_detect.algorithms.uni_detect.perturbation import perturb_functional_dependency
+
+    outcome = perturb_functional_dependency(lhs_values, rhs_values, epsilon=cfg.epsilon)
+    bucket = build_functional_dependency_bucket(
+        rhs_values=rhs_values,
+        num_rows=num_rows,
+        rhs_column_index=rhs_column_index,
+        token_document_frequency=token_document_frequency,
+        row_count_edges=cfg.row_count_edges,
+        prevalence_edges=cfg.prevalence_edges,
+    )
+    return bucket, outcome
 
 
 def _score_single_column(

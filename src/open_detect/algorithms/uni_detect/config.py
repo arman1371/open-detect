@@ -104,6 +104,11 @@ class UniDetectConfig:
         configuration (see :meth:`build_fingerprint`) differs from this one,
         since epsilon and bucket edges are baked into the materialized
         statistics. Set to ``True`` to log the mismatch and proceed anyway.
+    max_failure_ratio:
+        Maximum tolerated fraction (``0 <= x <= 1``) of corpus columns /
+        target columns that may fail to score on the executors (and are
+        skipped) before a :class:`~open_detect.exceptions.DataQualityError`
+        is raised. ``0`` fails on the first skipped item; ``1`` never fails.
     """
 
     location: UnityCatalogLocation
@@ -119,6 +124,7 @@ class UniDetectConfig:
     token_stats_table: str = "open_detect_token_stats"
     detections_table: str = "open_detect_detections"
     allow_corpus_config_mismatch: bool = False
+    max_failure_ratio: float = 0.01
 
     def __post_init__(self) -> None:
         if not 0 < self.epsilon <= 1:
@@ -137,6 +143,10 @@ class UniDetectConfig:
         for edges_field in ("row_count_edges", "prevalence_edges", "token_length_edges"):
             object.__setattr__(
                 self, edges_field, _validate_edges(edges_field, getattr(self, edges_field))
+            )
+        if not 0 <= self.max_failure_ratio <= 1:
+            raise ConfigurationError(
+                f"max_failure_ratio must be in [0, 1], got {self.max_failure_ratio}"
             )
 
     def build_fingerprint(self) -> dict[str, Any]:
