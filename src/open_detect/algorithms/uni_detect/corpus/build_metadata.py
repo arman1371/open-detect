@@ -12,6 +12,7 @@ from __future__ import annotations
 import json
 from typing import TYPE_CHECKING, Any
 
+from open_detect._sql import quote_qualified
 from open_detect.exceptions import ConfigurationError
 from open_detect.logging_utils import get_logger
 
@@ -52,7 +53,9 @@ def write_build_config(
     payload = json.dumps(config.build_fingerprint(), sort_keys=True)
     assignments = ", ".join(f"'{property_key(et)}' = '{payload}'" for et in error_types)
     if assignments:
-        spark.sql(f"ALTER TABLE {table_fqn} SET TBLPROPERTIES ({assignments})")
+        spark.sql(
+            f"ALTER TABLE {quote_qualified(table_fqn)} SET TBLPROPERTIES ({assignments})"
+        )
 
 
 def read_build_config(
@@ -60,7 +63,7 @@ def read_build_config(
 ) -> dict[str, Any] | None:
     """Return the persisted fingerprint for ``error_type``, or ``None`` for legacy corpora."""
     key = property_key(error_type)
-    for row in spark.sql(f"SHOW TBLPROPERTIES {table_fqn}").collect():
+    for row in spark.sql(f"SHOW TBLPROPERTIES {quote_qualified(table_fqn)}").collect():
         prop = row.asDict()
         if prop["key"] == key:
             try:

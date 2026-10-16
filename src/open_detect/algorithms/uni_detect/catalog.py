@@ -11,6 +11,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+from open_detect._sql import quote_ident
 from open_detect.algorithms.uni_detect.config import UnityCatalogLocation
 from open_detect.exceptions import UnityCatalogError
 from open_detect.logging_utils import get_logger
@@ -30,8 +31,11 @@ def ensure_schema_exists(spark: SparkSession, location: UnityCatalogLocation) ->
     skip calling this helper.
     """
     try:
-        spark.sql(f"CREATE CATALOG IF NOT EXISTS `{location.catalog}`")
-        spark.sql(f"CREATE SCHEMA IF NOT EXISTS `{location.catalog}`.`{location.schema}`")
+        spark.sql(f"CREATE CATALOG IF NOT EXISTS {quote_ident(location.catalog)}")
+        spark.sql(
+            f"CREATE SCHEMA IF NOT EXISTS {quote_ident(location.catalog)}."
+            f"{quote_ident(location.schema)}"
+        )
     except Exception as exc:  # noqa: BLE001
         raise UnityCatalogError(
             f"Failed to ensure {location.catalog}.{location.schema} exists: {exc}"
@@ -40,7 +44,9 @@ def ensure_schema_exists(spark: SparkSession, location: UnityCatalogLocation) ->
 
 def list_tables(spark: SparkSession, catalog: str, schema: str) -> list[str]:
     """Return fully-qualified names of every table in ``catalog.schema``."""
-    rows = spark.sql(f"SHOW TABLES IN `{catalog}`.`{schema}`").collect()
+    rows = spark.sql(
+        f"SHOW TABLES IN {quote_ident(catalog)}.{quote_ident(schema)}"
+    ).collect()
     return [f"{catalog}.{schema}.{row['tableName']}" for row in rows]
 
 
@@ -54,7 +60,7 @@ def list_tables_matching(
     table this catalog already governs" (see ``corpus/ingestion.py``).
     """
     if schemas is None:
-        rows = spark.sql(f"SHOW SCHEMAS IN `{catalog}`").collect()
+        rows = spark.sql(f"SHOW SCHEMAS IN {quote_ident(catalog)}").collect()
         schemas = [row["databaseName"] for row in rows]
 
     tables: list[str] = []

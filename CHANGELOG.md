@@ -2,6 +2,16 @@
 
 <!-- version list -->
 
+## Unreleased
+
+### Bug Fixes
+
+- **uni-detect**: SQL identifier quoting hardening (`quote_ident` / `quote_qualified` /
+  `quote_column`) across catalog DDL, corpus ingestion and build metadata; config
+  validates table names (OPE-76, B-M5). Pending push as a PR.
+
+---
+
 ## v0.2.6 (2026-10-15)
 
 ### Bug Fixes

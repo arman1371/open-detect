@@ -17,6 +17,8 @@ from contextlib import contextmanager
 from pathlib import Path
 from typing import Any
 
+from open_detect._sql import quote_ident
+
 
 class SparkUnavailable(Exception):
     """Raised only when a local Delta-enabled Spark session cannot be started at all.
@@ -83,7 +85,9 @@ def spark_session(
     try:
         session = configure_spark_with_delta_pip(builder).getOrCreate()
         session.sparkContext.setLogLevel("ERROR")
-        session.sql(f"CREATE NAMESPACE IF NOT EXISTS {catalog}.{schema}")
+        session.sql(
+            f"CREATE NAMESPACE IF NOT EXISTS {quote_ident(catalog)}.{quote_ident(schema)}"
+        )
     except Exception as exc:  # noqa: BLE001
         shutil.rmtree(warehouse_dir, ignore_errors=True)
         raise SparkUnavailable(str(exc)) from exc
