@@ -42,7 +42,16 @@ class PerturbationOutcome:
     theta_before: float
     theta_after: float
     dropped_indices: tuple[int, ...]
+    #: Source row ids (positions in the caller's original column, nulls included)
+    #: of the dropped values. Empty when the perturbation did not receive original
+    #: positions (e.g. it was handed an already-filtered list).
+    row_ids: tuple[int, ...] = ()
     evidence: dict[str, Any] = field(default_factory=dict)
+
+
+def _source_row_ids(values: Sequence[object]) -> list[int]:
+    """0-based positions of non-null values in ``values``, in order."""
+    return [i for i, v in enumerate(values) if v is not None]
 
 
 def _max_drop(n: int, epsilon: float) -> int:
@@ -62,6 +71,7 @@ def perturb_uniqueness(values: Sequence[object], epsilon: float) -> Perturbation
         theta_before=theta_before,
         theta_after=theta_after,
         dropped_indices=dropped,
+        row_ids=tuple(_source_row_ids(values)[i] for i in dropped),
         evidence={"num_duplicate_values": len(all_dupes)},
     )
 
@@ -74,7 +84,7 @@ def perturb_numeric_outlier(values: Sequence[float], epsilon: float) -> Perturba
     two finite values there is nothing to score, so a no-perturbation outcome (no dropped
     indices, both thetas 0.0) is returned.
     """
-    clean, _ = finite_floats(values)
+    clean, positions = finite_floats(values)
     if len(clean) < 2:
         return PerturbationOutcome(
             theta_before=_UNDEFINED_AFTER_LOW,
@@ -88,6 +98,7 @@ def perturb_numeric_outlier(values: Sequence[float], epsilon: float) -> Perturba
         theta_before=result.score,
         theta_after=theta_after,
         dropped_indices=(result.index,),
+        row_ids=(positions[result.index],) if positions else (),
         evidence={"outlier_value": result.value},
     )
 
@@ -102,6 +113,7 @@ def perturb_spelling(
     """
     mpd_before = min_pairwise_edit_distance(values, max_block_size=max_block_size)
     clean = [str(v) for v in values if v is not None]
+    source_ids = _source_row_ids(values)
     dropped = tuple(i for i, v in enumerate(clean) if v == mpd_before.value_u)
     remaining = [v for v in clean if v != mpd_before.value_u]
     mpd_after: float
@@ -121,6 +133,7 @@ def perturb_spelling(
         theta_before=float(mpd_before.mpd),
         theta_after=float(mpd_after),
         dropped_indices=dropped,
+        row_ids=tuple(source_ids[i] for i in dropped),
         evidence={
             "pair": (mpd_before.value_u, mpd_before.value_v),
             "avg_differing_token_length": avg_token_length,
@@ -148,5 +161,6 @@ def perturb_functional_dependency(
         theta_before=before.ratio,
         theta_after=theta_after,
         dropped_indices=dropped,
+        row_ids=dropped,
         evidence={"num_violating_rows": len(before.violating_row_indices)},
     )

@@ -109,6 +109,12 @@ class TestPerturbSpelling:
         assert outcome.theta_after > 1.0
         assert outcome.dropped_indices == (0, 1)
 
+    def test_dropped_indices_are_positions_in_the_caller_column(self):
+        # OPE-74 repro: a null before the suspect shifted the reported index.
+        outcome = perturb_spelling(["x", None, "alpha", "alphb", "zzzzzz"], epsilon=0.5)
+        assert outcome.dropped_indices == (1,)
+        assert outcome.row_ids == (2,)
+
     def test_paper_example_1(self):
         column = ["Kevin Doeling", "Kevin Dowling", "Alan Myerson", "Rob Morrow"]
         outcome = perturb_spelling(column, epsilon=0.5)

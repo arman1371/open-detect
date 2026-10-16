@@ -76,7 +76,7 @@ class UniquenessDetector(BaseDetector):
                             "candidate_id": f"{tid}::{col}::uniqueness",
                             "table_id": tid,
                             "column_names": [col],
-                            "row_ids": [str(i) for i in outcome.dropped_indices],
+                            "row_ids": [str(i) for i in outcome.row_ids],
                             "feature_bucket": bucket.as_key(),
                             "theta_before": outcome.theta_before,
                             "theta_after": outcome.theta_after,

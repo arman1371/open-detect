@@ -1,4 +1,10 @@
-"""Original-row-id mapping for SpellingDetector (pure Python; no Spark required)."""
+"""Source-row-id mapping for SpellingDetector (pure Python; no Spark required).
+
+The mapping is now owned by the perturbation layer: ``PerturbationOutcome.row_ids``
+carries the original 0-based positions of the dropped values (nulls included), so
+``_build_row`` and these tests no longer re-derive the mapping and cannot drift
+away from it.
+"""
 
 from __future__ import annotations
 
@@ -8,26 +14,26 @@ import json
 import pytest
 
 from open_detect.algorithms.uni_detect.config import UniDetectConfig, UnityCatalogLocation
-from open_detect.algorithms.uni_detect.detectors.spelling import (
-    _build_row,
-    _drop_nulls,
-    _original_row_ids,
-)
+from open_detect.algorithms.uni_detect.detectors.spelling import _build_row
 from open_detect.algorithms.uni_detect.featurization import build_spelling_bucket
 from open_detect.algorithms.uni_detect.perturbation import perturb_spelling
 
 
 def _score(vals):
-    """Run the same drop-nulls -> perturb -> map-back sequence as ``compute``."""
-    clean, positions = _drop_nulls(vals)
-    outcome = perturb_spelling(clean, epsilon=0.1)
-    return outcome, _original_row_ids(outcome.dropped_indices, positions)
+    """Run the same drop-nulls -> perturb sequence as ``compute``.
+
+    ``vals`` is passed whole so the perturbation can map dropped indices back to
+    original positions (nulls included); passing the pre-filtered list instead
+    would silently lose that mapping.
+    """
+    outcome = perturb_spelling(vals, epsilon=0.1)
+    return outcome, [str(i) for i in outcome.row_ids]
 
 
 def _row(vals, cfg: UniDetectConfig, tid: str = "t", col: str = "c"):
     """Build a candidate row exactly as ``compute`` does, for end-to-end checks."""
-    clean, _ = _drop_nulls(vals)
-    outcome = perturb_spelling(clean, epsilon=cfg.epsilon, max_block_size=cfg.max_mpd_block_size)
+    clean = [v for v in vals if v is not None]
+    outcome = perturb_spelling(vals, epsilon=cfg.epsilon, max_block_size=cfg.max_mpd_block_size)
     bucket = build_spelling_bucket(
         values=clean,
         num_rows=len(vals),
@@ -40,12 +46,6 @@ def _row(vals, cfg: UniDetectConfig, tid: str = "t", col: str = "c"):
 
 def _positions_of(vals, value):
     return [str(i) for i, v in enumerate(vals) if v == value]
-
-
-def test_drop_nulls_returns_original_positions():
-    clean, positions = _drop_nulls([None, "a", None, "b"])
-    assert clean == ["a", "b"]
-    assert positions == [1, 3]
 
 
 def test_leading_nulls_map_to_original_positions():
@@ -67,9 +67,7 @@ def test_duplicates_map_every_occurrence_in_ascending_order():
 def test_build_row_maps_row_ids_via_original_positions():
     """End-to-end through ``_build_row`` for the leading-nulls scenario."""
     vals = ["zzzz", None, "appel", None, "appel", "appel", "apple", "kiwi", "plum"]
-    cfg = UniDetectConfig(
-        location=UnityCatalogLocation(catalog="t", schema="dq"), epsilon=0.1
-    )
+    cfg = UniDetectConfig(location=UnityCatalogLocation(catalog="t", schema="dq"), epsilon=0.1)
     row = _row(vals, cfg)
     assert row["row_ids"] == ["2", "4", "5"]
     assert row["candidate_id"].endswith("::spelling::2")

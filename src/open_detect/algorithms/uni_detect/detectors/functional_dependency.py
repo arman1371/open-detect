@@ -82,7 +82,7 @@ class FunctionalDependencyDetector(BaseDetector):
                             "candidate_id": f"{tid}::{lhs_col}->{rhs_col}::fd",
                             "table_id": tid,
                             "column_names": [lhs_col, rhs_col],
-                            "row_ids": [str(i) for i in outcome.dropped_indices],
+                            "row_ids": [str(i) for i in outcome.row_ids],
                             "feature_bucket": bucket.as_key(),
                             "theta_before": outcome.theta_before,
                             "theta_after": outcome.theta_after,

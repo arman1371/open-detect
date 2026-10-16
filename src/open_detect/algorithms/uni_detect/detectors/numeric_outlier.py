@@ -55,7 +55,7 @@ class NumericOutlierDetector(BaseDetector):
                     batch["values"],
                     strict=True,
                 ):
-                    numeric_vals, original_index_map = finite_floats(vals)
+                    numeric_vals, _ = finite_floats(vals)
                     if len(numeric_vals) < min_rows:
                         continue
                     scored = counts.attempt(_score_column, numeric_vals, int(n), cfg)
@@ -63,13 +63,12 @@ class NumericOutlierDetector(BaseDetector):
                         continue
                     outcome, bucket = scored
 
-                    dropped_original = [original_index_map[i] for i in outcome.dropped_indices]
                     rows.append(
                         {
                             "candidate_id": f"{tid}::{col}::outlier",
                             "table_id": tid,
                             "column_names": [col],
-                            "row_ids": [str(i) for i in dropped_original],
+                            "row_ids": [str(i) for i in outcome.row_ids],
                             "feature_bucket": bucket.as_key(),
                             "theta_before": outcome.theta_before,
                             "theta_after": outcome.theta_after,
