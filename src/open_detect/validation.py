@@ -18,20 +18,12 @@ from open_detect.core.enums import ErrorType
 T = TypeVar("T")
 
 
-def _check_unknown_kwargs(kwargs: dict[str, Any], accepted: set[str]) -> None:
-    """Raise ValidationError if any unknown kwargs are passed.
-
-    Parameters
-    ----------
-    kwargs:
-        The keyword arguments that were passed to detect().
-    accepted:
-        The set of kwarg names that are accepted by the algorithm.
-    """
+def _check_unknown_kwargs(kwargs: dict[str, Any], accepted: set[str], param_name: str = "detect") -> None:
+    """Raise ValidationError if kwargs contains keys not in ``accepted``."""
     unknown = set(kwargs) - accepted
     if unknown:
         msg = (
-            f"Unknown parameter(s): {', '.join(sorted(unknown))}. "
+            f"Unknown parameter(s) in {param_name}: {', '.join(sorted(unknown))}. "
             f"Accepted parameters: {', '.join(sorted(accepted))}"
         )
         raise ValidationError(msg)
@@ -58,6 +50,31 @@ def _check_expected_type(value: Any, expected_type: type, param_name: str) -> No
         raise ValidationError(
             f"{param_name} must be of type {expected_type.__name__}, "
             f"got {type(value).__name__}: {value!r}"
+        )
+
+
+def _reject_unknown_kwargs(kwargs: dict[str, Any], allowed: set[str], param_name: str) -> None:
+    """Raise ValidationError if kwargs contains keys not in ``allowed``."""
+    unknown = set(kwargs) - allowed
+    if unknown:
+        raise ValidationError(
+            f"Unknown parameter(s) in {param_name}: {', '.join(sorted(unknown))}. "
+            f"Allowed parameters: {', '.join(sorted(allowed))}"
+        )
+
+
+def _ensure_sequence_of_str(value: Any, param_name: str) -> None:
+    """Validate that value is a non-string sequence of strings."""
+    origin = get_origin(value)
+    if origin is not None and origin is Sequence:
+        args = getattr(value, '__args__', ())
+        if len(args) == 1 and args[0] is str and isinstance(value, str):
+            raise ValidationError(
+                f"expected a sequence of str for {param_name}, got str; wrap in a list"
+            )
+    if not isinstance(value, (list, tuple)) or not all(isinstance(c, str) for c in value):
+        raise ValidationError(
+            f"{param_name} must be a list/tuple of str, got {type(value).__name__}"
         )
 
 
@@ -146,4 +163,6 @@ __all__ = [
     "_check_columns_unique",
     "_check_dataframe_is_spark",
     "_ensure_dataframe_is_spark",
+    "_reject_unknown_kwargs",
+    "_ensure_sequence_of_str",
 ]

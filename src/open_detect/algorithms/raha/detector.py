@@ -75,9 +75,8 @@ class RahaDetector(ErrorDetectionAlgorithm):
             (evaluation) or :class:`~open_detect.algorithms.raha.labeling.CallableLabeler`
             (a real human/UI) for results matching the paper.
         """
-        from open_detect.validation import _ensure_dataframe_is_spark, _validate_literal_value
+        from open_detect.validation import _validate_literal_value
 
-        _ensure_dataframe_is_spark(data, "data")
         if conflict_resolution is not None:
             _validate_literal_value(conflict_resolution, ("homogeneity", "majority"), "conflict_resolution")
         if variant is not None:
