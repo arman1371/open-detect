@@ -78,9 +78,9 @@ class RahaDetector(ErrorDetectionAlgorithm):
         from open_detect.validation import _validate_literal_value
 
         if conflict_resolution is not None:
-            _validate_literal_value(conflict_resolution, ("homogeneity", "majority"), "conflict_resolution")
+            _validate_literal_value(conflict_resolution, {"homogeneity", "majority"}, "conflict_resolution")
         if variant is not None:
-            _validate_literal_value(variant, ("A", "B"), "variant")
+            _validate_literal_value(variant, {"A", "B"}, "variant")
 
         df = data
         n = len(df)
@@ -122,7 +122,7 @@ class RahaDetector(ErrorDetectionAlgorithm):
             # fired_cache: maps feature profile tuple -> fired_strategies list
             fired_cache: dict[tuple[str, ...], list[str]] = {}
             # evidence_cache: maps (source, frozen_fired_strategies) -> shared evidence dict
-            evidence_cache: dict[tuple[str, tuple[str, ...]], dict[str, list[str]]] = {}
+            evidence_cache: dict[tuple[str, tuple[str, ...]], dict[str, Any]] = {}
 
             cells: list[CellResult] = []
             for col in df.columns:

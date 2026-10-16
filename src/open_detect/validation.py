@@ -39,7 +39,7 @@ def _check_expected_type(value: Any, expected_type: type, param_name: str) -> No
     origin = get_origin(expected_type)
     if origin is not None and origin is Sequence:
         # expected_type is Sequence[Something], check the args
-        args = getattr(expected_type, '__args__', ())
+        args: tuple[Any, ...] = getattr(expected_type, '__args__', ())
         if len(args) == 1 and args[0] is str and isinstance(value, str):
             raise ValidationError(
                 "expected a sequence of str, got str; wrap in a list"
@@ -66,7 +66,7 @@ def _ensure_sequence_of_str(value: Any, param_name: str) -> None:
     """Validate that value is a non-string sequence of strings."""
     origin = get_origin(value)
     if origin is not None and origin is Sequence:
-        args = getattr(value, '__args__', ())
+        args: tuple[Any, ...] = getattr(value, '__args__', ())
         if len(args) == 1 and args[0] is str and isinstance(value, str):
             raise ValidationError(
                 f"expected a sequence of str for {param_name}, got str; wrap in a list"
@@ -104,21 +104,6 @@ def _check_columns_unique(columns: list[str]) -> None:
             f"Column names must be unique, got duplicates: "
             f"{', '.join(sorted([c for c in columns if columns.count(c) > 1]))}"
         )
-
-
-def _check_dataframe_is_spark(df: Any, param_name: str = "data") -> None:
-    """Validate that data is a Spark DataFrame (when PySpark is available)."""
-    try:
-        from pyspark.sql import DataFrame as SparkDataFrame
-
-        if not isinstance(df, SparkDataFrame):
-            raise ValidationError(
-                f"{param_name} must be a pyspark.sql.DataFrame, "
-                f"got {type(df).__name__}"
-            )
-    except ImportError:
-        # PySpark not available; skip this check
-        pass
 
 
 def _check_dataframe_is_spark(df: Any, param_name: str = "data") -> None:
