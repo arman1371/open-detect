@@ -172,10 +172,22 @@ class AutoValidateAlgorithm(ErrorDetectionAlgorithm):
             fpr_t, cov_t, theta_c = inferred.fpr_t, inferred.cov_t, inferred.theta_c
             n_total = len(series) - sum(1 for v in series if _is_null(v))
             score = 1.0 - fpr_t if n_total > 0 else 0.0
-            for idx, value in series.items():
-                if _is_null(value):
-                    continue
-                is_error = not _value_matches(pattern, value)
+            # Verdict cache: compute the pattern verdict once per distinct value and
+            # broadcast it, instead of re-running ``_value_matches`` for every
+            # cell. Unhashable values (lists/dicts) are not in the cache and are
+            # resolved per cell below, since ``series.map(dict)`` would raise
+            # ``TypeError`` on them.
+            verdicts = _distinct_value_verdicts(series, pattern)
+            # ``series.notna()`` is a single vectorized pass over the column,
+            # replacing the per-cell ``_is_null`` call (which ran ``pd.isna``
+            # twice per cell). ``notna`` treats ``None``/NaN as null and
+            # everything else (including "" and lists/dicts) as non-null,
+            # matching :func:`_is_null`.
+            for idx, value in series[series.notna()].items():
+                if isinstance(value, (list, dict, set)):
+                    is_error = not _value_matches(pattern, value)
+                else:
+                    is_error = verdicts[value]
                 cells.append(
                     CellResult(
                         table_id=table_id,
@@ -226,6 +238,37 @@ def _value_matches(pattern: str | Sequence[str], value: Any) -> bool:
         else:
             flat.extend(item)
     return any(matches(p, text) for p in flat)
+
+
+def _distinct_value_verdicts(series: pd.Series, pattern: str | Sequence[str]) -> dict[Any, bool]:
+    """Return a ``{value: is_error}`` map for every non-null value in ``series``.
+
+    The verdict is computed once per distinct value and broadcast to every
+    cell, instead of re-running ``_value_matches`` for each of the
+    (potentially 100k+) cells. ``series.unique()`` cannot hold unhashable
+    values (lists/dicts), so those are collected separately and resolved per
+    cell in :meth:`AutoValidateAlgorithm.detect`.
+    """
+    try:
+        # Fast path: ``unique()`` deduplicates without materialising duplicates.
+        values = series.unique().tolist()
+    except TypeError:
+        # Column holds unhashable values (lists/dicts): ``unique()`` raises,
+        # so fall back to the full value list and skip unhashables below.
+        values = series.values.tolist()
+    verdicts: dict[Any, bool] = {}
+    for value in values:
+        if _is_null(value):
+            continue
+        try:
+            if value in verdicts:
+                continue
+        except TypeError:
+            # Unhashable value (list/dict/set): resolved per cell in
+            # ``detect``; do not put it in the cache.
+            continue
+        verdicts[value] = not _value_matches(pattern, value)
+    return verdicts
 
 
 def _non_null_cells(
