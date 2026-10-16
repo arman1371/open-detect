@@ -10,10 +10,9 @@ Provides cross-algorithm validation for detect() calls:
 from __future__ import annotations
 
 from collections.abc import Sequence
-from typing import Any, get_origin, TypeVar
+from typing import Any, TypeVar, get_origin
 
 from open_detect.exceptions import ValidationError
-from open_detect.core.enums import ErrorType
 
 T = TypeVar("T")
 
@@ -43,7 +42,7 @@ def _check_expected_type(value: Any, expected_type: type, param_name: str) -> No
         args = getattr(expected_type, '__args__', ())
         if len(args) == 1 and args[0] is str and isinstance(value, str):
             raise ValidationError(
-                f"expected a sequence of str, got str; wrap in a list"
+                "expected a sequence of str, got str; wrap in a list"
             )
     # Default isinstance check
     if expected_type is not None and not isinstance(value, expected_type):
@@ -98,7 +97,7 @@ def _check_columns_unique(columns: list[str]) -> None:
     """Raise ValidationError if column names are not unique strings."""
     if not all(isinstance(c, str) for c in columns):
         raise ValidationError(
-            f"All column names must be strings, got non-string entries"
+            "All column names must be strings, got non-string entries"
         )
     if len(columns) != len(set(columns)):
         raise ValidationError(

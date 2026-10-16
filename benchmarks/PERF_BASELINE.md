@@ -40,6 +40,16 @@ Source: `benchmarks/wiki_subset/results/baseline.json` (commit `84b5982`, 2026-1
 3. **Auto-Validate** is moderate speed (75–153s) but has low recall (~27%) — it misses many errors.
 4. The Spark job-count helper (`benchmarks/common/spark_jobs.py`) and snapshot diff tool (`benchmarks/common/snapshot.py`) are ready for future runs.
 
+## Baseline Detections Snapshot
+
+The Uni-Detect detections snapshot for the wiki_subset benchmark is committed at
+`benchmarks/wiki_subset/results/profile/baseline/` (`detections.csv` + `perf.json`),
+captured at commit `2dfbbe73`. It is the reference for `make benchmark-diff`.
+
+The real_world_gov benchmark's profiling run OOM-killed the driver JVM on this
+machine (see below), so no gov baseline snapshot is committed yet; `make
+benchmark-diff` skips a dataset whose baseline/latest snapshot is missing.
+
 ## How to Re-run
 
 ```bash
