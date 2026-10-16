@@ -43,7 +43,7 @@ library never forces Spark or scikit-learn on you.
     (Databricks python_wheel_tasks reference entry-point names). See README
     and [databricks-jobs.md](https://github.com/arman1371/open-detect/blob/main/docs/guides/databricks-jobs.md) for examples.
 
-=== "Databricks"
+!!! note "Databricks"
 
     On a Databricks cluster, Spark and Delta are already provided. Install the plain package
     (`pip install open-detect`) and do not add the `uni_detect` / `spark` extra; it would shadow the runtime's

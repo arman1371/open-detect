@@ -6,18 +6,17 @@ notebooks.
 
 ## Jobs
 
-`databricks.yml` defines two jobs:
+`databricks.yml` defines two jobs — one per phase. Each is installed under a primary name
+and a backward-compatible alias; all four names are console scripts in the wheel.
 
-| Job | Phase | Default schedule |
-|---|---|---|
-| `build_corpus_statistics_job` | Offline: learn corpus statistics | Weekly, Sunday 03:00 UTC |
-| `open_detect_build_corpus` | Offline: learn corpus statistics | Weekly, Sunday 03:00 UTC |
-| `run_detection_job` | Online: scan target tables | On demand or scheduled |
-| `open_detect_run_detection` | Online: scan target tables | On demand or scheduled |
-| `build_corpus_statistics_job` / `run_detection_job` | Backward-compatible aliases | databricks python_wheel_tasks reference |
-| `open_detect_build_corpus` / `open_detect_run_detection` | Primary names | new workflow-friendly names |
+| Job | Phase | Default schedule | Primary name | Alias |
+|---|---|---|---|---|
+| Offline: learn corpus statistics | build | Weekly, Sunday 03:00 UTC | `open_detect_build_corpus` | `build_corpus_statistics_job` |
+| Online: scan target tables | detect | On demand or scheduled | `open_detect_run_detection` | `run_detection_job` |
 
-Both primary jobs and their backward-compatible aliases are installed as console scripts by the wheel (`build_corpus_statistics_job`, `open_detect_build_corpus`, `run_detection_job`, `open_detect_run_detection`).
+The aliases exist because Databricks `python_wheel_tasks` reference entry-point names, and
+existing bundles already call the old names. Both names for a phase resolve to the same
+console script.
 
 ```bash
 databricks bundle deploy -t dev

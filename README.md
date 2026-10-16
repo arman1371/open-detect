@@ -126,23 +126,22 @@ Each row of `detections` carries:
 ### Running the detectors as Databricks Jobs
 
 `databricks.yml` defines two [Databricks Asset Bundle](https://docs.databricks.com/en/dev-tools/bundles/)
-jobs:
+jobs — one per phase, each installed under a primary name and a backward-compatible alias:
 
-### Running the detectors as Databricks Jobs
+| Job | Phase | Primary name | Alias |
+|---|---|---|---|
+| Offline: learn corpus statistics | weekly | `open_detect_build_corpus` | `build_corpus_statistics_job` |
+| Online: scan target tables | on demand | `open_detect_run_detection` | `run_detection_job` |
 
-`databricks.yml` defines two [Databricks Asset Bundle](https://docs.databricks.com/en/dev-tools/bundles/) jobs:
-
-- `build_corpus_statistics_job` — the offline learning phase, scheduled weekly.
-- `run_detection_job` — the online scan, scheduled (or triggered) per table set.
-- `open_detect_build_corpus` — new primary name for the offline learning phase
-- `open_detect_run_detection` — new primary name for the online scan
-- `build_corpus_statistics_job` and `run_detection_job` — backward-compatible aliases (Databricks python_wheel_tasks reference entry-point names)
+The aliases exist because Databricks `python_wheel_tasks` reference entry-point names, and
+existing bundles already call the old names. Both names resolve to the same console script
+(see the install table above).
 
 ```bash
 databricks bundle deploy -t dev
 databricks bundle run build_corpus_statistics_job -t dev
-databricks bundle run run_detection_job -t dev -- --target-tables main.sales.orders
 databricks bundle run open_detect_build_corpus -t dev
+databricks bundle run run_detection_job -t dev -- --target-tables main.sales.orders
 databricks bundle run open_detect_run_detection -t dev -- --target-tables main.sales.orders
 ```
 
