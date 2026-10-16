@@ -204,10 +204,10 @@ def _value_matches(pattern: str | Sequence[str], value: Any) -> bool:
     """Whether ``value`` matches ``pattern`` (nulls return False).
 
     ``pattern`` is the inferred validation pattern: a single string for the
-    single-pattern FMDV variants, or a disjunction of one pattern per coarse
-    signature group for ``fmdv_v``/``fmdv_vh``.  A value is valid if it matches
-    **any** of them -- the groups are a partition of the column, so each value
-    belongs to exactly one group and must satisfy that group's pattern.
+    single-pattern FMDV variants, a disjunction of one pattern per coarse
+    signature group for ``fmdv_v``/``fmdv_vh``, or a single sequence of all
+    matched patterns for ``fmdv_vh`` (when all values share one signature).
+    A value is valid if it matches **any** of them.
     """
     if _is_null(value):
         return False
@@ -216,7 +216,16 @@ def _value_matches(pattern: str | Sequence[str], value: Any) -> bool:
         return False
     if isinstance(pattern, str):
         return matches(pattern, text)
-    return any(matches(p, text) for p in pattern)
+    # Normalize nested sequences (from multi-segment fmdv_v/fmdv_vh) to a
+    # flat list so ``any()`` above handles both single-segment and multi-
+    # segment results uniformly.
+    flat: list[str] = []
+    for item in pattern:
+        if isinstance(item, str):
+            flat.append(item)
+        else:
+            flat.extend(item)
+    return any(matches(p, text) for p in flat)
 
 
 def _non_null_cells(
