@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from pathlib import Path
+
 import pytest
 
 from open_detect.algorithms import list_algorithms, registry
@@ -164,6 +166,54 @@ def _good_plugin_class():
     return Good
 
 
+def _write_distinfo_plugin(
+    tmp_path: Path,
+    *,
+    group: str = "open_detect.algorithms",
+    plugin_name: str = "distinfo_plugin",
+) -> Path:
+    """Write a real ``<pkg>.dist-info`` tree onto ``tmp_path``.
+
+    This mirrors what an installed third-party wheel contributes: a package
+    module plus a ``*.dist-info/entry_points.txt`` declaring the algorithm
+    under the ``open_detect.algorithms`` group. Placing the directory on
+    ``sys.path`` lets :func:`registry._load_entry_points` be exercised
+    through the real ``importlib.metadata`` code path (the one used in
+    production) instead of the monkeypatched ``_FakeEntryPoint`` path used by
+    the rest of this file.
+    """
+    pkg_dir = tmp_path / "distinfo_plugin_pkg"
+    pkg_dir.mkdir(exist_ok=True)
+    (pkg_dir / "__init__.py").write_text(
+        "from open_detect.algorithms.base import ErrorDetectionAlgorithm, AlgorithmResult\n"
+        "\n"
+        "class DistInfoPlugin(ErrorDetectionAlgorithm):\n"
+        "    name = 'distinfo_plugin'\n"
+        "    def detect(self, data, *, table_id='table', **kwargs):\n"
+        "        return AlgorithmResult('distinfo_plugin', ())\n"
+    )
+    dist_info = tmp_path / "distinfo_plugin_pkg-1.0.0.dist-info"
+    dist_info.mkdir(exist_ok=True)
+    (dist_info / "METADATA").write_text(
+        "Metadata-Version: 2.1\nName: distinfo-plugin-pkg\nVersion: 1.0.0\n"
+    )
+    (dist_info / "entry_points.txt").write_text(
+        f"[{group}]\n{plugin_name} = distinfo_plugin_pkg:DistInfoPlugin\n"
+    )
+    return tmp_path
+
+
+@pytest.fixture
+def real_plugin_path(tmp_path, monkeypatch):
+    """A real dist-info plugin directory prepended to ``sys.path``."""
+    path = _write_distinfo_plugin(tmp_path)
+    monkeypatch.syspath_prepend(str(path))
+    # Reset registry state so discovery re-reads importlib.metadata from scratch.
+    monkeypatch.setattr(registry, "_registry", {})
+    monkeypatch.setattr(registry, "_entry_points_loaded", False)
+    yield path
+
+
 class TestPluginDiscovery:
     def test_valid_plugin_is_registered(self, fresh_registry):
         good = _good_plugin_class()
@@ -240,3 +290,44 @@ class TestPluginDiscovery:
         assert errors == []
         assert results == [good] * 8
         assert ep.load_calls == 1
+
+
+class TestPluginDiscoveryViaRealDistInfo:
+    """Discovery through a real ``*.dist-info`` directory on ``sys.path``.
+
+    These tests exercise ``registry._load_entry_points`` via the production
+    ``importlib.metadata`` path (a real ``entry_points.txt`` file), as opposed
+    to the ``_FakeEntryPoint`` monkeypatch used by ``TestPluginDiscovery``.
+    They are the only tests that fail when the entry-point group name is
+    changed, so they pin the contract that third-party wheels rely on.
+    """
+
+    def test_distinfo_plugin_is_discovered(self, real_plugin_path):
+        assert "distinfo_plugin" in list_algorithms()
+
+    def test_distinfo_plugin_resolves_to_real_class(self, real_plugin_path):
+        from distinfo_plugin_pkg import DistInfoPlugin
+
+        assert get_algorithm_class("distinfo_plugin") is DistInfoPlugin
+
+    def test_distinfo_plugin_constructs(self, real_plugin_path):
+        from distinfo_plugin_pkg import DistInfoPlugin
+
+        algo = get_algorithm("distinfo_plugin")
+        assert isinstance(algo, DistInfoPlugin)
+        assert algo.name == "distinfo_plugin"
+
+    def test_group_name_change_breaks_discovery(self, real_plugin_path, monkeypatch):
+        """A renamed group means the plugin is invisible: discovery is empty."""
+        # Re-write the entry_points.txt under a different group name and reset
+        # the registry so discovery re-reads importlib.metadata from scratch.
+        entry_points_txt = real_plugin_path / "distinfo_plugin_pkg-1.0.0.dist-info" / "entry_points.txt"
+        entry_points_txt.write_text(
+            "[other.group]\ndistinfo_plugin = distinfo_plugin_pkg:DistInfoPlugin\n"
+        )
+        monkeypatch.setattr(registry, "_registry", {})
+        monkeypatch.setattr(registry, "_entry_points_loaded", False)
+
+        assert "distinfo_plugin" not in list_algorithms()
+        with pytest.raises(UnknownAlgorithmError):
+            get_algorithm_class("distinfo_plugin")
