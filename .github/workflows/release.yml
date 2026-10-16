@@ -82,7 +82,7 @@ jobs:
             echo "SKIP_RELEASE=true" >> "$GITHUB_ENV"
           fi
 
-      - uses: astral-sh/setup-uv@v10.2.0
+      - uses: astral-sh/setup-uv@v7
         if: env.SKIP_RELEASE != 'true'
         with:
           enable-cache: true
