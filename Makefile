@@ -42,10 +42,27 @@ benchmark-profile:
 	uv run python benchmarks/wiki_subset/run_benchmark.py --profile-dir benchmarks/wiki_subset/results/profile/$(PROFILE_NAME)
 	uv run python benchmarks/real_world_gov/run_benchmark.py --profile-dir benchmarks/real_world_gov/results/profile/$(PROFILE_NAME)
 
-# Diff the latest profile run against the committed baseline snapshot; non-zero exit on any difference.
+# Diff the latest profile run against the committed baseline snapshot; non-zero exit on any
+# difference. The baseline snapshot is the committed ``benchmarks/*/results/profile/baseline``
+# directory (regenerate with ``make benchmark-profile PROFILE_NAME=baseline``); the latest run
+# writes ``benchmarks/*/results/profile/latest``. Datasets without a committed baseline or a
+# latest run are skipped rather than failing the whole target.
 benchmark-diff:
-	uv run python benchmarks/common/snapshot.py diff benchmarks/wiki_subset/results/profile/baseline benchmarks/wiki_subset/results/profile/latest
-	uv run python benchmarks/common/snapshot.py diff benchmarks/real_world_gov/results/profile/baseline benchmarks/real_world_gov/results/profile/latest
+	@for ds in wiki_subset real_world_gov; do \
+	  base="benchmarks/$$ds/results/profile/baseline"; \
+	  latest="benchmarks/$$ds/results/profile/latest"; \
+	  if [ -f "$$base/detections.csv" ] && [ -f "$$latest/detections.csv" ]; then \
+	    uv run python benchmarks/common/snapshot.py diff "$$base" "$$latest" || exit 1; \
+	  else \
+	    echo "SKIP $$ds: missing baseline or latest profile snapshot"; \
+	  fi; \
+	done
+
+# Convenience: diff the latest run against itself (sanity check that the diff tool reads the
+# profile dir layout written by ``make benchmark-profile``).
+benchmark-diff-selfcheck:
+	uv run python benchmarks/common/snapshot.py diff benchmarks/wiki_subset/results/profile/latest benchmarks/wiki_subset/results/profile/latest
+	uv run python benchmarks/common/snapshot.py diff benchmarks/real_world_gov/results/profile/latest benchmarks/real_world_gov/results/profile/latest
 
 build:
 	uv build
