@@ -11,15 +11,20 @@ notebooks.
 | Job | Phase | Default schedule |
 |---|---|---|
 | `build_corpus_statistics_job` | Offline: learn corpus statistics | Weekly, Sunday 03:00 UTC |
+| `open_detect_build_corpus` | Offline: learn corpus statistics | Weekly, Sunday 03:00 UTC |
 | `run_detection_job` | Online: scan target tables | On demand or scheduled |
+| `open_detect_run_detection` | Online: scan target tables | On demand or scheduled |
+| `build_corpus_statistics_job` / `run_detection_job` | Backward-compatible aliases | databricks python_wheel_tasks reference |
+| `open_detect_build_corpus` / `open_detect_run_detection` | Primary names | new workflow-friendly names |
 
-Both are installed as console scripts by the wheel (`build_corpus_statistics_job`,
-`run_detection_job`).
+Both primary jobs and their backward-compatible aliases are installed as console scripts by the wheel (`build_corpus_statistics_job`, `open_detect_build_corpus`, `run_detection_job`, `open_detect_run_detection`).
 
 ```bash
 databricks bundle deploy -t dev
 databricks bundle run build_corpus_statistics_job -t dev
+databricks bundle run open_detect_build_corpus -t dev
 databricks bundle run run_detection_job -t dev -- --target-tables main.sales.orders
+databricks bundle run open_detect_run_detection -t dev -- --target-tables main.sales.orders
 ```
 
 Bundle variables (`open_detect_catalog`, `open_detect_schema`, `corpus_catalog`) set where the

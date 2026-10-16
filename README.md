@@ -40,6 +40,37 @@ uv sync       # local development, including pyspark + delta-spark for tests
 pip install open-detect
 ```
 
+> **Behaviour change:** `rapidfuzz` is no longer a core dependency. The core
+> install (`pip install open-detect`) now needs only `numpy` + `pandas`, so
+> `import open_detect` works in a minimal environment. `rapidfuzz` is pulled
+> in by the `uni_detect` extra (it is only used by
+> `open_detect.algorithms.uni_detect.metrics.spelling`).
+
+### Pick your extra
+
+| Extra | Installs | Use when |
+|---|---|---|
+| (none) | `numpy`, `pandas` | Raha / Auto-Validate, or just importing the library |
+| `uni_detect` | `pyspark`, `pyarrow`, `numpy<2`, `rapidfuzz` | Uni-Detect (Spark + Unity Catalog) |
+| `spark` | same as `uni_detect` (alias) | legacy name, kept for compatibility |
+| `raha` | `scikit-learn`, `scipy` | Raha |
+| `auto_validate` | `scipy` | Auto-Validate |
+| `all` | `uni_detect` + `raha` + `auto_validate` | everything |
+
+```bash
+pip install "open-detect[uni_detect]"   # adds pyspark + pyarrow + numpy<2 + rapidfuzz
+pip install "open-detect[spark]"        # same as uni_detect (alias)
+pip install "open-detect[raha]"         # adds scikit-learn + scipy
+pip install "open-detect[auto_validate]"  # adds scipy
+pip install "open-detect[all]"          # all extras combined
+```
+
+> **Notes:** the `uni_detect` / `spark` extras pin `numpy<2` because
+> `pyarrow<15` wheels are built against the NumPy 1.x ABI. On a Databricks
+> cluster, Spark and Delta are already provided, so `pip install open-detect`
+> is enough. Uni-Detect's Databricks jobs require **Java 17** (see
+> `databricks.yml`).
+
 ## Uni-Detect (Wang & He, SIGMOD 2019)
 
 Uni-Detect finds **uniqueness-constraint violations, functional-dependency
@@ -97,13 +128,22 @@ Each row of `detections` carries:
 `databricks.yml` defines two [Databricks Asset Bundle](https://docs.databricks.com/en/dev-tools/bundles/)
 jobs:
 
+### Running the detectors as Databricks Jobs
+
+`databricks.yml` defines two [Databricks Asset Bundle](https://docs.databricks.com/en/dev-tools/bundles/) jobs:
+
 - `build_corpus_statistics_job` — the offline learning phase, scheduled weekly.
 - `run_detection_job` — the online scan, scheduled (or triggered) per table set.
+- `open_detect_build_corpus` — new primary name for the offline learning phase
+- `open_detect_run_detection` — new primary name for the online scan
+- `build_corpus_statistics_job` and `run_detection_job` — backward-compatible aliases (Databricks python_wheel_tasks reference entry-point names)
 
 ```bash
 databricks bundle deploy -t dev
 databricks bundle run build_corpus_statistics_job -t dev
 databricks bundle run run_detection_job -t dev -- --target-tables main.sales.orders
+databricks bundle run open_detect_build_corpus -t dev
+databricks bundle run open_detect_run_detection -t dev -- --target-tables main.sales.orders
 ```
 
 Or run the equivalent notebooks interactively: `notebooks/01_build_corpus_statistics.py`
@@ -150,7 +190,11 @@ label through its cluster, and trains one classifier per column to predict
 the rest.
 
 ```bash
-pip install "open-detect[raha]"   # adds scikit-learn + scipy
+pip install "open-detect[uni_detect]"   # adds pyspark + pyarrow + numpy<2 + rapidfuzz
+pip install "open-detect[spark]"      # same as uni_detect (alias)
+pip install "open-detect[raha]"       # adds scikit-learn + scipy
+pip install "open-detect[auto_validate]"  # adds scipy
+pip install "open-detect[all]"        # all extras combined
 ```
 
 ```python
