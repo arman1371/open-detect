@@ -28,6 +28,58 @@ class SparkUnavailable(Exception):
     """
 
 
+def _host_memory_bytes() -> int | None:
+    """Best-effort read of the RAM the JVM will actually be allowed to use.
+
+    Prefers the cgroup limit (containers) over the host total, since the JVM
+    sizes its heap from the host total and gets OOM-killed when the container
+    limit is smaller.
+    """
+    for path in ("/sys/fs/cgroup/memory.max", "/sys/fs/cgroup/memory/memory.limit_in_bytes"):
+        try:
+            raw = Path(path).read_text().strip()
+        except OSError:
+            continue
+        if raw in ("max", ""):
+            continue
+        try:
+            value = int(raw)
+        except ValueError:
+            continue
+        if value > 0:
+            return value
+    try:
+        return int(Path("/proc/meminfo").read_text().splitlines()[0].split()[1]) * 1024
+    except (OSError, IndexError, ValueError):
+        return None
+
+
+def _cap_driver_memory(driver_memory: str) -> str:
+    """Clamp ``driver_memory`` so the JVM fits inside the host/cgroup RAM.
+
+    Spark derives its heap from the host total, but in a container the JVM is
+    still constrained by the cgroup -- a heap bigger than the cgroup gets the
+    process killed mid-run. Cap at 60% of the available memory (leaving room
+    for the Python driver, the OS, and the executor thread pools), and never
+    below 1g.
+    """
+    try:
+        requested = int(driver_memory.rstrip("gGmM")) * (
+            1024 * 1024 * 1024 if driver_memory[-1] in "gG" else 1024 * 1024
+        )
+    except (ValueError, IndexError):
+        return driver_memory
+    host = _host_memory_bytes()
+    if host is None:
+        return driver_memory
+    cap = max(1024 * 1024 * 1024, int(host * 0.6))
+    if requested <= cap:
+        return driver_memory
+    unit = "g" if cap % (1024 * 1024 * 1024) == 0 else "m"
+    value = cap // (1024 * 1024 * 1024) if unit == "g" else cap // (1024 * 1024)
+    return f"{value}{unit}"
+
+
 def git_commit(repo_root: Path) -> str:
     try:
         return subprocess.check_output(
@@ -64,6 +116,12 @@ def spark_session(
     from pyspark.sql import SparkSession
 
     warehouse_dir = tempfile.mkdtemp(prefix="open_detect-benchmark-warehouse-")
+    # The driver JVM runs in the same cgroup as this process, so an
+    # over-allocated heap gets OOM-killed mid-run (the executor thread pool is
+    # torn out from under Spark, surfacing as RejectedExecutionException, not
+    # as a clean OutOfMemoryError). Cap the heap at a safe fraction of the
+    # available RAM and let the caller raise it on a bigger machine.
+    driver_memory = _cap_driver_memory(driver_memory)
     builder = (
         SparkSession.builder.master("local[2]")
         .appName(app_name)
@@ -78,6 +136,7 @@ def spark_session(
         # an OutOfMemoryError on the default heap, not a sign of anything
         # wrong with a benchmark's own data or config.
         .config("spark.driver.memory", driver_memory)
+        .config("spark.driver.maxResultSize", "1g")
         .config("spark.sql.extensions", "io.delta.sql.DeltaSparkSessionExtension")
         .config(
             "spark.sql.catalog.spark_catalog",
