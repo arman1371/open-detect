@@ -112,11 +112,10 @@ def gaussian_outlier_strategies(
     # "Mostly numeric" is judged by row share, not unique-value share, to
     # match the original ``raw.map(is_float_like).mean()`` semantics: a
     # column of 1000 "1"s and one "x" is mostly numeric even though only
-    # 1/2 of its *distinct* values parse. ``bincount`` supplies the row
-    # counts per unique value.
-    row_parseable_share = (
-        np.dot(parseable, np.bincount(codes, minlength=len(uniques))) / len(values)
-    )
+    # 1/2 of its *distinct* values parse. ``row_counts`` holds the per-unique
+    # row counts from ``np.bincount``.
+    row_counts = np.bincount(codes, minlength=len(uniques))
+    row_parseable_share = np.dot(parseable, row_counts) / len(values)
     if row_parseable_share < 0.5:
         return {}
 
