@@ -108,6 +108,8 @@ def gaussian_outlier_strategies(
     expose non-numeric characters in an otherwise-numeric column).
     """
     codes, uniques = _factorize_column(values)
+    if len(uniques) == 0:
+        return {}
     parseable = np.array([is_float_like(u) for u in uniques])
     # "Mostly numeric" is judged by row share, not unique-value share, to
     # match the original ``raw.map(is_float_like).mean()`` semantics: a

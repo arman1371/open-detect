@@ -55,6 +55,12 @@ class TestGaussianOutlierStrategies:
     def test_non_numeric_column_produces_no_strategies(self):
         assert gaussian_outlier_strategies(KINGDOM, [1.0]) == {}
 
+    def test_empty_column_produces_no_strategies(self):
+        # An empty column has no uniques to index into; the naive reference
+        # returns {} here too (numeric.count() < 2), so this guards the
+        # factorize-once path against an IndexError on ``numeric[parseable]``.
+        assert gaussian_outlier_strategies(pd.Series([], dtype=object), [1.0]) == {}
+
     def test_constant_column_flags_nothing(self):
         values = pd.Series([5, 5, 5, 5])
         result = gaussian_outlier_strategies(values, [1.0])
