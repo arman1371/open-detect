@@ -86,6 +86,12 @@ class BaseDetector(ABC):
         first) with columns: ``candidate_id``, ``error_type``, ``table_id``,
         ``column_names``, ``row_ids``, ``lr_ratio``, ``surprisal``,
         ``is_significant``, ``support``, ``evidence_json``.
+
+        Materializes the result before returning so ``candidates`` can be
+        unpersisted immediately.  The caller is responsible for any further
+        actions (``.count()``, ``.show()``, ``.write``); the returned DataFrame
+        is a fully evaluated snapshot, not a lazy plan that would re-trigger
+        ingestion + scoring on each action.
         """
         from pyspark.sql import functions as F
 
@@ -127,11 +133,20 @@ class BaseDetector(ABC):
                         "support",
                         "evidence_json",
                     )
-                    .orderBy(F.col("lr_ratio").asc())
                 )
-                return result
+                # Materialize now so candidates can be released; caller gets a
+                # concrete DataFrame, not a lazy plan that would re-execute the
+                # full ingestion+scoring pipeline on every subsequent action.
+                result = result.collect()
+                return self.spark.createDataFrame(result, schema=self._result_schema())
             finally:
                 candidates.unpersist()
+
+    def _result_schema(self):
+        """Return the output schema for detect() results."""
+        from open_detect.algorithms.uni_detect.detectors.schema import DETECTION_RESULT_SCHEMA
+
+        return DETECTION_RESULT_SCHEMA
 
     def _empty_result(self) -> DataFrame:
         from open_detect.algorithms.uni_detect.detectors.schema import DETECTION_RESULT_SCHEMA
