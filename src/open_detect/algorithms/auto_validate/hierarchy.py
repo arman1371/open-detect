@@ -95,6 +95,10 @@ def _char_class(ch: str) -> str:
 def tokenize(value: str) -> tuple[Token, ...]:
     """Split ``value`` into its tokens, per the paper's definition of ``t(v)``.
 
+    Cached because the offline index re-tokenizes each distinct corpus value
+    once per candidate pattern -- without the cache that is a full
+    re-tokenization of every value for every pattern it generalizes into.
+
     "The number of tokens in ``v`` is defined as the number of consecutive
     sequences of letters, digits, or symbols in ``v``" (paper Section 2.4). We
     read that as maximal runs of *alphanumeric* characters (classified by
