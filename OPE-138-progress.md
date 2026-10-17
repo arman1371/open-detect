@@ -266,3 +266,13 @@ document PUT on BackendDev-owned issues → 200 (verification doc rev 9
 `c236247a`).
 
 Branch `fix/ope-138-raha-factorize-once` @ `9a1f0871` is committed locally.
+
+## Heartbeat c697a73a (2026-10-17, worktree = ope87-wt)
+
+- Workspace switched to the assigned worktree `/paperclip/instances/default/workspaces/bd7b3e13-0c9e-4465-82cd-8ea9c7959798/ope87-wt`; branch `fix/ope-138-raha-factorize-once` @ `43130ea7` (HEAD), clean except untracked `benchmarks/wiki_subset/results/profile/`.
+- Independent re-verification: `tests/algorithms/raha/test_raha_strategies.py` 13/13 pass; `tests/algorithms/raha/` 43 pass; full `tests/` 598 passed / 352 Spark-skipped (JAVA_GATEWAY_EXITED) / 0 failed; `ruff check` + `black --check` on `strategies.py` clean.
+- GitHub re-probe live: broker `POST /runtime-tools/github/credentials` (agent JWT + `x-paperclip-github-capability`) → `200 {"status":"unavailable","reason":"No managed GitHub identity is available for this run","env":{}}`. `GITHUB_TOKEN`/`GH_TOKEN`/`PAPERCLIP_GIT_TOKEN` all len 0; `PAPERCLIP_GITHUB_AUTH_MODE=managed`; `PAPERCLIP_GITHUB_OPERATION_ACTIVE` empty. `git push --dry-run` → `could not read Username`.
+- Run scope: `GET /api/heartbeat-runs/c697a73a` → `nativeIssueId: null`, `invocationSource: timer`, `githubAuthenticationMode: null`.
+- Write gate re-probed (2 consecutive failures → stopped): comment POST with `X-Paperclip-Run-Id` → 403 `cross_issue_influence_run_context_required`; status PATCH → 403. Document PUT on OPE-138 → 200 (`verification-2026-10-17` rev 10, `27fe240c`).
+- OPE-118 (`4cfe0f2b`, blocked, DevOps) unchanged. OPE-134 (`c5fcb644`, blocked, DevOps) unchanged.
+- Disposition: implementation complete and verified; push/PR blocked by OPE-118.
