@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import subprocess
+import sys
 from importlib.metadata import version
 
 import pytest
@@ -33,21 +35,26 @@ def test_version_matches_installed_package_metadata():
     assert open_detect.__version__ == version("open-detect")
 
 
-def test_registry_does_not_import_spelling_or_rapidfuzz():
-    """The algorithm registry must stay lazy about Uni-Detect's heavy imports.
+def test_import_open_detect_without_rapidfuzz():
+    """`import open_detect` must work with rapidfuzz absent.
 
     `rapidfuzz` is a `uni_detect` extra, not a core dependency, and it is only
-    used by :mod:`open_detect.algorithms.uni_detect.metrics.spelling`. Calling
-    the registry's read path (`list_algorithms()`) must not import that module,
-    so a core-only install can `import open_detect` and list algorithms without
-    rapidfuzz being present.
+    used by :mod:`open_detect.algorithms.uni_detect.metrics.spelling`. Blocking
+    the import via ``sys.modules['rapidfuzz'] = None`` simulates a core-only
+    environment (the module is not installed at all) and pins the behaviour in a
+    fresh interpreter so a future top-level rapidfuzz import is caught.
     """
-    import sys
-
-    sys.modules.pop("open_detect.algorithms.uni_detect.metrics.spelling", None)
-    spelling_module = sys.modules.get("open_detect.algorithms.uni_detect.metrics.spelling")
-
-    from open_detect.algorithms import list_algorithms
-
-    list_algorithms()
-    assert sys.modules.get("open_detect.algorithms.uni_detect.metrics.spelling") is spelling_module
+    code = (
+        "import sys\n"
+        "sys.modules['rapidfuzz'] = None  # block the optional extra\n"
+        "import open_detect\n"
+        "assert open_detect.__version__\n"
+        "from open_detect.algorithms import list_algorithms\n"
+        "assert list_algorithms() == ['auto_validate', 'raha', 'uni_detect']\n"
+    )
+    result = subprocess.run(
+        [sys.executable, "-c", code],
+        capture_output=True,
+        text=True,
+    )
+    assert result.returncode == 0, result.stderr

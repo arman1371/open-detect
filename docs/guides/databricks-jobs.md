@@ -21,9 +21,7 @@ console script.
 ```bash
 databricks bundle deploy -t dev
 databricks bundle run build_corpus_statistics_job -t dev
-databricks bundle run open_detect_build_corpus -t dev
 databricks bundle run run_detection_job -t dev -- --target-tables main.sales.orders
-databricks bundle run open_detect_run_detection -t dev -- --target-tables main.sales.orders
 ```
 
 Bundle variables (`open_detect_catalog`, `open_detect_schema`, `corpus_catalog`) set where the

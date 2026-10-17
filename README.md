@@ -50,7 +50,7 @@ pip install open-detect
 
 | Extra | Installs | Use when |
 |---|---|---|
-| (none) | `numpy`, `pandas` | Raha / Auto-Validate, or just importing the library |
+| (none) | `numpy`, `pandas` | Just importing the library (core only; no Spark, no scikit-learn) |
 | `uni_detect` | `pyspark`, `pyarrow`, `numpy<2`, `rapidfuzz` | Uni-Detect (Spark + Unity Catalog) |
 | `spark` | same as `uni_detect` (alias) | legacy name, kept for compatibility |
 | `raha` | `scikit-learn`, `scipy` | Raha |
@@ -134,15 +134,13 @@ jobs — one per phase, each installed under a primary name and a backward-compa
 | Online: scan target tables | on demand | `open_detect_run_detection` | `run_detection_job` |
 
 The aliases exist because Databricks `python_wheel_tasks` reference entry-point names, and
-existing bundles already call the old names. Both names resolve to the same console script
-(see the install table above).
+existing bundles already call the old names. Both names for a phase resolve to the same
+console script (see the [extras table](#pick-your-extra) above).
 
 ```bash
 databricks bundle deploy -t dev
 databricks bundle run build_corpus_statistics_job -t dev
-databricks bundle run open_detect_build_corpus -t dev
 databricks bundle run run_detection_job -t dev -- --target-tables main.sales.orders
-databricks bundle run open_detect_run_detection -t dev -- --target-tables main.sales.orders
 ```
 
 Or run the equivalent notebooks interactively: `notebooks/01_build_corpus_statistics.py`
@@ -189,11 +187,7 @@ label through its cluster, and trains one classifier per column to predict
 the rest.
 
 ```bash
-pip install "open-detect[uni_detect]"   # adds pyspark + pyarrow + numpy<2 + rapidfuzz
-pip install "open-detect[spark]"      # same as uni_detect (alias)
-pip install "open-detect[raha]"       # adds scikit-learn + scipy
-pip install "open-detect[auto_validate]"  # adds scipy
-pip install "open-detect[all]"        # all extras combined
+pip install "open-detect[raha]"   # adds scikit-learn + scipy
 ```
 
 ```python

@@ -595,11 +595,20 @@ dependencies = [
     { name = "numpy" },
     { name = "pandas", version = "2.3.3", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.11' or python_full_version >= '3.14'" },
     { name = "pandas", version = "3.0.5", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.11' and python_full_version < '3.14'" },
-    { name = "rapidfuzz", version = "3.14.5", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.11'" },
-    { name = "rapidfuzz", version = "3.14.6", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.11'" },
 ]
 
 [package.optional-dependencies]
+all = [
+    { name = "numpy" },
+    { name = "pyarrow" },
+    { name = "pyspark" },
+    { name = "rapidfuzz", version = "3.14.5", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.11'" },
+    { name = "rapidfuzz", version = "3.14.6", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.11'" },
+    { name = "scikit-learn", version = "1.7.2", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.11'" },
+    { name = "scikit-learn", version = "1.9.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.11'" },
+    { name = "scipy", version = "1.15.3", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.11'" },
+    { name = "scipy", version = "1.17.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.11'" },
+]
 auto-validate = [
     { name = "scipy", version = "1.15.3", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.11'" },
     { name = "scipy", version = "1.17.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.11'" },
@@ -614,6 +623,15 @@ spark = [
     { name = "numpy" },
     { name = "pyarrow" },
     { name = "pyspark" },
+    { name = "rapidfuzz", version = "3.14.5", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.11'" },
+    { name = "rapidfuzz", version = "3.14.6", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.11'" },
+]
+uni-detect = [
+    { name = "numpy" },
+    { name = "pyarrow" },
+    { name = "pyspark" },
+    { name = "rapidfuzz", version = "3.14.5", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.11'" },
+    { name = "rapidfuzz", version = "3.14.6", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.11'" },
 ]
 
 [package.dev-dependencies]
@@ -628,6 +646,8 @@ dev = [
     { name = "pyspark" },
     { name = "pytest" },
     { name = "pytest-cov" },
+    { name = "rapidfuzz", version = "3.14.5", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.11'" },
+    { name = "rapidfuzz", version = "3.14.6", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.11'" },
     { name = "ruff" },
     { name = "scikit-learn", version = "1.7.2", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.11'" },
     { name = "scikit-learn", version = "1.9.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.11'" },
@@ -638,16 +658,18 @@ dev = [
 [package.metadata]
 requires-dist = [
     { name = "numpy", specifier = ">=1.24" },
-    { name = "numpy", marker = "extra == 'spark'", specifier = "<2" },
+    { name = "numpy", marker = "extra == 'uni-detect'", specifier = "<2" },
+    { name = "open-detect", extras = ["uni-detect"], marker = "extra == 'spark'" },
+    { name = "open-detect", extras = ["uni-detect", "raha", "auto-validate"], marker = "extra == 'all'" },
     { name = "pandas", specifier = ">=1.5" },
-    { name = "pyarrow", marker = "extra == 'spark'", specifier = ">=11,<15" },
-    { name = "pyspark", marker = "extra == 'spark'", specifier = ">=3.5,<4.0" },
-    { name = "rapidfuzz", specifier = ">=3.6" },
+    { name = "pyarrow", marker = "extra == 'uni-detect'", specifier = ">=11,<15" },
+    { name = "pyspark", marker = "extra == 'uni-detect'", specifier = ">=3.5,<4.0" },
+    { name = "rapidfuzz", marker = "extra == 'uni-detect'", specifier = ">=3.6" },
     { name = "scikit-learn", marker = "extra == 'raha'", specifier = ">=1.3" },
     { name = "scipy", marker = "extra == 'auto-validate'", specifier = ">=1.10" },
     { name = "scipy", marker = "extra == 'raha'", specifier = ">=1.10" },
 ]
-provides-extras = ["spark", "raha", "auto-validate"]
+provides-extras = ["uni-detect", "spark", "raha", "auto-validate", "all"]
 
 [package.metadata.requires-dev]
 dev = [
@@ -660,6 +682,7 @@ dev = [
     { name = "pyspark", specifier = ">=3.5,<4.0" },
     { name = "pytest", specifier = ">=8.0" },
     { name = "pytest-cov", specifier = ">=5.0" },
+    { name = "rapidfuzz", specifier = ">=3.6" },
     { name = "ruff", specifier = ">=0.5" },
     { name = "scikit-learn", specifier = ">=1.3" },
     { name = "scipy", specifier = ">=1.10" },
