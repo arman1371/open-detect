@@ -10,7 +10,7 @@ Provides cross-algorithm validation for detect() calls:
 from __future__ import annotations
 
 from collections.abc import Sequence
-from typing import Any, TypeVar
+from typing import Any, TypeVar, get_origin
 
 from open_detect.exceptions import ValidationError
 
@@ -92,9 +92,7 @@ def _check_expected_type(value: Any, expected_type: type, param_name: str) -> No
         # expected_type is Sequence[Something], check the args
         args = getattr(expected_type, "__args__", ())
         if len(args) == 1 and args[0] is str and isinstance(value, str):
-            raise ValidationError(
-                f"expected a sequence of str, got str; wrap in a list"
-            )
+            raise ValidationError("expected a sequence of str, got str; wrap in a list")
     # Default isinstance check
     if expected_type is not None and not isinstance(value, expected_type):
         raise ValidationError(
@@ -114,17 +112,14 @@ def _validate_literal_value(
     """
     if value not in valid_values:
         raise ValidationError(
-            f"{param_name} must be one of {sorted(valid_values)}, "
-            f"got {value!r}"
+            f"{param_name} must be one of {sorted(valid_values)}, " f"got {value!r}"
         )
 
 
 def _check_columns_unique(columns: list[str]) -> None:
     """Raise ValidationError if column names are not unique strings."""
     if not all(isinstance(c, str) for c in columns):
-        raise ValidationError(
-            f"All column names must be strings, got non-string entries"
-        )
+        raise ValidationError("All column names must be strings, got non-string entries")
     if len(columns) != len(set(columns)):
         raise ValidationError(
             f"Column names must be unique, got duplicates: "
@@ -139,8 +134,7 @@ def _check_dataframe_is_spark(df: Any, param_name: str = "data") -> None:
 
         if not isinstance(df, SparkDataFrame):
             raise ValidationError(
-                f"{param_name} must be a pyspark.sql.DataFrame, "
-                f"got {type(df).__name__}"
+                f"{param_name} must be a pyspark.sql.DataFrame, " f"got {type(df).__name__}"
             )
     except ImportError:
         # PySpark not available; skip this check

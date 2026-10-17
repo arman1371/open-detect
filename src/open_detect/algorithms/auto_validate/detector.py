@@ -40,7 +40,9 @@ from open_detect.exceptions import ValidationError
 from open_detect.validation import _reject_unknown_kwargs
 
 
-def _check_columns_present(columns: list[str] | None, df_columns: list[str], skip_missing: bool = False) -> None:
+def _check_columns_present(
+    columns: list[str] | None, df_columns: list[str], skip_missing: bool = False
+) -> None:
     """Validate that requested columns exist in the DataFrame.
 
     Parameters
@@ -57,9 +59,8 @@ def _check_columns_present(columns: list[str] | None, df_columns: list[str], ski
         return
     missing = [c for c in columns if c not in df_columns]
     if missing and not skip_missing:
-        raise ValidationError(
-            f"Requested column(s) not found in DataFrame: {', '.join(missing)}"
-        )
+        raise ValidationError(f"Requested column(s) not found in DataFrame: {', '.join(missing)}")
+
 
 #: Mapping from config.variant to the pattern-inference function.
 _DISPATCH: dict[str, Any] = {
