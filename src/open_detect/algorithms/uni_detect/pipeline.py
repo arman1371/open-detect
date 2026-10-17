@@ -33,6 +33,7 @@ from open_detect.logging_utils import get_logger, log_duration
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
+    from typing import Any
 
     from pyspark.sql import DataFrame, SparkSession
 
@@ -72,7 +73,7 @@ class UniDetect:
         **kwargs: Any,
     ) -> None:
         """Run shared validation before the online detection phase."""
-        from open_detect.validation import _reject_unknown_kwargs, _ensure_sequence_of_str
+        from open_detect.validation import _ensure_sequence_of_str, _reject_unknown_kwargs
 
         _reject_unknown_kwargs(
             kwargs,
