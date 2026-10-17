@@ -91,6 +91,7 @@ def _char_class(ch: str) -> str:
     return "symbol"
 
 
+@lru_cache(maxsize=8192)
 def tokenize(value: str) -> tuple[Token, ...]:
     """Split ``value`` into its tokens, per the paper's definition of ``t(v)``.
 
@@ -101,6 +102,10 @@ def tokenize(value: str) -> tuple[Token, ...]:
     non-alphanumeric characters. This keeps ``"2015"`` a single ``<num>`` token,
     which is what the paper's own coarse pattern
     ``<num>/<num>/<num> <num>:<num>:<num> <letter>+`` requires.
+
+    Cached because the offline index re-tokenizes each distinct corpus value
+    once per candidate pattern -- without the cache that is a full
+    re-tokenization of every value for every pattern it generalizes into.
     """
     tokens: list[Token] = []
     for run, is_alnum in _iter_runs(value):
@@ -238,16 +243,13 @@ def _part_matches(cls: str, count: int | None, text: str) -> bool:
     return len(text) == count
 
 
-def matches(pattern: str, value: str) -> bool:
-    """Whether ``pattern`` is consistent with ``value``, i.e. whether ``pattern ∈ P(value)``.
+def matches_tokens(pattern: str, tokens: tuple[Token, ...]) -> bool:
+    """Whether ``pattern`` is consistent with a pre-tokenized value.
 
-    Matching is token-wise: both sides are tokenized with :func:`tokenize` and
-    the pattern's parts are matched against the value's tokens one for one. A
-    ``{k}`` part matches a token of exactly ``k`` characters of that class, and
-    a ``+`` part matches a token of one or more -- the semantics recommended by
-    paper-spec Section 8.1.
+    The token-wise matching core of :func:`matches`, exposed separately because
+    the offline index evaluates one pattern against many values that share a
+    tokenization -- re-tokenizing per value is the dominant cost there.
     """
-    tokens = tokenize(value)
     parts = _parse(pattern)
     if len(parts) != len(tokens):
         return False
@@ -258,3 +260,15 @@ def matches(pattern: str, value: str) -> bool:
         elif not _part_matches(cls, count, token.text):
             return False
     return True
+
+
+def matches(pattern: str, value: str) -> bool:
+    """Whether ``pattern`` is consistent with ``value``, i.e. whether ``pattern ∈ P(value)``.
+
+    Matching is token-wise: both sides are tokenized with :func:`tokenize` and
+    the pattern's parts are matched against the value's tokens one for one. A
+    ``{k}`` part matches a token of exactly ``k`` characters of that class, and
+    a ``+`` part matches a token of one or more -- the semantics recommended by
+    paper-spec Section 8.1.
+    """
+    return matches_tokens(pattern, tokenize(value))
