@@ -85,9 +85,7 @@ def spark_session(
     try:
         session = configure_spark_with_delta_pip(builder).getOrCreate()
         session.sparkContext.setLogLevel("ERROR")
-        session.sql(
-            f"CREATE NAMESPACE IF NOT EXISTS {quote_ident(catalog)}.{quote_ident(schema)}"
-        )
+        session.sql(f"CREATE NAMESPACE IF NOT EXISTS {quote_ident(catalog)}.{quote_ident(schema)}")
     except Exception as exc:  # noqa: BLE001
         shutil.rmtree(warehouse_dir, ignore_errors=True)
         raise SparkUnavailable(str(exc)) from exc

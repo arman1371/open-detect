@@ -53,9 +53,7 @@ def write_build_config(
     payload = json.dumps(config.build_fingerprint(), sort_keys=True)
     assignments = ", ".join(f"'{property_key(et)}' = '{payload}'" for et in error_types)
     if assignments:
-        spark.sql(
-            f"ALTER TABLE {quote_qualified(table_fqn)} SET TBLPROPERTIES ({assignments})"
-        )
+        spark.sql(f"ALTER TABLE {quote_qualified(table_fqn)} SET TBLPROPERTIES ({assignments})")
 
 
 def read_build_config(
