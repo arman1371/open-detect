@@ -105,12 +105,11 @@ def test_empty_dataframe():
 
 
 def test_nan_and_empty_string_distinct_verdicts():
-    """NaN is skipped; empty string is a non-null value that still produces a
-    cell (here the column is infeasible, so both are non-error cells)."""
+    """NaN is skipped; empty strings are skipped too, matching the per-cell
+    baseline in ``_non_null_cells`` (an empty text value is not a cell)."""
     dirty = pd.DataFrame({"email": ["", "", None]})
     cells = _detect_dirty(dirty)
-    assert len(cells) == 2
-    assert all(not c.is_error for c in cells)
+    assert cells == ()
 
 
 def test_timing_high_duplicate_column():
