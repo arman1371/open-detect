@@ -12,6 +12,7 @@ from __future__ import annotations
 import json
 from typing import TYPE_CHECKING, Any
 
+from open_detect._sql import quote_qualified
 from open_detect.exceptions import ConfigurationError
 from open_detect.logging_utils import get_logger
 

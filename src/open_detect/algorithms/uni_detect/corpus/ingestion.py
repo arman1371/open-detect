@@ -24,6 +24,7 @@ from collections.abc import Sequence
 from itertools import permutations
 from typing import TYPE_CHECKING
 
+from open_detect._sql import quote_column
 from open_detect.algorithms.uni_detect.corpus.schema import (
     CORPUS_COLUMNS_SCHEMA,
     CORPUS_PAIRS_SCHEMA,
@@ -124,7 +125,7 @@ class CorpusIngestor:
         frames: list[DataFrame] = []
         for idx, field in enumerate(df.schema.fields):
             col = field.name
-            sampled = df.select(F.col(f"`{col}`").cast("string").alias("v")).limit(
+            sampled = df.select(F.col(quote_column(col)).cast("string").alias("v")).limit(
                 self.max_values_per_column
             )
             per_col = sampled.agg(F.collect_list("v").alias("values")).select(
@@ -176,8 +177,8 @@ class CorpusIngestor:
             # positions no longer refer to the same rows.
             sampled = (
                 df.select(
-                    F.col(f"`{lhs_col}`").cast("string").alias("lhs"),
-                    F.col(f"`{rhs_col}`").cast("string").alias("rhs"),
+                    F.col(quote_column(lhs_col)).cast("string").alias("lhs"),
+                    F.col(quote_column(rhs_col)).cast("string").alias("rhs"),
                 )
                 .where(F.col("lhs").isNotNull() & F.col("rhs").isNotNull())
                 .limit(self.max_values_per_column)
