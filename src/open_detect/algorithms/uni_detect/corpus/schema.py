@@ -27,6 +27,7 @@ CORPUS_COLUMNS_SCHEMA = StructType(
         StructField("column_index", IntegerType(), nullable=False),
         StructField("num_rows", IntegerType(), nullable=False),
         StructField("values", ArrayType(StringType()), nullable=False),
+        StructField("row_ids", ArrayType(LongType(), False), nullable=False),
     ]
 )
 

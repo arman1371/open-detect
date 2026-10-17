@@ -54,12 +54,37 @@ def _source_row_ids(values: Sequence[object]) -> list[int]:
     return [i for i, v in enumerate(values) if v is not None]
 
 
+def _map_row_ids(
+    values: Sequence[object],
+    dropped: Sequence[int],
+    row_ids: Sequence[int] | None,
+) -> tuple[int, ...]:
+    """Return source row ids for ``dropped`` positions in ``values``.
+
+    When ``row_ids`` is supplied it is used verbatim (it must be aligned with
+    ``values``); otherwise the positions are re-derived from ``values``.
+    """
+    if row_ids is not None:
+        return tuple(row_ids[i] for i in dropped)
+    return tuple(_source_row_ids(values)[i] for i in dropped)
+
+
 def _max_drop(n: int, epsilon: float) -> int:
     return max(1, ceil(epsilon * n))
 
 
-def perturb_uniqueness(values: Sequence[object], epsilon: float) -> PerturbationOutcome:
-    """Drop duplicate occurrences (paper Example 2)."""
+def perturb_uniqueness(
+    values: Sequence[object],
+    epsilon: float,
+    row_ids: Sequence[int] | None = None,
+) -> PerturbationOutcome:
+    """Drop duplicate occurrences (paper Example 2).
+
+    ``row_ids``, when supplied, must be aligned with ``values`` (same length,
+    same null positions) and are reported verbatim for the dropped values, so a
+    caller that already knows the source row ids (e.g. the Spark ingestion
+    pipeline) does not have to re-derive them.
+    """
     theta_before = uniqueness_ratio(values)
     all_dupes = duplicate_value_indices(values)
     budget = _max_drop(len(values), epsilon)
@@ -71,7 +96,7 @@ def perturb_uniqueness(values: Sequence[object], epsilon: float) -> Perturbation
         theta_before=theta_before,
         theta_after=theta_after,
         dropped_indices=dropped,
-        row_ids=tuple(_source_row_ids(values)[i] for i in dropped),
+        row_ids=_map_row_ids(values, dropped, row_ids),
         evidence={"num_duplicate_values": len(all_dupes)},
     )
 
