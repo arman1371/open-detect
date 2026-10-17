@@ -23,6 +23,7 @@ from open_detect.algorithms.uni_detect.metrics.outliers import finite_floats, ma
 from open_detect.algorithms.uni_detect.metrics.spelling import (
     differing_token_lengths,
     min_pairwise_edit_distance,
+    try_min_pairwise_edit_distance,
 )
 from open_detect.algorithms.uni_detect.metrics.uniqueness import (
     duplicate_value_indices,
@@ -42,49 +43,15 @@ class PerturbationOutcome:
     theta_before: float
     theta_after: float
     dropped_indices: tuple[int, ...]
-    #: Source row ids (positions in the caller's original column, nulls included)
-    #: of the dropped values. Empty when the perturbation did not receive original
-    #: positions (e.g. it was handed an already-filtered list).
-    row_ids: tuple[int, ...] = ()
     evidence: dict[str, Any] = field(default_factory=dict)
-
-
-def _source_row_ids(values: Sequence[object]) -> list[int]:
-    """0-based positions of non-null values in ``values``, in order."""
-    return [i for i, v in enumerate(values) if v is not None]
-
-
-def _map_row_ids(
-    values: Sequence[object],
-    dropped: Sequence[int],
-    row_ids: Sequence[int] | None,
-) -> tuple[int, ...]:
-    """Return source row ids for ``dropped`` positions in ``values``.
-
-    When ``row_ids`` is supplied it is used verbatim (it must be aligned with
-    ``values``); otherwise the positions are re-derived from ``values``.
-    """
-    if row_ids is not None:
-        return tuple(row_ids[i] for i in dropped)
-    return tuple(_source_row_ids(values)[i] for i in dropped)
 
 
 def _max_drop(n: int, epsilon: float) -> int:
     return max(1, ceil(epsilon * n))
 
 
-def perturb_uniqueness(
-    values: Sequence[object],
-    epsilon: float,
-    row_ids: Sequence[int] | None = None,
-) -> PerturbationOutcome:
-    """Drop duplicate occurrences (paper Example 2).
-
-    ``row_ids``, when supplied, must be aligned with ``values`` (same length,
-    same null positions) and are reported verbatim for the dropped values, so a
-    caller that already knows the source row ids (e.g. the Spark ingestion
-    pipeline) does not have to re-derive them.
-    """
+def perturb_uniqueness(values: Sequence[object], epsilon: float) -> PerturbationOutcome:
+    """Drop duplicate occurrences (paper Example 2)."""
     theta_before = uniqueness_ratio(values)
     all_dupes = duplicate_value_indices(values)
     budget = _max_drop(len(values), epsilon)
@@ -96,7 +63,6 @@ def perturb_uniqueness(
         theta_before=theta_before,
         theta_after=theta_after,
         dropped_indices=dropped,
-        row_ids=_map_row_ids(values, dropped, row_ids),
         evidence={"num_duplicate_values": len(all_dupes)},
     )
 
@@ -109,7 +75,7 @@ def perturb_numeric_outlier(values: Sequence[float], epsilon: float) -> Perturba
     two finite values there is nothing to score, so a no-perturbation outcome (no dropped
     indices, both thetas 0.0) is returned.
     """
-    clean, positions = finite_floats(values)
+    clean, _ = finite_floats(values)
     if len(clean) < 2:
         return PerturbationOutcome(
             theta_before=_UNDEFINED_AFTER_LOW,
@@ -123,7 +89,6 @@ def perturb_numeric_outlier(values: Sequence[float], epsilon: float) -> Perturba
         theta_before=result.score,
         theta_after=theta_after,
         dropped_indices=(result.index,),
-        row_ids=(positions[result.index],) if positions else (),
         evidence={"outlier_value": result.value},
     )
 
@@ -138,19 +103,13 @@ def perturb_spelling(
     """
     mpd_before = min_pairwise_edit_distance(values, max_block_size=max_block_size)
     clean = [str(v) for v in values if v is not None]
-    source_ids = _source_row_ids(values)
     dropped = tuple(i for i, v in enumerate(clean) if v == mpd_before.value_u)
     remaining = [v for v in clean if v != mpd_before.value_u]
-    mpd_after: float
+    mpd_after = _UNDEFINED_AFTER_HIGH
     if len(set(remaining)) >= 2:
-        try:
-            mpd_after = float(
-                min_pairwise_edit_distance(remaining, max_block_size=max_block_size).mpd
-            )
-        except ValueError:
-            mpd_after = _UNDEFINED_AFTER_HIGH
-    else:
-        mpd_after = _UNDEFINED_AFTER_HIGH
+        after = try_min_pairwise_edit_distance(remaining, max_block_size=max_block_size)
+        if after is not None:
+            mpd_after = float(after.mpd)
 
     token_lengths = differing_token_lengths(mpd_before.value_u, mpd_before.value_v)
     avg_token_length = sum(token_lengths) / len(token_lengths)
@@ -158,7 +117,6 @@ def perturb_spelling(
         theta_before=float(mpd_before.mpd),
         theta_after=float(mpd_after),
         dropped_indices=dropped,
-        row_ids=tuple(source_ids[i] for i in dropped),
         evidence={
             "pair": (mpd_before.value_u, mpd_before.value_v),
             "avg_differing_token_length": avg_token_length,
@@ -186,6 +144,5 @@ def perturb_functional_dependency(
         theta_before=before.ratio,
         theta_after=theta_after,
         dropped_indices=dropped,
-        row_ids=dropped,
         evidence={"num_violating_rows": len(before.violating_row_indices)},
     )

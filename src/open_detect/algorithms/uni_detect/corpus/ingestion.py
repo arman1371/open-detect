@@ -124,21 +124,15 @@ class CorpusIngestor:
         frames: list[DataFrame] = []
         for idx, field in enumerate(df.schema.fields):
             col = field.name
-            sampled = (
-                df.select(F.col(f"`{col}`").cast("string").alias("v"))
-                .withColumn("row_id", F.monotonically_increasing_id())
-                .limit(self.max_values_per_column)
+            sampled = df.select(F.col(f"`{col}`").cast("string").alias("v")).limit(
+                self.max_values_per_column
             )
-            per_col = sampled.agg(
-                F.collect_list("v").alias("values"),
-                F.collect_list("row_id").alias("row_ids"),
-            ).select(
+            per_col = sampled.agg(F.collect_list("v").alias("values")).select(
                 F.lit(fqn).alias("table_id"),
                 F.lit(col).alias("column_name"),
                 F.lit(idx).alias("column_index"),
                 F.lit(num_rows).alias("num_rows"),
                 "values",
-                "row_ids",
             )
             frames.append(per_col)
         return frames

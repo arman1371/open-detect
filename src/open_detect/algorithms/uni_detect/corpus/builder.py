@@ -177,23 +177,15 @@ class CorpusStatsBuilder:
             for batch in batches:
                 counts = FailureCounts()
                 out_bucket, out_before, out_after, out_table = [], [], [], []
-                for tid, vals, n, idx, row_ids in zip(
+                for tid, vals, n, idx in zip(
                     batch["table_id"],
                     batch["values"],
                     batch["num_rows"],
                     batch["column_index"],
-                    batch["row_ids"],
                     strict=True,
                 ):
                     scored = counts.attempt(
-                        _score_single_column,
-                        error_type,
-                        list(vals),
-                        int(n),
-                        int(idx),
-                        tdf,
-                        cfg,
-                        list(row_ids),
+                        _score_single_column, error_type, list(vals), int(n), int(idx), tdf, cfg
                     )
                     if scored is None:
                         continue
@@ -332,7 +324,6 @@ def _score_single_column(
     column_index: int,
     token_document_frequency: dict[str, int],
     cfg: UniDetectConfig,
-    row_ids: Sequence[int] | None = None,
 ) -> tuple:
     """Score one corpus column.
 
@@ -340,11 +331,6 @@ def _score_single_column(
     than ``ErrorTypeSpec.min_rows``, mirroring the online detectors, so tiny
     columns do not pollute the low-row-count buckets. ``FailureCounts.attempt``
     records that as "not applicable", which is excluded from the failure ratio.
-
-    ``row_ids`` is the source row id for each value in ``values`` (aligned,
-    same length). It is only consumed by the uniqueness perturbation, which
-    reports it verbatim for dropped values; the other perturbations re-derive
-    positions from ``values`` themselves.
     """
     from open_detect.algorithms.uni_detect.featurization import (
         build_outlier_bucket,
@@ -359,7 +345,7 @@ def _score_single_column(
 
     if error_type is ErrorType.UNIQUENESS:
         _require_min_rows(len(values), error_type)
-        outcome = perturb_uniqueness(values, epsilon=cfg.epsilon, row_ids=row_ids)
+        outcome = perturb_uniqueness(values, epsilon=cfg.epsilon)
         bucket = build_uniqueness_bucket(
             values=values,
             num_rows=num_rows,

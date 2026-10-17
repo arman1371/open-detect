@@ -20,11 +20,9 @@ if TYPE_CHECKING:
     from open_detect.algorithms.uni_detect.config import UniDetectConfig
 
 
-def _score_column(
-    vals, num_rows, column_index, token_document_frequency, cfg: UniDetectConfig, row_ids=None
-):
+def _score_column(vals, num_rows, column_index, token_document_frequency, cfg: UniDetectConfig):
     """Return ``(outcome, bucket)``, or ``None`` when there is nothing to flag."""
-    outcome = perturb_uniqueness(vals, epsilon=cfg.epsilon, row_ids=row_ids)
+    outcome = perturb_uniqueness(vals, epsilon=cfg.epsilon)
     if not outcome.dropped_indices:
         return None
     bucket = build_uniqueness_bucket(
@@ -57,21 +55,18 @@ class UniquenessDetector(BaseDetector):
             for batch in batches:
                 counts = FailureCounts()
                 rows: list[dict] = []
-                for tid, col, idx, n, vals, row_ids in zip(
+                for tid, col, idx, n, vals in zip(
                     batch["table_id"],
                     batch["column_name"],
                     batch["column_index"],
                     batch["num_rows"],
                     batch["values"],
-                    batch["row_ids"],
                     strict=True,
                 ):
                     vals = list(vals)
                     if len(vals) < min_rows:
                         continue
-                    scored = counts.attempt(
-                        _score_column, vals, int(n), int(idx), tdf, cfg, list(row_ids)
-                    )
+                    scored = counts.attempt(_score_column, vals, int(n), int(idx), tdf, cfg)
                     if scored is None:
                         continue
                     outcome, bucket = scored
@@ -81,7 +76,7 @@ class UniquenessDetector(BaseDetector):
                             "candidate_id": f"{tid}::{col}::uniqueness",
                             "table_id": tid,
                             "column_names": [col],
-                            "row_ids": [str(i) for i in outcome.row_ids],
+                            "row_ids": [str(i) for i in outcome.dropped_indices],
                             "feature_bucket": bucket.as_key(),
                             "theta_before": outcome.theta_before,
                             "theta_after": outcome.theta_after,
@@ -101,5 +96,5 @@ class UniquenessDetector(BaseDetector):
 
         columns_df = self.ingestor.ingest_columns(table_names)
         return columns_df.select(
-            "table_id", "column_name", "column_index", "num_rows", "values", "row_ids"
+            "table_id", "column_name", "column_index", "num_rows", "values"
         ).mapInPandas(compute, schema=CANDIDATE_SCHEMA)

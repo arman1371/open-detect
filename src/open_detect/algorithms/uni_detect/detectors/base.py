@@ -82,16 +82,20 @@ class BaseDetector(ABC):
     def detect(self, table_names: Sequence[str]) -> DataFrame:
         """Run the full Definition-4 pipeline for ``table_names`` and rank results.
 
-        Returns a DataFrame sorted ascending by ``lr_ratio`` (most surprising
-        first) with columns: ``candidate_id``, ``error_type``, ``table_id``,
-        ``column_names``, ``row_ids``, ``lr_ratio``, ``surprisal``,
-        ``is_significant``, ``support``, ``evidence_json``.
+        Returns a DataFrame with columns: ``candidate_id``, ``error_type``,
+        ``table_id``, ``column_names``, ``row_ids``, ``lr_ratio``,
+        ``surprisal``, ``is_significant``, ``support``, ``evidence_json``.
 
-        Materializes the result before returning so ``candidates`` can be
-        unpersisted immediately.  The caller is responsible for any further
+        The result is **materialized** before returning so ``candidates`` can
+        be unpersisted immediately.  The caller is responsible for any further
         actions (``.count()``, ``.show()``, ``.write``); the returned DataFrame
         is a fully evaluated snapshot, not a lazy plan that would re-trigger
         ingestion + scoring on each action.
+
+        Ordering is **not** guaranteed by this method -- the per-detector
+        ``orderBy`` was removed because it is redundant with the global sort in
+        ``pipeline.UniDetect.detect``.  Direct callers that need a specific
+        order must sort the returned frame themselves.
         """
         from pyspark.sql import functions as F
 
