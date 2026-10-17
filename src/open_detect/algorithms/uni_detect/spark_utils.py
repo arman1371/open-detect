@@ -9,7 +9,7 @@ reference local-testing session builder.
 
 from __future__ import annotations
 
-from contextlib import contextmanager
+from contextlib import contextmanager, suppress
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -57,12 +57,8 @@ def scoped_conf(spark: SparkSession, **overrides):
     finally:
         for key, value in previous.items():
             if value is None:
-                try:
+                with suppress(Exception):
                     spark.conf.unset(key)
-                except Exception:
-                    pass
             else:
-                try:
+                with suppress(Exception):
                     spark.conf.set(key, value)
-                except Exception:
-                    pass
