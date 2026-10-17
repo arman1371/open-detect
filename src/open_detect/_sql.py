@@ -54,9 +54,7 @@ def quote_ident(name: str, *, strict: bool = True) -> str:
     if not isinstance(name, str):
         raise ValidationError(f"identifier must be a string, got {type(name).__name__}")
     if strict and not _IDENTIFIER_RE.fullmatch(name):
-        raise ValidationError(
-            f"invalid identifier {name!r}: must match [A-Za-z_][A-Za-z0-9_]*"
-        )
+        raise ValidationError(f"invalid identifier {name!r}: must match [A-Za-z_][A-Za-z0-9_]*")
     return "`" + name.replace("`", "``") + "`"
 
 

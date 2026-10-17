@@ -44,9 +44,7 @@ def ensure_schema_exists(spark: SparkSession, location: UnityCatalogLocation) ->
 
 def list_tables(spark: SparkSession, catalog: str, schema: str) -> list[str]:
     """Return fully-qualified names of every table in ``catalog.schema``."""
-    rows = spark.sql(
-        f"SHOW TABLES IN {quote_ident(catalog)}.{quote_ident(schema)}"
-    ).collect()
+    rows = spark.sql(f"SHOW TABLES IN {quote_ident(catalog)}.{quote_ident(schema)}").collect()
     return [f"{catalog}.{schema}.{row['tableName']}" for row in rows]
 
 
