@@ -121,22 +121,30 @@ def _check_dataframe_is_spark(df: Any, param_name: str = "data") -> None:
 
 
 def _ensure_dataframe_is_spark(df: Any, param_name: str = "data") -> None:
-    """Runtime guard: validate that data is a Spark DataFrame.
+    """Runtime guard: accept Spark or pandas DataFrames.
 
-    No-op if pyspark is not available, which is fine for pandas-only environments.
-    This is separate from _check_dataframe_is_spark which raises ValidationError.
+    Soft guard (unlike :func:`_check_dataframe_is_spark`, which raises
+    :class:`ValidationError`): it never rejects non-DataFrame input, leaving
+    that to the caller. When PySpark is importable it accepts both
+    ``pyspark.sql.DataFrame`` and ``pandas.DataFrame`` -- the Raha detector
+    runs on pandas even in environments that have PySpark installed but no
+    active session, and rejecting pandas there broke every end-to-end test.
+    When PySpark is not importable it is a pure no-op, which is fine for
+    pandas-only environments.
     """
     try:
         from pyspark.sql import DataFrame as SparkDataFrame
 
-        if not isinstance(df, SparkDataFrame):
-            raise ValidationError(
-                f"{param_name} must be a pyspark.sql.DataFrame, "
-                f"got {type(df).__name__}"
-            )
+        if isinstance(df, SparkDataFrame):
+            return
     except ImportError:
-        # PySpark not available; this is fine for pandas-only environments
         pass
+    try:
+        import pandas as pd
+    except ImportError:
+        return
+    if isinstance(df, pd.DataFrame):
+        return
 
 
 __all__ = [

@@ -141,7 +141,7 @@ class AutoValidateAlgorithm(ErrorDetectionAlgorithm):
             requested column is absent from ``data``. If ``True``, missing
             columns are silently skipped.
         """
-        _check_unknown_kwargs(kwargs, {"table_id", "columns", "skip_missing"}, "detect")
+        _check_unknown_kwargs(kwargs, {"table_id", "columns", "skip_missing"})
         _check_columns_present(columns, list(data.columns), skip_missing=skip_missing)
 
         if len(data) == 0 or data.shape[1] == 0:
