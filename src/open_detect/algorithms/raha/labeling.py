@@ -13,18 +13,83 @@ from collections import defaultdict
 from collections.abc import Callable
 from typing import TYPE_CHECKING
 
+import numpy as np
+
 if TYPE_CHECKING:
     import pandas as pd
 
     from open_detect.algorithms.raha.features import ColumnFeatures
 
 
+def _values_equal(a: object, b: object) -> bool:
+    """dtype-normalised cell equality for ground-truth labeling (BUG-10).
+
+    ``normalize_to_str`` maps every null-like value to ``NULL_SENTINEL``, so a
+    null cell compares equal to another null cell and unequal to any real
+    value. Two real values compare equal iff they are numerically equal
+    (``'5'`` vs ``'5.0'``, ``1`` vs ``1.0``) -- plain ``str()`` comparison
+    would mark those as dirty, which is the BUG-10 false label. Values that
+    are not numeric at all fall back to string equality.
+
+    Integers are compared exactly, not via ``float()``: converting a 64-bit
+    ID to float loses precision and makes distinct IDs compare equal (a
+    false-clean label). ``float()`` is used only for the float path.
+    """
+    from open_detect.algorithms.raha.strategies import NULL_SENTINEL
+
+    a_null = a == NULL_SENTINEL
+    b_null = b == NULL_SENTINEL
+    if a_null and b_null:
+        return True
+    if a_null or b_null:
+        return False
+    # Exact integer comparison first -- ``float()`` would round 2**53+1.
+    # Handle both Python int and numpy integer types (np.int64, np.int32, etc.)
+    if isinstance(a, (int, np.integer)) and isinstance(b, (int, np.integer)):
+        return int(a) == int(b)
+    if isinstance(a, bool) or isinstance(b, bool):
+        return a is b
+    try:
+        return float(a) == float(b)  # type: ignore[arg-type]
+    except (TypeError, ValueError):
+        return str(a) == str(b)
+
+
+def _resolve_position(index: pd.Index, row_index: object) -> int:
+    """Map a row *label* to its positional index (BUG-10).
+
+    ``df.loc[[row_index]]`` returns every row whose label equals ``row_index``
+    and then ``.iloc[0]`` silently picks the first one, which is wrong when
+    the index has duplicate labels. ``get_loc`` returns an int for unique
+    labels, a slice for contiguous duplicates, and a boolean mask otherwise;
+    the slice/mask cases are resolved to the first matching position, which
+    is the position ``label_tuple`` is asked about.
+    """
+    loc = index.get_loc(row_index)
+    if isinstance(loc, int):
+        return loc
+    if isinstance(loc, slice):
+        return loc.start
+    return int(np.nonzero(loc)[0][0])
+
+
 class Labeler(ABC):
     """Supplies the ``dirty``/``clean`` label for every cell of a sampled tuple."""
 
     @abstractmethod
-    def label_tuple(self, df: pd.DataFrame, row_index: int) -> dict[str, bool]:
-        """Return ``{column_name: is_error}`` for every column of ``df.loc[row_index]``."""
+    def label_tuple(
+        self, df: pd.DataFrame, row_index: object, position: int | None = None
+    ) -> dict[str, bool]:
+        """Return ``{column_name: is_error}`` for every column of the sampled tuple.
+
+        ``row_index`` is the row's *label* (``df.index[position]``); ``position``
+        is its positional index. With a duplicate index the label alone is
+        ambiguous, so callers that already know the position (the detector)
+        pass it and the labeler indexes by position (BUG-10). When ``position``
+        is ``None`` it is resolved from ``row_index`` via
+        :func:`_resolve_position`, which picks the first matching row -- the
+        historical behaviour for callers that only have a label.
+        """
 
 
 class GroundTruthLabeler(Labeler):
@@ -40,12 +105,21 @@ class GroundTruthLabeler(Labeler):
     def __init__(self, clean_df: pd.DataFrame) -> None:
         self._clean_df = clean_df
 
-    def label_tuple(self, df: pd.DataFrame, row_index: int) -> dict[str, bool]:
-        from open_detect.algorithms.raha.strategies import NULL_SENTINEL, normalize_to_str
+    def label_tuple(
+        self, df: pd.DataFrame, row_index: object, position: int | None = None
+    ) -> dict[str, bool]:
+        from open_detect.algorithms.raha.strategies import normalize_to_str
 
-        dirty_row = normalize_to_str(df.loc[[row_index]]).iloc[0]
-        clean_row = normalize_to_str(self._clean_df.loc[[row_index]]).iloc[0]
-        return {col: dirty_row[col] != clean_row.get(col, NULL_SENTINEL) for col in df.columns}
+        # Positional access (BUG-10): ``df.loc[[row_index]]`` returns every row
+        # whose label equals ``row_index`` and then ``.iloc[0]`` silently picks
+        # the first one, which is wrong on a duplicate index. Index by
+        # position everywhere; the position is either supplied by the caller
+        # (the detector already knows it) or resolved from the label.
+        if position is None:
+            position = _resolve_position(df.index, row_index)
+        dirty_row = normalize_to_str(df.iloc[[position]]).iloc[0]
+        clean_row = normalize_to_str(self._clean_df.iloc[[position]]).iloc[0]
+        return {col: not _values_equal(dirty_row[col], clean_row.get(col)) for col in df.columns}
 
 
 class CallableLabeler(Labeler):
@@ -61,8 +135,13 @@ class CallableLabeler(Labeler):
     def __init__(self, fn: Callable[[pd.DataFrame, int], dict[str, bool]]) -> None:
         self._fn = fn
 
-    def label_tuple(self, df: pd.DataFrame, row_index: int) -> dict[str, bool]:
-        return self._fn(df, row_index)
+    def label_tuple(
+        self, df: pd.DataFrame, row_index: object, position: int | None = None
+    ) -> dict[str, bool]:
+        # ``fn`` keeps the historical ``(df, row_index)`` contract: it is the
+        # interactive/UI escape hatch and may not know about positions. The
+        # detector passes the resolved position as ``row_index`` below.
+        return self._fn(df, position if position is not None else row_index)
 
 
 class HeuristicLabeler(Labeler):
@@ -85,8 +164,11 @@ class HeuristicLabeler(Labeler):
         self._column_features = column_features
         self._threshold = threshold
 
-    def label_tuple(self, df: pd.DataFrame, row_index: int) -> dict[str, bool]:
-        position = df.index.get_loc(row_index)
+    def label_tuple(
+        self, df: pd.DataFrame, row_index: object, position: int | None = None
+    ) -> dict[str, bool]:
+        if position is None:
+            position = _resolve_position(df.index, row_index)
         labels: dict[str, bool] = {}
         for column_name, column_features in self._column_features.items():
             if column_features.matrix.shape[1] == 0:
