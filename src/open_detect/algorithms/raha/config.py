@@ -14,6 +14,14 @@ from open_detect.exceptions import ConfigurationError
 if TYPE_CHECKING:
     from sklearn.base import ClassifierMixin
 
+    #: A classifier factory is any callable returning a fresh, unfitted
+    #: scikit-learn classifier. Two signatures are accepted (B-M6):
+    #: ``() -> ClassifierMixin`` (legacy zero-argument form) and
+    #: ``(random_state: int | None) -> ClassifierMixin`` (random_state-aware
+    #: form). The default factory below uses the second form and is seeded
+    #: from :attr:`RahaConfig.random_state`.
+    ClassifierFactory = Callable[..., ClassifierMixin]
+
 #: Term-frequency thresholds for the histogram outlier strategy (Section 4.1).
 DEFAULT_TF_THRESHOLDS: tuple[float, ...] = (0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9)
 
@@ -22,11 +30,19 @@ DEFAULT_TF_THRESHOLDS: tuple[float, ...] = (0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0
 DEFAULT_DIST_THRESHOLDS: tuple[float, ...] = (1, 1.3, 1.5, 1.7, 2, 2.3, 2.5, 2.7, 3)
 
 
-def _default_classifier_factory() -> ClassifierMixin:
-    """The paper's default classifier (Section 6.1: "We use Gradient Boosting")."""
+def _default_classifier_factory(random_state: int | None = None) -> ClassifierMixin:
+    """The paper's default classifier (Section 6.1: "We use Gradient Boosting").
+
+    Accepts an optional ``random_state`` so the default factory can be seeded
+    from :attr:`RahaConfig.random_state` (B-M6). When ``random_state`` is
+    ``None`` the classifier is left unseeded, preserving the historical
+    behaviour for callers that pass a zero-argument factory.
+    """
     from sklearn.ensemble import GradientBoostingClassifier
 
-    return GradientBoostingClassifier()
+    if random_state is None:
+        return GradientBoostingClassifier()
+    return GradientBoostingClassifier(random_state=random_state)
 
 
 @dataclass(frozen=True)
@@ -55,12 +71,15 @@ class RahaConfig:
         characters are kept, since a rare character already tends to be
         exposed by the histogram outlier strategies on the whole value.
     classifier_factory:
-        Zero-argument callable returning a fresh, unfitted scikit-learn
-        classifier, called once per column. Defaults to
-        ``GradientBoostingClassifier``, the paper's own default.
+        Callable returning a fresh, unfitted scikit-learn classifier, called
+        once per column. Defaults to ``GradientBoostingClassifier``, the
+        paper's own default. Accepts either a zero-argument factory or a
+        ``random_state``-aware one (B-M6): the default factory is seeded from
+        ``random_state``, user-supplied zero-argument factories keep working.
     random_state:
-        Seeds clustering and the probabilistic tuple sampler (Equation 3) for
-        reproducible runs.
+        Seeds clustering, the probabilistic tuple sampler (Equation 3), and
+        the default classifier, so two runs with the same config/data/labels
+        produce identical predictions (B-M6 determinism).
     """
 
     labeling_budget: int = 20
@@ -68,7 +87,7 @@ class RahaConfig:
     dist_thresholds: tuple[float, ...] = field(default_factory=lambda: DEFAULT_DIST_THRESHOLDS)
     conflict_resolution: str = "majority"
     max_pattern_characters: int = 128
-    classifier_factory: Callable[[], ClassifierMixin] = field(
+    classifier_factory: ClassifierFactory = field(
         default_factory=lambda: _default_classifier_factory
     )
     random_state: int = 0
