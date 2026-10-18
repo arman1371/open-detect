@@ -35,8 +35,9 @@ the integer codes across every strategy that touches that column. This turns
 group-building set-add loops into integer-indexed operations (``np.bincount``
 and ``np.searchsorted``) and is what the paper calls the "factorize-once"
 optimization (OPE-82 P-11). The per-cell flags are still materialized as
-booleans -- the matrix is stored as ``float64`` in ``features.py`` because
-``pdist`` requires a floating-point array.
+booleans, then stored as ``uint8`` in ``features.py`` for compact storage. Downstream
+consumers that need a true distance (e.g. ``pdist`` on the feature matrix) cast to
+float on demand; identity/equality checks are bit-identical in ``uint8``.
 """
 
 from __future__ import annotations
