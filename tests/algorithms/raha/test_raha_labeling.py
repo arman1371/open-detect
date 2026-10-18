@@ -28,6 +28,37 @@ class TestGroundTruthLabeler:
         labeler = GroundTruthLabeler(clean)
         assert labeler.label_tuple(dirty, 0) == {"a": False}
 
+    def test_numeric_string_vs_float_is_not_an_error(self):
+        # BUG-10: str() comparison marked '5' vs '5.0' as dirty.
+        dirty = pd.DataFrame({"a": ["5"]})
+        clean = pd.DataFrame({"a": [5.0]})
+        labeler = GroundTruthLabeler(clean)
+        assert labeler.label_tuple(dirty, 0) == {"a": False}
+
+    def test_int_vs_float_column_is_not_an_error(self):
+        # BUG-10: str() comparison marked int vs float as dirty.
+        dirty = pd.DataFrame({"a": [1, 2]})
+        clean = pd.DataFrame({"a": [1.0, 2.0]})
+        labeler = GroundTruthLabeler(clean)
+        assert labeler.label_tuple(dirty, 0) == {"a": False}
+        assert labeler.label_tuple(dirty, 1) == {"a": False}
+
+    def test_missing_vs_value_is_an_error(self):
+        dirty = pd.DataFrame({"a": [None]})
+        clean = pd.DataFrame({"a": ["x"]})
+        labeler = GroundTruthLabeler(clean)
+        assert labeler.label_tuple(dirty, 0) == {"a": True}
+
+    def test_duplicate_index_labels_resolve_positionally(self):
+        # BUG-10: df.loc[[row_index]] on a duplicate index returns every
+        # matching row instead of one, so .iloc[0] silently picked the wrong
+        # one (or raised). Resolve the position once and index by position.
+        dirty = pd.DataFrame({"a": ["x", "BAD", "alpha"]}, index=[0, 0, 1])
+        clean = pd.DataFrame({"a": ["x", "x", "alpha"]}, index=[0, 0, 1])
+        labeler = GroundTruthLabeler(clean)
+        assert labeler.label_tuple(dirty, 1) == {"a": False}
+        assert labeler.label_tuple(dirty, 0) == {"a": False}
+
 
 class TestCallableLabeler:
     def test_delegates_to_function(self):
@@ -60,6 +91,20 @@ class TestHeuristicLabeler:
         features = ColumnFeatures(column_name="a", feature_names=(), matrix=np.zeros((1, 0)))
         labeler = HeuristicLabeler({"a": features})
         assert labeler.label_tuple(df, 0) == {"a": False}
+
+    def test_duplicate_index_labels_resolve_positionally(self):
+        # BUG-10: ``df.index.get_loc()`` on a duplicate label returns a slice or
+        # a boolean mask; indexing the feature matrix with that raw result
+        # silently picks the wrong row. Resolve to a single position first.
+        df = pd.DataFrame({"a": [1, 2, 3]}, index=[0, 0, 1])
+        features = ColumnFeatures(
+            column_name="a",
+            feature_names=("s1",),
+            matrix=np.array([[1.0], [0.0], [0.0]]),
+        )
+        labeler = HeuristicLabeler({"a": features}, threshold=0.5)
+        assert labeler.label_tuple(df, 0) == {"a": True}
+        assert labeler.label_tuple(df, 1) == {"a": False}
 
 
 class TestPropagateLabels:
