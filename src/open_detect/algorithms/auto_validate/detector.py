@@ -37,7 +37,7 @@ from open_detect.algorithms.auto_validate.hierarchy import matches
 from open_detect.algorithms.auto_validate.index import PatternIndex, build_pattern_index
 from open_detect.algorithms.base import AlgorithmResult, CellResult, ErrorDetectionAlgorithm
 from open_detect.exceptions import ValidationError
-from open_detect.validation import _check_unknown_kwargs
+from open_detect.validation import _reject_unknown_kwargs
 
 
 def _check_columns_present(columns: list[str] | None, df_columns: list[str], skip_missing: bool = False) -> None:
@@ -141,7 +141,7 @@ class AutoValidateAlgorithm(ErrorDetectionAlgorithm):
             requested column is absent from ``data``. If ``True``, missing
             columns are silently skipped.
         """
-        _check_unknown_kwargs(kwargs, {"table_id", "columns", "skip_missing"}, "detect")
+        _reject_unknown_kwargs(kwargs, {"table_id", "columns", "skip_missing"}, "detect")
         _check_columns_present(columns, list(data.columns), skip_missing=skip_missing)
 
         if len(data) == 0 or data.shape[1] == 0:

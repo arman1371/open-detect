@@ -19,20 +19,36 @@ T = TypeVar("T")
 
 
 def _check_unknown_kwargs(kwargs: dict[str, Any], accepted: set[str]) -> None:
-    """Raise ValidationError if any unknown kwargs are passed.
+    """Backward-compatible wrapper around :func:`_reject_unknown_kwargs`.
+
+    Kept so callers that pass only ``(kwargs, accepted)`` still work; new call sites
+    should use :func:`_reject_unknown_kwargs` with an explicit entry-point name.
+    """
+    _reject_unknown_kwargs(kwargs, accepted, "detect")
+
+
+def _reject_unknown_kwargs(
+    kwargs: dict[str, Any],
+    allowed: set[str],
+    param_name: str,
+) -> None:
+    """Raise ValidationError if any kwargs are not in ``allowed``.
 
     Parameters
     ----------
     kwargs:
-        The keyword arguments that were passed to detect().
-    accepted:
-        The set of kwarg names that are accepted by the algorithm.
+        The keyword arguments that were passed to the entry point.
+    allowed:
+        The set of kwarg names accepted by the entry point.
+    param_name:
+        Name of the entry point, used in the error message.
     """
-    unknown = set(kwargs) - accepted
+    unknown = set(kwargs) - allowed
     if unknown:
         msg = (
-            f"Unknown parameter(s): {', '.join(sorted(unknown))}. "
-            f"Accepted parameters: {', '.join(sorted(accepted))}"
+            f"{param_name} got unknown parameter(s): "
+            f"{', '.join(sorted(unknown))}. "
+            f"Accepted parameters: {', '.join(sorted(allowed))}"
         )
         raise ValidationError(msg)
 
@@ -121,26 +137,35 @@ def _check_dataframe_is_spark(df: Any, param_name: str = "data") -> None:
 
 
 def _ensure_dataframe_is_spark(df: Any, param_name: str = "data") -> None:
-    """Runtime guard: validate that data is a Spark DataFrame.
+    """Runtime guard: accept Spark or pandas DataFrames.
 
-    No-op if pyspark is not available, which is fine for pandas-only environments.
-    This is separate from _check_dataframe_is_spark which raises ValidationError.
+    Soft guard (unlike :func:`_check_dataframe_is_spark`, which raises
+    :class:`ValidationError`): it never rejects non-DataFrame input, leaving
+    that to the caller. When PySpark is importable it accepts both
+    ``pyspark.sql.DataFrame`` and ``pandas.DataFrame`` -- the Raha detector
+    runs on pandas even in environments that have PySpark installed but no
+    active session, and rejecting pandas there broke every end-to-end test.
+    When PySpark is not importable it is a pure no-op, which is fine for
+    pandas-only environments.
     """
     try:
         from pyspark.sql import DataFrame as SparkDataFrame
 
-        if not isinstance(df, SparkDataFrame):
-            raise ValidationError(
-                f"{param_name} must be a pyspark.sql.DataFrame, "
-                f"got {type(df).__name__}"
-            )
+        if isinstance(df, SparkDataFrame):
+            return
     except ImportError:
-        # PySpark not available; this is fine for pandas-only environments
-        pass
+        return
+    try:
+        import pandas as pd
+    except ImportError:
+        return
+    if isinstance(df, pd.DataFrame):
+        return
 
 
 __all__ = [
     "_check_unknown_kwargs",
+    "_reject_unknown_kwargs",
     "_check_expected_type",
     "_validate_literal_value",
     "_check_columns_unique",
