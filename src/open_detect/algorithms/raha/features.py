@@ -27,7 +27,18 @@ class ColumnFeatures:
 
     column_name: str
     feature_names: tuple[str, ...]
-    matrix: np.ndarray  # shape (n_rows, n_features), dtype=float64, values in {0.0, 1.0}
+    matrix: np.ndarray  # shape (n_rows, n_features), dtype=uint8, values in {0, 1}
+
+
+def _compact_dtype(flags: np.ndarray) -> np.ndarray:
+    """Return ``flags`` as the smallest unsigned integer dtype holding {0, 1}.
+
+    The strategies return boolean arrays, so ``uint8`` is the natural compact
+    storage (1 byte/cell vs. 8 for ``float64``). Downstream consumers that need
+    a true distance (e.g. ``pdist`` on the feature matrix) cast to float on
+    demand; identity/equality checks are bit-identical in ``uint8``.
+    """
+    return np.asarray(flags, dtype=np.uint8)
 
 
 def build_column_features(df: pd.DataFrame, column_name: str, config: RahaConfig) -> ColumnFeatures:
@@ -51,12 +62,12 @@ def build_column_features(df: pd.DataFrame, column_name: str, config: RahaConfig
     for name, flags in strategies.items():
         if flags.any() and not flags.all():
             names.append(name)
-            columns.append(flags)
+            columns.append(_compact_dtype(flags))
 
     matrix = (
-        np.column_stack(columns).astype(np.float64)
+        np.column_stack(columns)
         if columns
-        else np.zeros((n, 0), dtype=np.float64)
+        else np.zeros((n, 0), dtype=np.uint8)
     )
     return ColumnFeatures(column_name=column_name, feature_names=tuple(names), matrix=matrix)
 
