@@ -17,7 +17,9 @@ from open_detect.exceptions import ValidationError
 T = TypeVar("T")
 
 
-def _check_unknown_kwargs(kwargs: dict[str, Any], accepted: set[str], param_name: str = "detect") -> None:
+def _check_unknown_kwargs(
+    kwargs: dict[str, Any], accepted: set[str], param_name: str = "detect"
+) -> None:
     """Raise ValidationError if kwargs contains keys not in ``accepted``."""
     unknown = set(kwargs) - accepted
     if unknown:
@@ -39,11 +41,9 @@ def _check_expected_type(value: Any, expected_type: type, param_name: str) -> No
     origin = get_origin(expected_type)
     if origin is not None and origin is Sequence:
         # expected_type is Sequence[Something], check the args
-        args: tuple[Any, ...] = getattr(expected_type, '__args__', ())
+        args: tuple[Any, ...] = getattr(expected_type, "__args__", ())
         if len(args) == 1 and args[0] is str and isinstance(value, str):
-            raise ValidationError(
-                "expected a sequence of str, got str; wrap in a list"
-            )
+            raise ValidationError("expected a sequence of str, got str; wrap in a list")
     # Default isinstance check
     if expected_type is not None and not isinstance(value, expected_type):
         raise ValidationError(
@@ -66,7 +66,7 @@ def _ensure_sequence_of_str(value: Any, param_name: str) -> None:
     """Validate that value is a non-string sequence of strings."""
     origin = get_origin(value)
     if origin is not None and origin is Sequence:
-        args: tuple[Any, ...] = getattr(value, '__args__', ())
+        args: tuple[Any, ...] = getattr(value, "__args__", ())
         if len(args) == 1 and args[0] is str and isinstance(value, str):
             raise ValidationError(
                 f"expected a sequence of str for {param_name}, got str; wrap in a list"
@@ -88,17 +88,14 @@ def _validate_literal_value(
     """
     if value not in valid_values:
         raise ValidationError(
-            f"{param_name} must be one of {sorted(valid_values)}, "
-            f"got {value!r}"
+            f"{param_name} must be one of {sorted(valid_values)}, " f"got {value!r}"
         )
 
 
 def _check_columns_unique(columns: list[str]) -> None:
     """Raise ValidationError if column names are not unique strings."""
     if not all(isinstance(c, str) for c in columns):
-        raise ValidationError(
-            "All column names must be strings, got non-string entries"
-        )
+        raise ValidationError("All column names must be strings, got non-string entries")
     if len(columns) != len(set(columns)):
         raise ValidationError(
             f"Column names must be unique, got duplicates: "
@@ -113,8 +110,7 @@ def _check_dataframe_is_spark(df: Any, param_name: str = "data") -> None:
 
         if not isinstance(df, SparkDataFrame):
             raise ValidationError(
-                f"{param_name} must be a pyspark.sql.DataFrame, "
-                f"got {type(df).__name__}"
+                f"{param_name} must be a pyspark.sql.DataFrame, " f"got {type(df).__name__}"
             )
     except ImportError:
         # PySpark not available; skip this check
@@ -132,8 +128,7 @@ def _ensure_dataframe_is_spark(df: Any, param_name: str = "data") -> None:
 
         if not isinstance(df, SparkDataFrame):
             raise ValidationError(
-                f"{param_name} must be a pyspark.sql.DataFrame, "
-                f"got {type(df).__name__}"
+                f"{param_name} must be a pyspark.sql.DataFrame, " f"got {type(df).__name__}"
             )
     except ImportError:
         # PySpark not available; this is fine for pandas-only environments
