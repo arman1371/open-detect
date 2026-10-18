@@ -89,6 +89,11 @@ dev = [
   "black>=24.0",
   "mypy>=1.10",
   "pandas-stubs",
+  # Uni-Detect's spelling metric needs rapidfuzz, which is a 
+  # extra, not a core dependency. The dev group installs it so the test
+  # suite can exercise the spelling code path in a full (non-core-only)
+  # environment.
+  "rapidfuzz>=3.6",
 ]
 
 [tool.ruff]
