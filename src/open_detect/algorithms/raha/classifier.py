@@ -9,12 +9,17 @@ it to predict every remaining cell in the column.
 
 from __future__ import annotations
 
+from collections.abc import Callable, Mapping
 from dataclasses import dataclass
+from typing import TYPE_CHECKING
 
 import numpy as np
 
 from open_detect.algorithms.raha.config import RahaConfig
 from open_detect.algorithms.raha.features import ColumnFeatures
+
+if TYPE_CHECKING:
+    from sklearn.base import ClassifierMixin
 
 
 @dataclass(frozen=True, slots=True)
@@ -52,9 +57,29 @@ def train_and_predict(
             column_features.column_name, np.full(n, majority), np.full(n, score)
         )
 
-    classifier = config.classifier_factory()
+    classifier = _make_classifier(config.classifier_factory, config.random_state)
     classifier.fit(x_labeled, y)
     probabilities = classifier.predict_proba(column_features.matrix)
     dirty_index = list(classifier.classes_).index(1)
     scores = probabilities[:, dirty_index]
     return ColumnPredictions(column_features.column_name, scores >= 0.5, scores)
+
+
+def _make_classifier(factory: Callable[..., ClassifierMixin], random_state: int) -> ClassifierMixin:
+    """Instantiate ``factory`` with ``random_state`` when it accepts one.
+
+    A factory is called with ``random_state`` when it takes a parameter named
+    ``random_state`` (the default factory's signature) and with no arguments
+    otherwise, so user-supplied zero-argument factories keep working (B-M6:
+    additive and backwards-compatible).
+    """
+    from inspect import Parameter, signature
+
+    params: Mapping[str, Parameter]
+    try:
+        params = signature(factory).parameters
+    except (TypeError, ValueError):
+        params = {}
+    if "random_state" in params:
+        return factory(random_state=random_state)
+    return factory()

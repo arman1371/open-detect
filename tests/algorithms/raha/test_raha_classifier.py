@@ -54,3 +54,51 @@ class TestClassifierTrainingPath:
         assert result.is_error[2]
         assert not result.is_error[5]
         assert result.score.shape == (6,)
+
+
+class TestDeterminismAndSeeding:
+    def test_same_config_data_labels_produce_identical_predictions(self):
+        # B-M6: the default classifier is seeded from RahaConfig.random_state,
+        # so two runs with the same config/data/labels are bit-for-bit equal.
+        matrix = np.array(
+            [
+                [1.0, 0.0],
+                [1.0, 0.0],
+                [1.0, 0.0],
+                [0.0, 1.0],
+                [0.0, 1.0],
+                [0.0, 1.0],
+            ]
+        )
+        features = _features(matrix)
+        labels = {0: True, 1: True, 3: False, 4: False}
+        config = RahaConfig(random_state=0)
+        first = train_and_predict(features, labels, config)
+        second = train_and_predict(features, labels, config)
+        assert np.array_equal(first.is_error, second.is_error)
+        assert np.array_equal(first.score, second.score)
+
+    def test_zero_argument_factory_is_called_without_random_state(self):
+        # B-M6: user-supplied factories that take no arguments must keep
+        # working (additive/backwards-compatible) -- they are NOT passed
+        # random_state, which would break a zero-arg factory.
+        from open_detect.algorithms.raha.classifier import _make_classifier
+
+        sentinel = object()
+
+        def factory():
+            return sentinel
+
+        assert _make_classifier(factory, random_state=0) is sentinel
+
+    def test_random_state_aware_factory_is_seeded(self):
+        from open_detect.algorithms.raha.classifier import _make_classifier
+
+        seen = {}
+
+        def factory(random_state):
+            seen["random_state"] = random_state
+            return object()
+
+        _make_classifier(factory, random_state=7)
+        assert seen == {"random_state": 7}
