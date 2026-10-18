@@ -321,7 +321,9 @@ class TestPluginDiscoveryViaRealDistInfo:
         """A renamed group means the plugin is invisible: discovery is empty."""
         # Re-write the entry_points.txt under a different group name and reset
         # the registry so discovery re-reads importlib.metadata from scratch.
-        entry_points_txt = real_plugin_path / "distinfo_plugin_pkg-1.0.0.dist-info" / "entry_points.txt"
+        entry_points_txt = (
+            real_plugin_path / "distinfo_plugin_pkg-1.0.0.dist-info" / "entry_points.txt"
+        )
         entry_points_txt.write_text(
             "[other.group]\ndistinfo_plugin = distinfo_plugin_pkg:DistInfoPlugin\n"
         )
