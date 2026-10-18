@@ -27,13 +27,21 @@ denominator into the paper's own worked example (Section 2.2, threshold
 "``TF(d[i,j])`` normalized by the number of rows", i.e. plain relative
 frequency ``count(v) / |d|``, reproduces it exactly. We implement the latter;
 this is the same class of PDF-math-extraction artifact documented in
-``open_detect/algorithms/uni_detect/metrics/functional_dependency.py`` for the Uni-Detect paper.
+``open_detect/algorithms/uni_detect/metrics/functional_dependency.py`` for the
+Uni-Detect paper.
+
+Performance note: factorize each column once with ``pd.factorize`` and reuse
+the integer codes across every strategy that touches that column. This turns
+group-building set-add loops into integer-indexed operations (``np.bincount``
+and ``np.searchsorted``) and is what the paper calls the "factorize-once"
+optimization (OPE-82 P-11). The per-cell flags are still materialized as
+booleans -- the matrix is stored as ``float64`` in ``features.py`` because
+``pdist`` requires a floating-point array.
 """
 
 from __future__ import annotations
 
 from collections import defaultdict
-from collections.abc import Iterable
 
 import numpy as np
 import pandas as pd
@@ -52,10 +60,6 @@ def normalize_to_str(values: pd.Series) -> pd.Series:
     placeholder ("*" in Table 2) as an ordinary repeated value. Shared by the
     strategies below and by ``labeling.py``'s ground-truth comparison, so a
     "missing" cell is treated consistently everywhere in the pipeline.
-
-    Public: ``labeling.GroundTruthLabeler`` compares dirty/clean rows through
-    it, so it stays part of the module's contract even though the strategies
-    below factorize through :func:`_factorize_column` instead.
     """
     return values.map(lambda v: NULL_SENTINEL if pd.isna(v) else str(v))
 
@@ -75,7 +79,7 @@ def _factorize_column(series: pd.Series) -> tuple[np.ndarray, np.ndarray]:
 
 
 def histogram_outlier_strategies(
-    values: pd.Series, thresholds: Iterable[float]
+    values: pd.Series, thresholds: tuple[float, ...]
 ) -> dict[str, np.ndarray]:
     """Histogram-modeling outlier strategies ``s_tf`` (Section 4.1).
 
@@ -92,7 +96,7 @@ def histogram_outlier_strategies(
 
 
 def gaussian_outlier_strategies(
-    values: pd.Series, thresholds: Iterable[float]
+    values: pd.Series, thresholds: tuple[float, ...]
 ) -> dict[str, np.ndarray]:
     """Gaussian-modeling outlier strategies ``s_dist`` (Section 4.1).
 
@@ -133,6 +137,7 @@ def gaussian_outlier_strategies(
         return {f"outlier_dist>{t}": np.zeros(len(values), dtype=bool) for t in thresholds}
 
     z = np.where(finite_mask, (np.abs(row_numeric - mean) / std), 0.0)
+
     return {f"outlier_dist>{t}": z > t for t in thresholds}
 
 
@@ -176,7 +181,8 @@ def fd_violation_strategies(df: pd.DataFrame, target_column: str) -> dict[str, n
     For every other column ``a`` as a candidate left-hand side, flags cells
     in ``target_column`` whose ``a``-group contains more than one distinct
     ``target_column`` value -- the same "ambiguous LHS group" notion of an FD
-    violation used by ``open_detect.algorithms.uni_detect.metrics.functional_dependency``.
+    violation used by
+    ``open_detect.algorithms.uni_detect.metrics.functional_dependency``.
 
     We follow Section 4.1's formal definition, which assigns strategy
     ``s_{a->a'}`` to the right-hand-side column ``a'`` (``j = index of a'``).
@@ -188,13 +194,14 @@ def fd_violation_strategies(df: pd.DataFrame, target_column: str) -> dict[str, n
     ``open_detect/algorithms/uni_detect/metrics/functional_dependency.py``).
     """
     rhs_codes, rhs_uniques = _factorize_column(df[target_column])
-    n_rhs = len(rhs_uniques)  # distinct target values = number of RHS buckets
+    n_lhs = len(rhs_uniques)  # distinct target values = number of RHS buckets
     strategies: dict[str, np.ndarray] = {}
 
     for other in df.columns:
         if other == target_column:
             continue
         lhs_codes, _lhs_uniques = _factorize_column(df[other])
+        n_rhs = n_lhs  # constant across iterations; kept explicit for clarity
 
         # A functional dependency holds iff each distinct LHS code maps to
         # exactly one RHS code. ``pair = lhs * n_rhs + rhs`` is a bijective
@@ -204,7 +211,7 @@ def fd_violation_strategies(df: pd.DataFrame, target_column: str) -> dict[str, n
         # appear with each LHS value.
         pair = lhs_codes * n_rhs + rhs_codes
         up = np.unique(pair)
-        violating_lhs = np.bincount(up // n_rhs, minlength=n_rhs) > 1
+        violating_lhs = np.bincount(up // n_rhs, minlength=n_lhs) > 1
         strategies[f"fd[{other}->{target_column}]"] = violating_lhs[lhs_codes]
 
     return strategies
