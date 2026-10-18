@@ -20,7 +20,10 @@ from __future__ import annotations
 import hashlib
 import json
 from abc import ABC, abstractmethod
+from contextlib import suppress
 from typing import TYPE_CHECKING, Any, Literal
+
+from pyspark import StorageLevel
 
 from open_detect.algorithms.uni_detect.config import UniDetectConfig
 from open_detect.algorithms.uni_detect.corpus.ingestion import CorpusIngestor
@@ -60,6 +63,7 @@ class BaseDetector(ABC):
         self.config = config
         self.store = CorpusStatsStore(spark, config)
         self._failure_tracker: FailureTracker | None = None
+        self._persisted: list[DataFrame] = []
         self.ingestor = CorpusIngestor(
             spark,
             max_values_per_column=config.max_mpd_block_size * 200,
@@ -86,23 +90,32 @@ class BaseDetector(ABC):
         ``table_id``, ``column_names``, ``row_ids``, ``lr_ratio``,
         ``surprisal``, ``is_significant``, ``support``, ``evidence_json``.
 
-        The result is **materialized** before returning so ``candidates`` can
-        be unpersisted immediately.  The caller is responsible for any further
-        actions (``.count()``, ``.show()``, ``.write``); the returned DataFrame
-        is a fully evaluated snapshot, not a lazy plan that would re-trigger
-        ingestion + scoring on each action.
+        The returned DataFrame is **persisted** (``MEMORY_AND_DISK``) and
+        materialized once, before ``candidates`` is released, so every later
+        action (``.count()``, ``.show()``, ``.write``) reuses the cached frame
+        instead of re-running ingestion + scoring.  Call :meth:`release` (or
+        ``unpersist()`` the frame yourself) when done to free the memory.
 
         Ordering is **not** guaranteed by this method -- the per-detector
         ``orderBy`` was removed because it is redundant with the global sort in
         ``pipeline.UniDetect.detect``.  Direct callers that need a specific
         order must sort the returned frame themselves.
+
+        .. note::
+
+            The result is persisted, not just collected.  ``collect()`` alone
+            would return a list of rows and force the caller to rebuild a
+            DataFrame from scratch -- re-triggering the schema inference and
+            losing the cache.  Returning the persisted frame keeps the
+            materialized data available for downstream actions without
+            re-executing the scoring stage.
         """
         from pyspark.sql import functions as F
 
         spec = get_spec(self.error_type)
         with log_duration(logger, f"detect[{self.error_type.value}]"):
             candidates = self.extract_candidates(table_names)
-            candidates.cache()
+            candidates.persist(StorageLevel.MEMORY_AND_DISK)
             try:
                 n = candidates.count()
                 if self._failure_tracker is not None:
@@ -138,11 +151,12 @@ class BaseDetector(ABC):
                         "evidence_json",
                     )
                 )
-                # Materialize now so candidates can be released; caller gets a
-                # concrete DataFrame, not a lazy plan that would re-execute the
-                # full ingestion+scoring pipeline on every subsequent action.
-                result = result.collect()
-                return self.spark.createDataFrame(result, schema=self._result_schema())
+                # Materialize once while ``candidates`` is still cached, then
+                # release the inputs.  The persisted result survives on its own,
+                # so downstream actions never re-execute the scoring stage.
+                self._track(result.persist(StorageLevel.MEMORY_AND_DISK))
+                result.count()
+                return result
             finally:
                 candidates.unpersist()
 
@@ -156,6 +170,29 @@ class BaseDetector(ABC):
         from open_detect.algorithms.uni_detect.detectors.schema import DETECTION_RESULT_SCHEMA
 
         return self.spark.createDataFrame([], schema=DETECTION_RESULT_SCHEMA)
+
+    # ------------------------------------------------------------------
+    # Result lifecycle: persisted frames released by callers (req 2)
+    # ------------------------------------------------------------------
+    _persisted: list[DataFrame]
+
+    def __post_init__(self) -> None:
+        self._persisted = []
+
+    def _track(self, frame: DataFrame) -> DataFrame:
+        """Register a persisted result frame for later release."""
+        self._persisted.append(frame)
+        return frame
+
+    def release(self) -> None:
+        """Unpersist every result frame produced by this detector's ``detect()`` calls.
+
+        Safe to call when nothing has been tracked; safe to call repeatedly.
+        """
+        for frame in self._persisted:
+            with suppress(Exception):
+                frame.unpersist()
+        self._persisted.clear()
 
 
 RedactMode = Literal["none", "hash", "drop"]

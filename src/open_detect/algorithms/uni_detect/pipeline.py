@@ -14,7 +14,9 @@ This is the single entry point most users need:
 from __future__ import annotations
 
 from functools import reduce
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
+
+from pyspark import StorageLevel
 
 from open_detect.algorithms.uni_detect.catalog import ensure_schema_exists
 from open_detect.algorithms.uni_detect.config import UniDetectConfig
@@ -72,7 +74,7 @@ class UniDetect:
         **kwargs: Any,
     ) -> None:
         """Run shared validation before the online detection phase."""
-        from open_detect.validation import _reject_unknown_kwargs, _ensure_sequence_of_str
+        from open_detect.validation import _ensure_sequence_of_str, _reject_unknown_kwargs
 
         _reject_unknown_kwargs(
             kwargs,
@@ -182,6 +184,14 @@ class UniDetect:
         error_types = tuple(error_types) if error_types else tuple(ErrorType)
         frames = [self._detectors[et].detect(table_names) for et in error_types]
         result = reduce(lambda a, b: a.unionByName(b), frames)
+        # ``detect()`` returns a persisted frame; the unioned result is
+        # persisted and materialized once, so the caller's count/show/write
+        # reuses the cached frame instead of re-running ingestion + scoring.
+        # The per-detector caches are released only after the union is cached.
+        result.persist(StorageLevel.MEMORY_AND_DISK)
+        result.count()
+        for detector in (self._detectors[et] for et in error_types):
+            detector.release()
         return result.orderBy(F.col("lr_ratio").asc())
 
     def write_detections(self, detections: DataFrame, mode: str = "append") -> None:
