@@ -89,7 +89,7 @@ def main(argv: list[str] | None = None) -> None:
     ud = UniDetect(config, spark=spark)
     detections = ud.detect(target_tables, error_types=error_types)
 
-    if args.top_k:
+    if args.top_k is not None:
         detections = detections.limit(args.top_k)
 
     significant = detections.where("is_significant = true")
