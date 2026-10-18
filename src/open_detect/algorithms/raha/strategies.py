@@ -52,8 +52,26 @@ def normalize_to_str(values: pd.Series) -> pd.Series:
     placeholder ("*" in Table 2) as an ordinary repeated value. Shared by the
     strategies below and by ``labeling.py``'s ground-truth comparison, so a
     "missing" cell is treated consistently everywhere in the pipeline.
+
+    Public: ``labeling.GroundTruthLabeler`` compares dirty/clean rows through
+    it, so it stays part of the module's contract even though the strategies
+    below factorize through :func:`_factorize_column` instead.
     """
     return values.map(lambda v: NULL_SENTINEL if pd.isna(v) else str(v))
+
+
+def _factorize_column(series: pd.Series) -> tuple[np.ndarray, np.ndarray]:
+    """Stringify + factorize a single column in one pass.
+
+    Mapping nulls to a sentinel before factorizing means they land on a real
+    code instead of being silently dropped by pandas, matching how the paper's
+    running example treats missing placeholders as ordinary repeated values.
+    Returns ``(codes, uniques)`` where ``codes`` has length ``len(series)`` and
+    ``uniques`` is a string array of length ``len(set(series))``.
+    """
+    raw = series.map(lambda v: NULL_SENTINEL if pd.isna(v) else str(v))
+    codes, uniques = pd.factorize(raw)
+    return codes, np.asarray(uniques)
 
 
 def histogram_outlier_strategies(
@@ -64,12 +82,12 @@ def histogram_outlier_strategies(
     Flags a cell when its value's relative frequency in the column falls
     below ``tf`` -- i.e. it is a comparatively rare value.
     """
-    raw = normalize_to_str(values)
-    n = len(raw)
+    codes, uniques = _factorize_column(values)
+    n = len(values)
     if n == 0:
         return {}
-    counts = raw.value_counts()
-    freq = (raw.map(counts) / n).to_numpy()
+    counts = np.bincount(codes, minlength=len(uniques)).astype(float)
+    freq = counts[codes] / n
     return {f"outlier_tf<{t}": freq < t for t in thresholds}
 
 
@@ -81,25 +99,40 @@ def gaussian_outlier_strategies(
     Applies only to (mostly) numeric columns -- returns no strategies
     otherwise, since "distance to the mean in standard deviations" is not
     meaningful for non-numeric data. Cells that fail to parse as numeric
-    (including nulls, via :func:`normalize_to_str`'s sentinel) are left
+    (including nulls, via :func:`_factorize_column`'s sentinel) are left
     unflagged by this family (the pattern-violation strategies below already
     expose non-numeric characters in an otherwise-numeric column).
     """
-    raw = normalize_to_str(values)
-    parseable = raw.map(is_float_like)
-    if parseable.mean() < 0.5:
+    codes, uniques = _factorize_column(values)
+    if len(uniques) == 0:
+        return {}
+    parseable = np.array([is_float_like(u) for u in uniques])
+    # "Mostly numeric" is judged by row share, not unique-value share, to
+    # match the original ``raw.map(is_float_like).mean()`` semantics: a
+    # column of 1000 "1"s and one "x" is mostly numeric even though only
+    # 1/2 of its *distinct* values parse. ``row_counts`` holds the per-unique
+    # row counts from ``np.bincount``.
+    row_counts = np.bincount(codes, minlength=len(uniques))
+    row_parseable_share = np.dot(parseable, row_counts) / len(values)
+    if row_parseable_share < 0.5:
         return {}
 
-    numeric = pd.to_numeric(raw.where(parseable), errors="coerce")
-    if numeric.count() < 2:
+    numeric = np.full(len(uniques), np.nan)
+    numeric[parseable] = pd.to_numeric(uniques[parseable], errors="coerce")
+    # Mean and std are computed over the *rows*, not the unique values, so a
+    # constant column with a single numeric value still yields a strategy
+    # (std = 0 -> every cell flagged as nothing, the paper's "no signal" case).
+    row_numeric = numeric[codes]
+    finite_mask = np.isfinite(row_numeric)
+    if finite_mask.sum() < 2:
         return {}
 
-    mean = numeric.mean()
-    std = numeric.std(ddof=0)
+    mean = row_numeric[finite_mask].mean()
+    std = row_numeric[finite_mask].std(ddof=0)
     if not std:
         return {f"outlier_dist>{t}": np.zeros(len(values), dtype=bool) for t in thresholds}
 
-    z = ((numeric - mean).abs() / std).fillna(0.0).to_numpy()
+    z = np.where(finite_mask, (np.abs(row_numeric - mean) / std), 0.0)
     return {f"outlier_dist>{t}": z > t for t in thresholds}
 
 
@@ -111,18 +144,30 @@ def pattern_character_strategies(values: pd.Series, max_characters: int) -> dict
     column. ``max_characters`` bounds this to the most frequent characters so
     a free-text column does not explode the feature space.
     """
-    raw = normalize_to_str(values)
+    codes, uniques = _factorize_column(values)
+    n = len(values)
+    if n == 0:
+        return {}
+
     char_counts: dict[str, int] = defaultdict(int)
-    per_row_chars = [set(s) for s in raw]
-    for chars in per_row_chars:
-        for ch in chars:
-            char_counts[ch] += 1
+    unique_counts = np.bincount(codes, minlength=len(uniques))
+    for i, u in enumerate(uniques):
+        count = int(unique_counts[i])
+        for ch in set(u):
+            char_counts[ch] += count
 
     top_chars = sorted(char_counts, key=lambda ch: (-char_counts[ch], ch))[:max_characters]
-    return {
-        f"pattern_contains[{ch!r}]": np.array([ch in chars for chars in per_row_chars], dtype=bool)
-        for ch in top_chars
-    }
+    if not top_chars:
+        return {}
+
+    # Build the (n_rows, n_top_chars) presence matrix by broadcasting
+    # unique-value codes against character membership.
+    uniq_flags = np.zeros((len(uniques), len(top_chars)), dtype=bool)
+    for j, ch in enumerate(top_chars):
+        mask = np.fromiter((ch in set(u) for u in uniques), dtype=bool)
+        uniq_flags[:, j] = mask
+
+    return {f"pattern_contains[{ch!r}]": uniq_flags[codes, j] for j, ch in enumerate(top_chars)}
 
 
 def fd_violation_strategies(df: pd.DataFrame, target_column: str) -> dict[str, np.ndarray]:
@@ -142,15 +187,24 @@ def fd_violation_strategies(df: pd.DataFrame, target_column: str) -> dict[str, n
     approach to such paper inconsistencies (see
     ``open_detect/algorithms/uni_detect/metrics/functional_dependency.py``).
     """
-    target_raw = normalize_to_str(df[target_column]).to_numpy()
+    rhs_codes, rhs_uniques = _factorize_column(df[target_column])
+    n_rhs = len(rhs_uniques)  # distinct target values = number of RHS buckets
     strategies: dict[str, np.ndarray] = {}
+
     for other in df.columns:
         if other == target_column:
             continue
-        lhs_raw = normalize_to_str(df[other]).to_numpy()
-        groups: dict[str, set[str]] = defaultdict(set)
-        for lhs_v, rhs_v in zip(lhs_raw, target_raw, strict=True):
-            groups[lhs_v].add(rhs_v)
-        flags = np.array([len(groups[lhs_v]) > 1 for lhs_v in lhs_raw], dtype=bool)
-        strategies[f"fd[{other}->{target_column}]"] = flags
+        lhs_codes, _lhs_uniques = _factorize_column(df[other])
+
+        # A functional dependency holds iff each distinct LHS code maps to
+        # exactly one RHS code. ``pair = lhs * n_rhs + rhs`` is a bijective
+        # encoding of ordered pairs into ints; ``np.unique(pair)`` yields
+        # sorted unique pairs, and ``up // n_rhs`` recovers the LHS code of
+        # each unique pair. ``np.bincount`` then counts how many RHS values
+        # appear with each LHS value.
+        pair = lhs_codes * n_rhs + rhs_codes
+        up = np.unique(pair)
+        violating_lhs = np.bincount(up // n_rhs, minlength=n_rhs) > 1
+        strategies[f"fd[{other}->{target_column}]"] = violating_lhs[lhs_codes]
+
     return strategies
