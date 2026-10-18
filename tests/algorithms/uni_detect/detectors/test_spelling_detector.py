@@ -67,9 +67,7 @@ def test_duplicates_map_every_occurrence_in_ascending_order():
 def test_build_row_maps_row_ids_via_original_positions():
     """End-to-end through ``_build_row`` for the leading-nulls scenario."""
     vals = ["zzzz", None, "appel", None, "appel", "appel", "apple", "kiwi", "plum"]
-    cfg = UniDetectConfig(
-        location=UnityCatalogLocation(catalog="t", schema="dq"), epsilon=0.1
-    )
+    cfg = UniDetectConfig(location=UnityCatalogLocation(catalog="t", schema="dq"), epsilon=0.1)
     row = _row(vals, cfg)
     assert row["row_ids"] == ["2", "4", "5"]
     assert row["candidate_id"].endswith("::spelling::2")
