@@ -20,3 +20,15 @@ updates:
       python-dependencies:
         patterns: ["*"]
         update-types: [minor, patch]
+
+  # Hash-pinned tool requirements used by privileged workflows (release, knowledge graph).
+  # Dependabot updates the pinned version and regenerates the hashes.
+  - package-ecosystem: pip
+    directory: /.github/requirements
+    schedule:
+      interval: weekly
+    commit-message:
+      prefix: "ci(deps)"
+    groups:
+      workflow-tools:
+        patterns: ["*"]
