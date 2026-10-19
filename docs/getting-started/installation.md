@@ -1,17 +1,22 @@
 # Installation
 
-`open-detect` requires **Python 3.10 or newer**. The core install is small (`numpy`, `pandas`,
-`rapidfuzz`); each algorithm's heavier dependencies are optional extras, so installing the
+`open-detect` requires **Python 3.10 or newer**. The core install is small (`numpy`,
+`pandas`); `rapidfuzz` is no longer a core dependency. It is only needed by
+Uni-Detect (`uni_detect` extra) and is not imported unless that algorithm is used.
+
+Each algorithm's heavier dependencies are optional extras, so installing the
 library never forces Spark or scikit-learn on you.
 
 ## Pick your extra
 
 | You want | Install |
 |---|---|
+| (none) | `pip install open-detect` (just numpy + pandas) |
 | Raha | `pip install "open-detect[raha]"` (adds scikit-learn, scipy) |
 | Auto-Validate | `pip install "open-detect[auto_validate]"` (adds scipy) |
-| Uni-Detect | `pip install "open-detect[spark]"` (adds pyspark, pyarrow) |
-| Everything | `pip install "open-detect[raha,auto_validate,spark]"` |
+| Uni-Detect | `pip install "open-detect[uni_detect]"` (adds pyspark, pyarrow, numpy<2, rapidfuzz) |
+| Spark (alias) | `pip install "open-detect[spark]"` (same as Uni-Detect) |
+| Everything | `pip install "open-detect[all]"` (Uni-Detect + Raha + Auto-Validate) |
 
 === "pip"
 
@@ -25,13 +30,27 @@ library never forces Spark or scikit-learn on you.
     uv add "open-detect[raha,auto_validate]"
     ```
 
+!!! note "Behaviour change"
+    `rapidfuzz` is no longer a core dependency. The core
+    install (`pip install open-detect`) now needs only `numpy` + `pandas`. Use the
+    `uni_detect` extra (or the `spark` alias) to install Uni-Detect, which adds `rapidfuzz`
+    plus `pyspark`, `pyarrow`, and `numpy<2`.
+
+!!! note "New primary script names"
+    The wheel now installs console scripts `open_detect_build_corpus` and
+    `open_detect_run_detection`. The old names `build_corpus_statistics_job`
+    and `run_detection_job` are kept as backward-compatible aliases
+    (Databricks python_wheel_tasks reference entry-point names). See README
+    and [databricks-jobs.md](https://github.com/arman1371/open-detect/blob/main/docs/guides/databricks-jobs.md) for examples.
+
 !!! note "Databricks"
+
     On a Databricks cluster, Spark and Delta are already provided. Install the plain package
-    (`pip install open-detect`) and do not add the `spark` extra; it would shadow the runtime's
+    (`pip install open-detect`) and do not add the `uni_detect` / `spark` extra; it would shadow the runtime's
     own PySpark.
 
-!!! warning "Spark extra pins"
-    The `spark` extra pins `pyspark>=3.5,<4.0`, `pyarrow<15` and `numpy<2` because PySpark 3.5's
+!!! warning "Uni-Detect extra pins"
+    The `uni_detect` / `spark` extras pin `pyspark>=3.5,<4.0`, `pyarrow<15` and `numpy<2` because PySpark 3.5's
     Arrow serialization is only tested against that range. If your environment needs NumPy 2,
     use Raha or Auto-Validate, which have no such constraint.
 
