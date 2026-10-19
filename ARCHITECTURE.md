@@ -1,17 +1,13 @@
 # Architecture
 
-This document maps each part of three papers -- Wang & He's Uni-Detect
-(SIGMOD 2019), Mahdavi et al.'s Raha (SIGMOD 2019) and Song & He's
-Auto-Validate (SIGMOD 2021) -- onto this codebase, and explains the decisions
-each paper's translation into a shared library required.
-
-- Uni-Detect: Sections 1-7.
-- Raha: Sections 8-12.
-- Auto-Validate: the final part of this document (unnumbered).
+This document maps each part of two papers -- Wang & He's Uni-Detect
+(SIGMOD 2019) and Mahdavi et al.'s Raha (SIGMOD 2019) -- onto this codebase,
+and explains the decisions each paper's translation into a shared library
+required.
 
 ## 0. The multi-algorithm framework
 
-`open_detect.algorithms` (`src/open_detect/algorithms/`) is what turns this
+`open_detect.algorithms` (`src/open_detect.algorithms/`) is what turns this
 repository from a single paper's implementation into a library of
 interchangeable error-detection algorithms:
 
@@ -23,50 +19,15 @@ interchangeable error-detection algorithms:
 - `algorithms/registry.py` -- maps a name (`"uni_detect"`, `"raha"`, ...) to
   a class, resolved lazily so that requesting one algorithm never imports
   another's optional dependencies (`pyspark` for Uni-Detect, `scikit-learn`
-  and `scipy` for Raha). Third-party algorithms register the same way via the
+  for Raha). Third-party algorithms register the same way via the
   `open_detect.algorithms` Python entry-point group, with no changes to this
   repository.
-- `algorithms/uni_detect/` -- Uni-Detect's own implementation (Sections 1-7
-  below). `algorithms/uni_detect/algorithm.py` adapts the
-  `open_detect.algorithms.uni_detect.pipeline.UniDetect` facade to this
-  contract by flattening its Spark output; the rest of the package
-  (`pipeline`, `config`, `catalog`, `featurization`, `perturbation`,
-  `strategies`, `spark_utils`, `corpus/`, `detectors/`, `metrics/`, `jobs/`)
-  is Uni-Detect-only. Its `__init__` exports `UniDetect` and
-  `UniDetectAlgorithm` lazily, so importing the package never imports pyspark.
+- `algorithms/uni_detect_algorithm.py` -- adapts the pre-existing
+  `open_detect.pipeline.UniDetect` (Sections 1-7 below) to this contract by
+  flattening its Spark output.
 - `algorithms/raha/` -- Raha's own implementation (Section 8 below), built
   directly against the shared contract since it has no pre-existing
   standalone pipeline to adapt.
-- `algorithms/auto_validate/` -- Auto-Validate's own implementation (the
-  Auto-Validate part below): a generalization hierarchy and pattern index
-  built offline from a corpus of columns, then FMDV pattern inference and
-  cell matching online. pandas-native; `scipy` is imported lazily and only
-  by the drift test.
-
-Each algorithm is a self-contained subpackage; only code shared by several
-algorithms lives at the package root, and `tests/` mirrors this layout:
-
-```
-src/open_detect/
-  __init__.py  py.typed
-  exceptions.py  logging_utils.py  text_utils.py   # shared by several algorithms
-  core/                                            # shared enums + models
-  algorithms/
-    __init__.py  base.py  registry.py
-    auto_validate/
-    raha/
-    uni_detect/
-      __init__.py  algorithm.py  pipeline.py  config.py  catalog.py
-      featurization.py  perturbation.py  strategies.py  spark_utils.py
-      corpus/  detectors/  metrics/
-      jobs/                                        # Databricks job entry points
-tests/
-  conftest.py  test_core_models.py  test_exceptions.py  test_logging_utils.py
-  test_package_init.py  test_text_utils.py         # shared modules
-  algorithms/
-    test_algorithms_registry.py
-    auto_validate/  raha/  uni_detect/
-```
 
 Deliberately not unified: each algorithm's `detect()` input type. Uni-Detect
 scores tables already registered in Unity Catalog against a background
@@ -111,16 +72,16 @@ ratio = count(T' in S(T): m(T') >= theta1  AND  m(T'_perturbed) <= theta2)
 | Paper concept | Code |
 |---|---|
 | Definition 1 (unsupervised error-detection) | `open_detect.core.enums.ErrorType` |
-| Definition 2 (epsilon-perturbation) | `open_detect.algorithms.uni_detect.perturbation.perturb_*` |
-| Definition 3 (LR test) | `open_detect.algorithms.uni_detect.corpus.store.CorpusStatsStore.batch_score` |
-| Section 2.2.2 (featurization / subsetting) | `open_detect.algorithms.uni_detect.featurization` |
-| Definition 4 (Uni-Detect instantiation) | `open_detect.algorithms.uni_detect.detectors.base.BaseDetector` (template method) + per-type metric/perturbation/featurization |
-| Section 3.1 (numeric outliers: max-MAD) | `open_detect.algorithms.uni_detect.metrics.outliers`, `open_detect.algorithms.uni_detect.detectors.numeric_outlier` |
-| Section 3.2 (spelling: MPD) | `open_detect.algorithms.uni_detect.metrics.spelling`, `open_detect.algorithms.uni_detect.detectors.spelling` |
-| Section 3.3 (uniqueness: UR) | `open_detect.algorithms.uni_detect.metrics.uniqueness`, `open_detect.algorithms.uni_detect.detectors.uniqueness` |
-| Section 3.4 (FD: FR) | `open_detect.algorithms.uni_detect.metrics.functional_dependency`, `open_detect.algorithms.uni_detect.detectors.functional_dependency` |
+| Definition 2 (epsilon-perturbation) | `open_detect.perturbation.perturb_*` |
+| Definition 3 (LR test) | `open_detect.corpus.store.CorpusStatsStore.batch_score` |
+| Section 2.2.2 (featurization / subsetting) | `open_detect.featurization` |
+| Definition 4 (Uni-Detect instantiation) | `open_detect.detectors.base.BaseDetector` (template method) + per-type metric/perturbation/featurization |
+| Section 3.1 (numeric outliers: max-MAD) | `open_detect.metrics.outliers`, `open_detect.detectors.numeric_outlier` |
+| Section 3.2 (spelling: MPD) | `open_detect.metrics.spelling`, `open_detect.detectors.spelling` |
+| Section 3.3 (uniqueness: UR) | `open_detect.metrics.uniqueness`, `open_detect.detectors.uniqueness` |
+| Section 3.4 (FD: FR) | `open_detect.metrics.functional_dependency`, `open_detect.detectors.functional_dependency` |
 | Theorem 1 (monotonicity) | Generalized into `ComparisonDirection` (see below) — the same proof holds for either direction by symmetry |
-| "System Architecture": offline learning + online lookup | `open_detect.algorithms.uni_detect.corpus.builder.CorpusStatsBuilder` (offline) / `open_detect.algorithms.uni_detect.corpus.store.CorpusStatsStore` (online) |
+| "System Architecture": offline learning + online lookup | `open_detect.corpus.builder.CorpusStatsBuilder` (offline) / `open_detect.corpus.store.CorpusStatsStore` (online) |
 
 ## 3. Generalizing Equation (12): `ComparisonDirection`
 
@@ -139,7 +100,7 @@ the anomalous subset is removed:
   ratio = count(before >= theta1 AND after <= theta2) / count(before >= theta2)
   ```
 
-`open_detect.algorithms.uni_detect.strategies` is the single source of truth for which family each
+`open_detect.strategies` is the single source of truth for which family each
 `ErrorType` belongs to, and `CorpusStatsStore.batch_score` implements both
 formulas as one parameterized Spark query. This isn't just deduplication —
 it's the same generalization Theorem 1's monotonicity proof already implies
@@ -177,7 +138,7 @@ rebuilt.
 
 Figure 5's "cube diagram" (data type × row count × uniqueness/prevalence ×
 ...) is implemented as coarse, bounded-cardinality string buckets
-(`open_detect.algorithms.uni_detect.featurization.bucket_by_edges` and friends), combined into a
+(`open_detect.featurization.bucket_by_edges` and friends), combined into a
 `FeatureBucket` whose `as_key()` is the corpus table's grouping/partition
 key. Coarse, bounded buckets are a deliberate scaling decision: they keep
 `GROUP BY feature_bucket` tractable no matter how large the background
@@ -190,20 +151,20 @@ trade-off: "T is already big enough so that sparsity is not an issue").
 1. **The corpus `T`** is instantiated as "the tables already registered in
    Unity Catalog" rather than a 100M-table web crawl — the natural
    enterprise analogue, and the one this library is built to consume
-   directly via `open_detect.algorithms.uni_detect.catalog.list_tables_matching`.
+   directly via `open_detect.catalog.list_tables_matching`.
 
 2. **FD's `FR` metric.** The PDF's extracted formula for `FR` (and for the
    `Conforming-pair-ratio` baseline it's compared against) drops a
    comparison operator — a common artifact of extracting math from academic
-   PDFs. `open_detect.algorithms.uni_detect.metrics.functional_dependency` implements the standard,
+   PDFs. `open_detect.metrics.functional_dependency` implements the standard,
    well-established row-based compliance ratio consistent with the paper's
    own stated intuition ("closer to 1 indicates likely violations, similar
    to UR") and its Figure 4(c) worked example (`FR = 4/6`), which the test
-   suite reproduces exactly (`tests/algorithms/uni_detect/test_metrics.py::TestFunctionalDependency`).
+   suite reproduces exactly (`tests/test_metrics.py::TestFunctionalDependency`).
 
 3. **MPD blocking.** An exact all-pairs minimum-edit-distance scan is
    `O(n^2)` per column, which does not scale to real Delta table columns.
-   `open_detect.algorithms.uni_detect.metrics.spelling` blocks candidates by (prefix, length bucket)
+   `open_detect.metrics.spelling` blocks candidates by (prefix, length bucket)
    before comparing pairwise, trading a small amount of recall on
    adversarial inputs for near-linear expected runtime — the right call for
    an unattended, automated detector.
@@ -229,7 +190,7 @@ explanation (Figures 2 and 4 in the paper).
 
 ## 8. Code map
 
-Raha's Algorithm 1 maps onto `src/open_detect/algorithms/raha/` module-by-step:
+Raha's Algorithm 1 maps onto `src/open_detect.algorithms/raha/` module-by-step:
 
 | Algorithm 1 step | Paper section | Code |
 |---|---|---|
@@ -363,7 +324,7 @@ that specific cell) for explainability, in the same spirit as Uni-Detect's
 | FMDV-V (Eqns 8-11) | Sec 3 | `fmdv_v.py::fmdv_v` |
 | FMDV-VH (paper-spec §5.5) | Sec 4 | `fmdv_v.py::fmdv_vh` |
 | Drift test (Sec 4) | Sec 5.4 | `drift.py::check_drift` |
-| Detector, registry | — | `detector.py::AutoValidateAlgorithm` |
+| Detector, registry | — | `detector.py::AutoValidateAlgorithm` (OPE-26) |
 
 ## Config
 
@@ -407,7 +368,7 @@ that specific cell) for explainability, in the same spirit as Uni-Detect's
   before `build_index`.
 
 Registry: `_load_auto_validate()` → `register_lazy("auto_validate", ...)` in
-`src/open_detect/algorithms/__init__.py`.  `open_detect.algorithms` import path
+`src/open_detect.algorithms/__init__.py`.  `open_detect.algorithms` import path
 never imports scipy/pyspark/sklearn — those are lazy-loaded only when the
 algorithm is actually constructed.
 
@@ -439,8 +400,8 @@ algorithm is actually constructed.
    (multi-group `fmdv_v`/`fmdv_vh`) as a **disjunction over groups**; because
    the coarse-signature groups partition the column, per-group match is the
    correct combined-validation semantics (paper Eqns 8-10).  This was a
-   detection-time fix (previously only `pattern[0]` was consulted, so values
-   in every other group were falsely flagged).
+   detection-time bug fix in commit 5976e33 (previously only `pattern[0]`
+   was consulted, so values in every other group were falsely flagged).
 5. **No corpus-free fallback.**  `fmdv`/`fmdv_h`/`fmdv_v`/`fmdv_vh` require
    a `PatternIndex`; without one, callers must raise `IndexNotBuiltError`.
    This follows from the paper's requirement that `T` be a background
@@ -450,8 +411,8 @@ algorithm is actually constructed.
    `0.0` for unflagged cells — a ranking-only extension documented here.
 7. **Drift test not wired into `detect`.**  `detect` does not call
    `check_drift` because a single-table scan has no "future" column to
-   compare against.  Callers who have a later snapshot of the column can call
-   `check_drift` directly.
+   compare against.  This is a fidelity question for the independent
+   reviewer (paper-spec §8.8).
 8. **`P(v)` for T-side counting uses all values (weighted by multiplicity).**
    Impurity is computed over every value in the column, not distinct values
    only, consistent with Eqn 1.
@@ -477,4 +438,4 @@ algorithm is actually constructed.
 - **Pattern unions**: unsupported in the paper's own profiler.
 - **Spark implementation**: deferred.
 - **Index persistence / parallel offline build**: speed-only, deferred.
-- **Benchmarks**: Auto-Validate is scored alongside the other algorithms in `benchmarks/`.
+- **Benchmarks**: OPE-22.
