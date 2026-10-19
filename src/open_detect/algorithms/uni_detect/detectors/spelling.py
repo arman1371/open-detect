@@ -4,7 +4,10 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from open_detect.algorithms.uni_detect.detectors.base import BaseDetector
+from open_detect.algorithms.uni_detect.detectors.base import (
+    BaseDetector,
+    make_evidence_json,
+)
 from open_detect.algorithms.uni_detect.detectors.schema import CANDIDATE_SCHEMA
 from open_detect.algorithms.uni_detect.failures import FailureCounts
 from open_detect.algorithms.uni_detect.featurization import build_spelling_bucket
@@ -18,6 +21,17 @@ if TYPE_CHECKING:
     from pyspark.sql import DataFrame
 
     from open_detect.algorithms.uni_detect.config import UniDetectConfig
+
+
+def _drop_nulls(vals: Sequence[object]) -> tuple[list[object], list[int]]:
+    """Return non-null values plus each one's 0-based position in ``vals``."""
+    positions = [i for i, v in enumerate(vals) if v is not None]
+    return [vals[i] for i in positions], positions
+
+
+def _original_row_ids(dropped_indices: Sequence[int], positions: Sequence[int]) -> list[str]:
+    """Map indices into the null-dropped list back to original row ids (order preserved)."""
+    return [str(positions[i]) for i in dropped_indices]
 
 
 def _score_column(clean_vals, num_rows, cfg: UniDetectConfig):
@@ -36,6 +50,26 @@ def _score_column(clean_vals, num_rows, cfg: UniDetectConfig):
     return outcome, bucket
 
 
+def _build_row(tid, col, vals, outcome, bucket, cfg: UniDetectConfig) -> dict:
+    """Build one candidate row from the perturbation outcome for a column.
+
+    Maps ``outcome.dropped_indices`` (which index into the null-dropped list) back to
+    original 0-based row positions via ``_drop_nulls`` / ``_original_row_ids``.
+    """
+    _, orig_positions = _drop_nulls(vals)
+    row_ids = _original_row_ids(outcome.dropped_indices, orig_positions)
+    return {
+        "candidate_id": f"{tid}::{col}::spelling::{row_ids[0]}",
+        "table_id": tid,
+        "column_names": [col],
+        "row_ids": row_ids,
+        "feature_bucket": bucket.as_key(),
+        "theta_before": outcome.theta_before,
+        "theta_after": outcome.theta_after,
+        "evidence_json": make_evidence_json(outcome.evidence, cfg.redact_evidence),
+    }
+
+
 class SpellingDetector(BaseDetector):
     error_type = ErrorType.SPELLING
 
@@ -47,8 +81,6 @@ class SpellingDetector(BaseDetector):
         tracker = self._new_failure_tracker()
 
         def compute(batches):
-            from open_detect.algorithms.uni_detect.detectors.base import make_evidence_json
-
             for batch in batches:
                 counts = FailureCounts()
                 rows: list[dict] = []
@@ -66,21 +98,7 @@ class SpellingDetector(BaseDetector):
                     if scored is None:
                         continue
                     outcome, bucket = scored
-
-                    rows.append(
-                        {
-                            "candidate_id": f"{tid}::{col}::spelling::{outcome.dropped_indices[0]}",
-                            "table_id": tid,
-                            "column_names": [col],
-                            "row_ids": [str(i) for i in outcome.dropped_indices],
-                            "feature_bucket": bucket.as_key(),
-                            "theta_before": outcome.theta_before,
-                            "theta_after": outcome.theta_after,
-                            "evidence_json": make_evidence_json(
-                                outcome.evidence, cfg.redact_evidence
-                            ),
-                        }
-                    )
+                    rows.append(_build_row(tid, col, vals, outcome, bucket, cfg))
                 tracker.flush(counts)
                 yield pd.DataFrame(rows, columns=[f.name for f in CANDIDATE_SCHEMA.fields])
 
