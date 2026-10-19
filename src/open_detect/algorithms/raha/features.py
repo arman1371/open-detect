@@ -64,11 +64,7 @@ def build_column_features(df: pd.DataFrame, column_name: str, config: RahaConfig
             names.append(name)
             columns.append(_compact_dtype(flags))
 
-    matrix = (
-        np.column_stack(columns)
-        if columns
-        else np.zeros((n, 0), dtype=np.uint8)
-    )
+    matrix = np.column_stack(columns) if columns else np.zeros((n, 0), dtype=np.uint8)
     return ColumnFeatures(column_name=column_name, feature_names=tuple(names), matrix=matrix)
 
 
