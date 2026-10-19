@@ -63,8 +63,8 @@ Lake** as the compute and storage layer, in two phases:
 
 ```python
 from open_detect import UniDetectConfig, UnityCatalogLocation
-from open_detect.algorithms.uni_detect.pipeline import UniDetect
-from open_detect.algorithms.uni_detect.catalog import list_tables_matching
+from open_detect.pipeline import UniDetect
+from open_detect.catalog import list_tables_matching
 
 config = UniDetectConfig(
     location=UnityCatalogLocation(catalog="main", schema="data_quality"),
@@ -117,26 +117,26 @@ organization already has registered**: a whole catalog, a set of schemas, or
 a curated allow-list. For most organizations this is thousands to millions
 of governed tables spanning many domains, which plays the same statistical
 role: a large background sample of "what clean tables look like" to reason
-against. See `open_detect/algorithms/uni_detect/catalog.py::list_tables_matching`.
+against. See `open_detect/catalog.py::list_tables_matching`.
 
 ### Uni-Detect design
 
-- `open_detect.algorithms.uni_detect.metrics` — the four pure-Python/NumPy metric functions (`UR`,
+- `open_detect.metrics` — the four pure-Python/NumPy metric functions (`UR`,
   `max-MAD`, `MPD`, `FR`), independently unit-tested against the paper's own
   worked numeric examples.
-- `open_detect.algorithms.uni_detect.perturbation` — the epsilon-perturbation for each error type
+- `open_detect.perturbation` — the epsilon-perturbation for each error type
   (Definition 2).
-- `open_detect.algorithms.uni_detect.featurization` — the corpus sub-setting / bucketing dimensions
+- `open_detect.featurization` — the corpus sub-setting / bucketing dimensions
   (Figure 5).
-- `open_detect.algorithms.uni_detect.strategies` — the single source of truth for which direction
+- `open_detect.strategies` — the single source of truth for which direction
   each metric moves in after perturbation (generalizes Equation 12 into one
   formula, `INCREASING` vs `DECREASING`).
-- `open_detect.algorithms.uni_detect.corpus` — offline ingestion + statistics builder, and the
+- `open_detect.corpus` — offline ingestion + statistics builder, and the
   online batch likelihood-ratio store, both Spark/Delta-native.
-- `open_detect.algorithms.uni_detect.detectors` — one class per error type, sharing a template
+- `open_detect.detectors` — one class per error type, sharing a template
   method (`BaseDetector.detect`) that wires metric → perturbation →
   featurization → corpus lookup → ranked, explainable output.
-- `open_detect.algorithms.uni_detect.pipeline.UniDetect` — the public facade.
+- `open_detect.pipeline.UniDetect` — the public facade.
 
 ## Raha (Mahdavi et al., SIGMOD 2019)
 
@@ -253,7 +253,7 @@ compared against — a common casualty of academic-PDF math extraction). Where
 this happens, this implementation uses the standard, well-established
 literature definition consistent with the paper's own stated intuition and
 worked example; the exact convention chosen is documented in the relevant
-module's docstring (see `open_detect/algorithms/uni_detect/metrics/functional_dependency.py`).
+module's docstring (see `open_detect/metrics/functional_dependency.py`).
 
 **Raha.** The histogram outlier strategy's published normalization formula
 has the same kind of extraction artifact; the natural reading (relative
