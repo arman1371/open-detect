@@ -55,7 +55,7 @@ def _values_equal(a: object, b: object) -> bool:
         return str(a) == str(b)
 
 
-def _resolve_position(index: pd.Index, row_index: object) -> int:
+def _resolve_position(index: pd.Index, row_index: int) -> int:
     """Map a row *label* to its positional index (BUG-10).
 
     ``df.loc[[row_index]]`` returns every row whose label equals ``row_index``
@@ -78,7 +78,7 @@ class Labeler(ABC):
 
     @abstractmethod
     def label_tuple(
-        self, df: pd.DataFrame, row_index: object, position: int | None = None
+        self, df: pd.DataFrame, row_index: int, position: int | None = None
     ) -> dict[str, bool]:
         """Return ``{column_name: is_error}`` for every column of the sampled tuple.
 
@@ -106,7 +106,7 @@ class GroundTruthLabeler(Labeler):
         self._clean_df = clean_df
 
     def label_tuple(
-        self, df: pd.DataFrame, row_index: object, position: int | None = None
+        self, df: pd.DataFrame, row_index: int, position: int | None = None
     ) -> dict[str, bool]:
         from open_detect.algorithms.raha.strategies import normalize_to_str
 
@@ -136,7 +136,7 @@ class CallableLabeler(Labeler):
         self._fn = fn
 
     def label_tuple(
-        self, df: pd.DataFrame, row_index: object, position: int | None = None
+        self, df: pd.DataFrame, row_index: int, position: int | None = None
     ) -> dict[str, bool]:
         # ``fn`` keeps the historical ``(df, row_index)`` contract: it is the
         # interactive/UI escape hatch and may not know about positions. The
@@ -165,7 +165,7 @@ class HeuristicLabeler(Labeler):
         self._threshold = threshold
 
     def label_tuple(
-        self, df: pd.DataFrame, row_index: object, position: int | None = None
+        self, df: pd.DataFrame, row_index: int, position: int | None = None
     ) -> dict[str, bool]:
         if position is None:
             position = _resolve_position(df.index, row_index)
