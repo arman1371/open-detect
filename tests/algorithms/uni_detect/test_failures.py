@@ -169,7 +169,7 @@ class TestPerElementFunctions:
         lhs = ["a", "b", "c", "d", "e", "f"]
         result = counts.attempt(_score_fd_pair, lhs, ["x", "y"], 6, 0, {}, config)
         assert result is None
-        assert counts.by_type == {"ValidationError": 1}
+        assert counts.by_type == {"ValueError": 1}
 
     def test_fd_pair_success(self, config):
         counts = FailureCounts()
@@ -189,7 +189,7 @@ class TestPerElementFunctions:
             _score_single_column, ErrorType.FUNCTIONAL_DEPENDENCY, ["a"], 1, 0, {}, config
         )
         assert result is None
-        assert counts.by_type == {"ValidationError": 1}
+        assert counts.by_type == {"ValueError": 1}
 
     def test_single_column_non_numeric_is_not_applicable(self, config):
         counts = FailureCounts()
@@ -207,12 +207,13 @@ class TestPerElementFunctions:
     def test_uniqueness_detector_scorer(self, config):
         counts = FailureCounts()
         vals = [f"id{i}" for i in range(20)] + ["dup", "dup"]
-        scored = counts.attempt(uniqueness_detector._score_column, vals, 22, 0, {}, config)
+        row_ids = list(range(len(vals)))
+        scored = counts.attempt(uniqueness_detector._score_column, vals, row_ids, 22, 0, {}, config)
         assert scored is not None
         outcome, bucket = scored
         assert outcome.dropped_indices
         assert (
-            counts.attempt(uniqueness_detector._score_column, ["a", "b", "c"], 3, 0, {}, config)
+            counts.attempt(uniqueness_detector._score_column, ["a", "b", "c"], [0, 1, 2], 3, 0, {}, config)
             is None
         )
         assert (counts.processed, counts.skipped) == (2, 0)
@@ -223,17 +224,21 @@ class TestPerElementFunctions:
 
     def test_outlier_detector_scorer(self, config):
         counts = FailureCounts()
+        vals = [1.0, 2.0, 3.0, 4.0, 1000.0]
+        row_ids = list(range(len(vals)))
         scored = counts.attempt(
-            outlier_detector._score_column, [1.0, 2.0, 3.0, 4.0, 1000.0], 5, config
+            outlier_detector._score_column, vals, row_ids, 5, config
         )
         assert scored is not None
-        assert counts.attempt(outlier_detector._score_column, [1.0], 1, config) is None
+        assert counts.attempt(outlier_detector._score_column, [1.0], [0], 1, config) is None
         assert (counts.processed, counts.skipped, counts.not_applicable) == (1, 0, 1)
 
     def test_spelling_detector_scorer(self, config):
         counts = FailureCounts()
+        vals = ["apple", "apple", "aple", "pear", "plum"]
+        row_ids = list(range(len(vals)))
         scored = counts.attempt(
-            spelling_detector._score_column, ["apple", "apple", "aple", "pear", "plum"], 5, config
+            spelling_detector._score_column, vals, row_ids, 5, config
         )
         assert scored is not None
         with pytest.raises(TypeError):
@@ -241,9 +246,13 @@ class TestPerElementFunctions:
 
     def test_fd_detector_scorer(self, config):
         counts = FailureCounts()
-        assert counts.attempt(fd_detector._score_pair, ["a", "b"], ["x"], 2, 0, {}, config) is None
-        assert counts.by_type == {"ValidationError": 1}
+        lhs = ["a", "b"]
+        rhs = ["x"]
+        row_ids = [0, 1]
+        assert counts.attempt(fd_detector._score_pair, lhs, rhs, row_ids, 2, 0, {}, config) is None
+        assert counts.by_type == {"ValueError": 1}
         lhs = ["a"] * 10 + ["b"] * 10
         rhs = ["x"] * 9 + ["y"] + ["z"] * 10
-        scored = counts.attempt(fd_detector._score_pair, lhs, rhs, 20, 1, {}, config)
+        row_ids = list(range(20))
+        scored = counts.attempt(fd_detector._score_pair, lhs, rhs, row_ids, 20, 1, {}, config)
         assert scored is not None and scored[0].dropped_indices
