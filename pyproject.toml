@@ -25,11 +25,10 @@ classifiers = [
 dependencies = [
   "numpy>=1.24",
   "pandas>=1.5",
-  "rapidfuzz>=3.6",
 ]
 
 [project.optional-dependencies]
-spark = [
+uni_detect = [
   "pyspark>=3.5,<4.0",
   # PySpark 3.5's Arrow serialization (pandas_udf/mapInPandas) is only
   # tested against pyarrow up to ~14.x; pyarrow 15+ has been observed to
@@ -39,6 +38,12 @@ spark = [
   # raise under NumPy 2.x ("compiled using NumPy 1.x cannot be run in
   # NumPy 2.x").
   "numpy<2",
+  "rapidfuzz>=3.6",
+]
+spark = [
+  # Alias for the uni_detect extra so `pip install \"open-detect[spark]\"`
+  # installs the same set of packages.
+  "open-detect[uni_detect]",
 ]
 raha = [
   "scikit-learn>=1.3",
@@ -46,6 +51,9 @@ raha = [
 ]
 auto_validate = [
   "scipy>=1.10",
+]
+all = [
+  "open-detect[uni_detect,raha,auto_validate]",
 ]
 [project.urls]
 Homepage = "https://github.com/arman1371/open-detect"
@@ -55,6 +63,8 @@ Documentation = "https://arman1371.github.io/open-detect/"
 [project.scripts]
 build_corpus_statistics_job = "open_detect.algorithms.uni_detect.jobs.build_corpus_statistics:main"
 run_detection_job = "open_detect.algorithms.uni_detect.jobs.run_detection:main"
+open_detect_build_corpus = "open_detect.algorithms.uni_detect.jobs.build_corpus_statistics:main"
+open_detect_run_detection = "open_detect.algorithms.uni_detect.jobs.run_detection:main"
 
 # Third-party algorithms register themselves here, under their own package,
 # without any code changes in open_detect itself -- see
@@ -79,6 +89,11 @@ dev = [
   "black>=24.0",
   "mypy>=1.10",
   "pandas-stubs",
+  # Uni-Detect's spelling metric needs rapidfuzz, which is a 
+  # extra, not a core dependency. The dev group installs it so the test
+  # suite can exercise the spelling code path in a full (non-core-only)
+  # environment.
+  "rapidfuzz>=3.6",
 ]
 
 [tool.ruff]
