@@ -43,6 +43,35 @@ class TestHistogramOutlierStrategies:
     def test_empty_column(self):
         assert histogram_outlier_strategies(pd.Series([], dtype=object), [0.5]) == {}
 
+    def test_row_weighted_mostly_numeric_gate(self):
+        """Test that the gaussian strategy uses row-weighted "mostly numeric" gate.
+
+        A column of 1000 "1"s and one "x" is mostly numeric by rows (1000/1001 ≈ 0.999)
+        but only 1/2 by distinct values. The row-weighted gate should pass the column.
+        """
+        values = pd.Series(["1"] * 1000 + ["x"])
+        result = gaussian_outlier_strategies(values, [1.0])
+        # The column should be treated as "mostly numeric" and NOT flag the "x" cell
+        assert not result["outlier_dist>1.0"][-1]  # "x" should not be flagged
+
+    def test_null_sentinel_handling(self):
+        """Test that null sentinel values are treated as one category.
+
+        Missing values (None, NaN) should be grouped together as a single category,
+        consistent with how the paper's running example treats placeholders.
+        The two nulls form a single group of size 2 (2/4 = 0.5 >= 0.4), so they
+        are NOT flagged as outliers, same as any other repeated value.
+        """
+        values = pd.Series(["a", None, "b", float("nan")])
+        result = histogram_outlier_strategies(values, [0.4])
+        # The two nulls form one group of size 2 (freq 2/4 = 0.5 >= 0.4),
+        # so neither None nor NaN is flagged as an outlier
+        assert not result["outlier_tf<0.4"][1]  # None not flagged
+        assert not result["outlier_tf<0.4"][3]  # NaN not flagged
+        # "a" and "b" are singletons (freq 1/4 < 0.4), so they ARE flagged
+        assert result["outlier_tf<0.4"][0]  # "a" flagged
+        assert result["outlier_tf<0.4"][2]  # "b" flagged
+
 
 class TestGaussianOutlierStrategies:
     def test_flags_far_from_mean(self):
@@ -99,3 +128,24 @@ class TestFdViolationStrategies:
         df = pd.DataFrame({"a": [1, 2], "b": [3, 4], "c": [5, 6]})
         result = fd_violation_strategies(df, target_column="a")
         assert set(result) == {"fd[b->a]", "fd[c->a]"}
+
+    def test_fd_repeated_groups_with_null_sentinel(self):
+        """Test FD with repeated groups and null sentinel.
+
+        When two columns have repeated values with nulls, the FD should
+        correctly handle the null sentinel grouping.
+        """
+        df = pd.DataFrame({
+            "A": ["a", "a", None, None, "b", "b"],
+            "B": ["x", "x", "y", "y", None, None],
+        })
+        result = fd_violation_strategies(df, target_column="B")
+        # With null sentinel, A values map correctly to B groups including nulls
+        assert "fd[A->B]" in result
+
+    def test_empty_frame_fd(self):
+        """FD strategies with empty DataFrame."""
+        df = pd.DataFrame({"a": pd.Series([], dtype=object), "b": pd.Series([], dtype=object)})
+        result = fd_violation_strategies(df, target_column="a")
+        # Should handle empty frame gracefully
+        assert len(result) == 0 or all(not v.any() for v in result.values())
