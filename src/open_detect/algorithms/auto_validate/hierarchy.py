@@ -16,6 +16,7 @@ alphabet".
 from __future__ import annotations
 
 import re
+from collections.abc import Callable
 from dataclasses import dataclass
 from functools import lru_cache
 
@@ -91,6 +92,7 @@ def _char_class(ch: str) -> str:
     return "symbol"
 
 
+@lru_cache(maxsize=8192)
 def tokenize(value: str) -> tuple[Token, ...]:
     """Split ``value`` into its tokens, per the paper's definition of ``t(v)``.
 
@@ -179,7 +181,7 @@ def _class_of_token(text: str) -> str | None:
     return classes.pop() if len(classes) == 1 else None
 
 
-@lru_cache(maxsize=4096)
+@lru_cache(maxsize=65536)
 def _parse(pattern: str) -> tuple[tuple[str, str, int | None], ...]:
     """Compile a pattern string into ``(kind, class, count)`` parts.
 
@@ -258,3 +260,32 @@ def matches(pattern: str, value: str) -> bool:
         elif not _part_matches(cls, count, token.text):
             return False
     return True
+
+
+def value_matcher(value: str) -> Callable[[str], bool]:
+    """A ``pattern -> bool`` predicate equivalent to ``matches(pattern, value)``.
+
+    Memoizes each distinct (position, part) verdict, so testing many candidate
+    patterns against the one value costs a dict lookup per part instead of a
+    re-evaluation -- candidate patterns share most of their parts.
+    """
+    tokens = tokenize(value)
+    verdicts: dict[tuple[int, tuple[str, str, int | None]], bool] = {}
+
+    def matcher(pattern: str) -> bool:
+        parts = _parse(pattern)
+        if len(parts) != len(tokens):
+            return False
+        for position, part in enumerate(parts):
+            key = (position, part)
+            verdict = verdicts.get(key)
+            if verdict is None:
+                kind, cls, count = part
+                text = tokens[position].text
+                verdict = text == cls if kind == "literal" else _part_matches(cls, count, text)
+                verdicts[key] = verdict
+            if not verdict:
+                return False
+        return True
+
+    return matcher

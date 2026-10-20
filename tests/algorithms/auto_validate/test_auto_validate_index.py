@@ -2,12 +2,14 @@
 
 from __future__ import annotations
 
+import random
 from dataclasses import FrozenInstanceError
 
 import pandas as pd
 import pytest
 
 from open_detect.algorithms.auto_validate.config import AutoValidateConfig
+from open_detect.algorithms.auto_validate.hierarchy import matches
 from open_detect.algorithms.auto_validate.index import (
     PatternIndex,
     build_pattern_index,
@@ -15,9 +17,57 @@ from open_detect.algorithms.auto_validate.index import (
     indexable_values,
 )
 from open_detect.algorithms.auto_validate.metrics import impurity
+from open_detect.algorithms.auto_validate.patterns import patterns_of
 from open_detect.exceptions import ValidationError
 
 TIME = "<num>:<num>:<num>"
+
+
+def _reference_build_pattern_index(corpus, config=None):
+    """The pre-optimization index build, kept as a test-local oracle.
+
+    It re-scans every candidate pattern against every value of a column --
+    the O(|P(D)| x |D|) behaviour OPE-85 replaces -- and produces exactly the
+    same entries (pattern -> (FPR_T, Cov_T), restricted to Cov_T >= m) the optimized
+    builder must match.
+    """
+    config = config or AutoValidateConfig()
+    local: dict[str, list[float]] = {}
+    n_indexed = 0
+    for values in _reference_iter_corpus_columns(corpus):
+        indexable = indexable_values(values, config.tau)
+        if not indexable:
+            continue
+        n_indexed += 1
+        column_patterns: set[str] = set()
+        for value in indexable:
+            column_patterns |= patterns_of(value, config.tau)
+        for pattern in column_patterns:
+            if not any(matches(pattern, value) for value in indexable):
+                continue
+            local.setdefault(pattern, []).append(impurity(pattern, indexable))
+    entries = {
+        pattern: (sum(scores) / len(scores), len(scores))
+        for pattern, scores in local.items()
+        if len(scores) >= config.m
+    }
+    return PatternIndex._build(entries, n_indexed)
+
+
+def _reference_iter_corpus_columns(corpus):
+    for item in corpus:
+        if isinstance(item, pd.DataFrame):
+            for name in item.columns:
+                yield clean_column(item[name].tolist())
+        elif isinstance(item, pd.Series):
+            yield clean_column(item.tolist())
+        elif isinstance(item, (list, tuple)):
+            yield clean_column(item)
+        else:
+            raise ValidationError(
+                "corpus entries must be pandas Series, DataFrames or sequences of values, "
+                f"got {type(item).__name__}"
+            )
 
 
 class TestCleanColumn:
@@ -164,3 +214,97 @@ class TestCorpusInputShapes:
         index = build_pattern_index([], AutoValidateConfig(tau=8, m=1))
         assert len(index) == 0
         assert index.n_columns == 0
+
+
+def _datetime_column(seed: int, n: int, repeat: int = 1) -> list[str]:
+    rng = random.Random(seed)
+    values = [
+        f"{rng.randint(1990, 2040):04d}-{rng.randint(1, 12):02d}-{rng.randint(1, 28):02d} "
+        f"{rng.randint(0, 23):02d}:{rng.randint(0, 59):02d}:{rng.randint(0, 59):02d}"
+        for _ in range(n)
+    ]
+    return values * repeat
+
+
+def _wide_mixed_column() -> list[str]:
+    rng = random.Random(0)
+    alphabet = "abcXYZ0123456789"
+    return [
+        "-".join("".join(rng.choice(alphabet) for _ in range(rng.randint(1, 4))) for _ in range(6))
+        for _ in range(8)
+    ]
+
+
+class TestEquivalenceToReferenceBuild:
+    """The optimized builder must produce byte-identical entries to the
+    pre-optimization O(|P(D)| x |D|) build on every corpus shape."""
+
+    @pytest.mark.parametrize(
+        "corpus, config",
+        [
+            # ID column: distinct integer-like values.
+            (
+                [[str(i) for i in range(300)]],
+                AutoValidateConfig(m=1, tau=8),
+            ),
+            # Datetime columns, tau=20: distinct values per column, with duplicates.
+            (
+                [_datetime_column(seed, 10) for seed in range(4)],
+                AutoValidateConfig(m=1, tau=20),
+            ),
+            (
+                [_datetime_column(seed, 8, repeat=3) for seed in range(3)],
+                AutoValidateConfig(m=2, tau=20),
+            ),
+            # Wide mixed-token column that reaches patterns_of's 2048 cap.
+            (
+                [_wide_mixed_column()],
+                AutoValidateConfig(m=1, tau=20),
+            ),
+            # Mixed-type object column with nulls, blanks and duplicates.
+            (
+                [[1, None, "a", float("nan"), "", "  ", "a", 1, 2.5, True, "2020-01-01"]],
+                AutoValidateConfig(m=1, tau=8),
+            ),
+            # Empty column and single-value column.
+            (
+                [[None, None, ""], ["x"], []],
+                AutoValidateConfig(m=1, tau=8),
+            ),
+            # All-NaN column.
+            (
+                [[float("nan"), float("nan")]],
+                AutoValidateConfig(m=1, tau=8),
+            ),
+            # k > distinct rows: a column with more rows than distinct values.
+            (
+                [["a", "b", "a", "b", "a", "b", "c"]],
+                AutoValidateConfig(m=1, tau=8),
+            ),
+            # Multi-column corpus with mixed shapes (Series + DataFrame + list).
+            (
+                [
+                    pd.Series(["10:00:00", "11:00:00"]),
+                    pd.DataFrame({"x": ["a", "b"], "y": ["1/2", "3/4"]}),
+                    ["zz", "yy"],
+                ],
+                AutoValidateConfig(m=1, tau=8),
+            ),
+        ],
+    )
+    def test_entries_match_reference(self, corpus, config):
+        reference = _reference_build_pattern_index(corpus, config)
+        actual = build_pattern_index(corpus, config)
+        assert actual.n_columns == reference.n_columns
+        assert set(actual._entries) == set(reference._entries)
+        for pattern in reference._entries:
+            assert actual.lookup(pattern) == pytest.approx(reference.lookup(pattern))
+
+    def test_prunes_entries_below_m_and_agrees_with_reference(self):
+        corpus = [["10:00:00"], ["10:00:00"], ["zz"]]
+        reference = _reference_build_pattern_index(corpus, AutoValidateConfig(m=2))
+        actual = build_pattern_index(corpus, AutoValidateConfig(m=2))
+        assert actual.n_columns == reference.n_columns == 3
+        assert set(actual._entries) == set(reference._entries)
+        assert all(cov >= 2 for _, cov in actual._entries.values())
+        assert len(actual) < len(build_pattern_index(corpus, AutoValidateConfig(m=1)))

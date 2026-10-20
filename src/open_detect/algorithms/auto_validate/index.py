@@ -14,6 +14,7 @@ excluded from both the numerator and the denominator.
 
 from __future__ import annotations
 
+from collections import Counter
 from collections.abc import Iterable, Iterator
 from dataclasses import dataclass
 from types import MappingProxyType
@@ -22,9 +23,8 @@ from typing import Any
 import pandas as pd
 
 from open_detect.algorithms.auto_validate.config import AutoValidateConfig
-from open_detect.algorithms.auto_validate.hierarchy import matches, token_count
-from open_detect.algorithms.auto_validate.metrics import impurity
-from open_detect.algorithms.auto_validate.patterns import patterns_of
+from open_detect.algorithms.auto_validate.hierarchy import token_count, value_matcher
+from open_detect.algorithms.auto_validate.patterns import DEFAULT_MAX_PATTERNS, patterns_of
 from open_detect.exceptions import ValidationError
 
 __all__ = ["PatternIndex", "build_pattern_index", "clean_column", "indexable_values"]
@@ -145,28 +145,58 @@ def build_pattern_index(
     ``P(D)`` is recorded; per-pattern, those local impurities are then averaged
     over the matching columns only to give ``FPR_T`` (Eqn 4), and the number of
     such columns gives ``Cov_T``.
+
+    The scan is linear in the number of *distinct* values per column, not in
+    the cross-product of patterns and values. Each column is factorized once
+    into a ``Counter`` of distinct values and their multiplicities, and the
+    per-pattern impurity is computed from that histogram with a single pass
+    over the pattern's matching values. The redundant ``any(...)`` pre-pass is
+    dropped: a pattern that matches no value is never enumerated. Entries
+    covering fewer than ``config.m`` columns are pruned, since every consumer
+    rejects ``Cov_T < m`` (Eqns 7, 10, 15).
     """
     config = config or AutoValidateConfig()
 
-    # pattern -> list of Imp_D(p), one entry per corpus column where p matches.
-    local: dict[str, list[float]] = {}
+    # pattern -> (sum of Imp_D(p), number of columns where p matched)
+    local: dict[str, tuple[float, int]] = {}
     n_indexed = 0
     for values in _iter_corpus_columns(corpus):
         indexable = indexable_values(values, config.tau)
         if not indexable:
             continue
         n_indexed += 1
-        column_patterns: set[str] = set()
-        for value in indexable:
-            column_patterns |= patterns_of(value, config.tau)
-        for pattern in column_patterns:
-            if not any(matches(pattern, value) for value in indexable):
-                continue
-            local.setdefault(pattern, []).append(impurity(pattern, indexable))
+        counts = Counter(indexable)
+        n_total = sum(counts.values())
+
+        # A pattern matches a value iff it belongs to P(value), so the number of
+        # column values a pattern matches is the sum of multiplicities over the
+        # values whose P(v) contains it. Accumulating per value (each value's
+        # pattern set is enumerated once) is O(sum |P(v)|) instead of the
+        # O(|P(D)| x |D|) the per-pattern re-scan of the column requires.
+        match_counts: dict[str, int] = {}
+        capped: list[tuple[str, int]] = []
+        for value, count in counts.items():
+            value_patterns = patterns_of(value, config.tau)
+            if len(value_patterns) >= DEFAULT_MAX_PATTERNS:
+                capped.append((value, count))
+            for pattern in value_patterns:
+                match_counts[pattern] = match_counts.get(pattern, 0) + count
+        # patterns_of truncates at DEFAULT_MAX_PATTERNS, so for such a value a
+        # candidate pattern from another value may match it without being in
+        # its truncated set; those few values are matched exactly.
+        for value, count in capped:
+            value_patterns = patterns_of(value, config.tau)
+            matcher = value_matcher(value)
+            for pattern in match_counts.keys() - value_patterns:
+                if matcher(pattern):
+                    match_counts[pattern] += count
+        for pattern, n_match in match_counts.items():
+            total, n_cols = local.get(pattern, (0.0, 0))
+            local[pattern] = (total + (n_total - n_match) / n_total, n_cols + 1)
 
     entries = {
-        pattern: (sum(scores) / len(scores), len(scores))
-        for pattern, scores in local.items()
-        if scores
+        pattern: (total / n_cols, n_cols)
+        for pattern, (total, n_cols) in local.items()
+        if n_cols >= config.m
     }
     return PatternIndex._build(entries, n_indexed)
