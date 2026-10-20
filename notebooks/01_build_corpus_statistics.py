@@ -30,7 +30,7 @@ dbutils.widgets.text("error_types", "uniqueness,numeric_outlier,spelling,functio
 from open_detect.algorithms.uni_detect.catalog import ensure_schema_exists, list_tables_matching
 from open_detect.algorithms.uni_detect.config import UniDetectConfig, UnityCatalogLocation
 from open_detect.algorithms.uni_detect.pipeline import UniDetect
-from open_detect.core.enums import ErrorType
+from open_detect.algorithms.uni_detect.core.enums import ErrorType
 
 open_detect_catalog = dbutils.widgets.get("open_detect_catalog")
 open_detect_schema = dbutils.widgets.get("open_detect_schema")

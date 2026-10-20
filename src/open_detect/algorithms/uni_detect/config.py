@@ -107,7 +107,7 @@ class UniDetectConfig:
     max_failure_ratio:
         Maximum tolerated fraction (``0 <= x <= 1``) of corpus columns /
         target columns that may fail to score on the executors (and are
-        skipped) before a :class:`~open_detect.exceptions.DataQualityError`
+        skipped) before a :class:`~open_detect.algorithms.uni_detect.exceptions.DataQualityError`
         is raised. ``0`` fails on the first skipped item; ``1`` never fails.
     redact_evidence:
         Privacy control for raw cell values (duplicate values, FD violating

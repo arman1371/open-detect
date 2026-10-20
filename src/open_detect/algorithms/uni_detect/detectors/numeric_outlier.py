@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+from open_detect.algorithms.uni_detect.core.enums import ErrorType
 from open_detect.algorithms.uni_detect.detectors.base import BaseDetector
 from open_detect.algorithms.uni_detect.detectors.schema import CANDIDATE_SCHEMA
 from open_detect.algorithms.uni_detect.failures import FailureCounts
@@ -12,7 +13,6 @@ from open_detect.algorithms.uni_detect.metrics.base import require_min_size
 from open_detect.algorithms.uni_detect.metrics.outliers import finite_floats
 from open_detect.algorithms.uni_detect.perturbation import perturb_numeric_outlier
 from open_detect.algorithms.uni_detect.strategies import get_spec
-from open_detect.core.enums import ErrorType
 
 if TYPE_CHECKING:
     from collections.abc import Sequence

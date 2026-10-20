@@ -13,6 +13,7 @@ from __future__ import annotations
 import pytest
 
 from open_detect.algorithms.uni_detect.config import UniDetectConfig, UnityCatalogLocation
+from open_detect.algorithms.uni_detect.core.enums import ColumnDataType, ErrorType
 from open_detect.algorithms.uni_detect.corpus.builder import (
     MIN_NUMERIC_FRACTION,
     _coerce_numeric,
@@ -21,9 +22,9 @@ from open_detect.algorithms.uni_detect.corpus.builder import (
     _stats_schema_without_error_type,
 )
 from open_detect.algorithms.uni_detect.corpus.schema import CORPUS_STATS_SCHEMA
+from open_detect.algorithms.uni_detect.exceptions import InsufficientDataError
 from open_detect.algorithms.uni_detect.strategies import get_spec
-from open_detect.core.enums import ColumnDataType, ErrorType
-from open_detect.exceptions import InsufficientDataError, ValidationError
+from open_detect.exceptions import ValidationError
 
 
 @pytest.fixture

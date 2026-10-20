@@ -14,6 +14,7 @@ from itertools import combinations
 import pytest
 from rapidfuzz.distance import Levenshtein
 
+from open_detect.algorithms.uni_detect.exceptions import InsufficientDataError
 from open_detect.algorithms.uni_detect.metrics.base import drop_nulls
 from open_detect.algorithms.uni_detect.metrics.functional_dependency import (
     fd_compliance_ratio,
@@ -35,7 +36,7 @@ from open_detect.algorithms.uni_detect.metrics.uniqueness import (
     duplicate_value_indices,
     uniqueness_ratio,
 )
-from open_detect.exceptions import InsufficientDataError, OpenDetectError, ValidationError
+from open_detect.exceptions import OpenDetectError, ValidationError
 
 
 class TestDropNulls:

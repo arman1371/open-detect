@@ -49,20 +49,22 @@ algorithms lives at the package root, and `tests/` mirrors this layout:
 ```
 src/open_detect/
   __init__.py  py.typed
-  exceptions.py  logging_utils.py  text_utils.py   # shared by several algorithms
-  core/                                            # shared enums + models
+  exceptions.py  logging_utils.py                  # shared by several algorithms
+  core/  text_utils.py                             # deprecated shims -> uni_detect (removal in 0.5.0)
   algorithms/
     __init__.py  base.py  registry.py
     auto_validate/
     raha/
     uni_detect/
       __init__.py  algorithm.py  pipeline.py  config.py  catalog.py
+      core/  exceptions.py  text_utils.py          # Uni-Detect enums/models, errors, tokenizing
       featurization.py  perturbation.py  strategies.py  spark_utils.py
       corpus/  detectors/  metrics/
       jobs/                                        # Databricks job entry points
 tests/
-  conftest.py  test_core_models.py  test_exceptions.py  test_logging_utils.py
-  test_package_init.py  test_text_utils.py         # shared modules
+  conftest.py  test_exceptions.py  test_logging_utils.py
+  test_package_init.py  test_deprecated_shims.py   # shared modules + shim tests (delete in 0.5.0)
+  test_core_models.py  test_text_utils.py          # exercise the moved Uni-Detect modules
   algorithms/
     test_algorithms_registry.py
     auto_validate/  raha/  uni_detect/
@@ -110,7 +112,7 @@ ratio = count(T' in S(T): m(T') >= theta1  AND  m(T'_perturbed) <= theta2)
 
 | Paper concept | Code |
 |---|---|
-| Definition 1 (unsupervised error-detection) | `open_detect.core.enums.ErrorType` |
+| Definition 1 (unsupervised error-detection) | `open_detect.algorithms.uni_detect.core.enums.ErrorType` |
 | Definition 2 (epsilon-perturbation) | `open_detect.algorithms.uni_detect.perturbation.perturb_*` |
 | Definition 3 (LR test) | `open_detect.algorithms.uni_detect.corpus.store.CorpusStatsStore.batch_score` |
 | Section 2.2.2 (featurization / subsetting) | `open_detect.algorithms.uni_detect.featurization` |

@@ -21,10 +21,11 @@ import sys
 
 from open_detect.algorithms.uni_detect.catalog import list_tables_matching
 from open_detect.algorithms.uni_detect.config import UniDetectConfig, UnityCatalogLocation
+from open_detect.algorithms.uni_detect.core.enums import ErrorType
+from open_detect.algorithms.uni_detect.exceptions import InsufficientDataError
 from open_detect.algorithms.uni_detect.pipeline import UniDetect
 from open_detect.algorithms.uni_detect.spark_utils import get_spark
-from open_detect.core.enums import ErrorType
-from open_detect.exceptions import ConfigurationError, InsufficientDataError
+from open_detect.exceptions import ConfigurationError
 from open_detect.logging_utils import configure_logging, get_logger
 
 logger = get_logger(__name__)

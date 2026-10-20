@@ -7,13 +7,13 @@ from __future__ import annotations
 import pytest
 from rapidfuzz.distance import Levenshtein
 
+from open_detect.algorithms.uni_detect.exceptions import InsufficientDataError
 from open_detect.algorithms.uni_detect.perturbation import (
     perturb_functional_dependency,
     perturb_numeric_outlier,
     perturb_spelling,
     perturb_uniqueness,
 )
-from open_detect.exceptions import InsufficientDataError
 
 
 class TestPerturbUniqueness:

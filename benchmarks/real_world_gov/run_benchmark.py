@@ -117,8 +117,8 @@ def _dataset_frames() -> dict[str, dict]:
 def run_uni_detect(frames: dict[str, dict]) -> tuple[list[dict], dict, float]:
     """Score every dataset's dirty table with Uni-Detect. Returns (targets, metrics, duration_seconds)."""
     from open_detect.algorithms.uni_detect.config import UnityCatalogLocation
+    from open_detect.algorithms.uni_detect.core.enums import ErrorType
     from open_detect.algorithms.uni_detect.pipeline import UniDetect
-    from open_detect.core.enums import ErrorType
 
     uc_location = UnityCatalogLocation(catalog=TEST_CATALOG, schema=TEST_SCHEMA)
     config = _build_config(uc_location)

@@ -24,8 +24,9 @@ from collections import defaultdict
 from collections.abc import Sequence
 from dataclasses import dataclass
 
+from open_detect.algorithms.uni_detect.exceptions import InsufficientDataError
 from open_detect.algorithms.uni_detect.metrics.base import require_min_size
-from open_detect.exceptions import InsufficientDataError, ValidationError
+from open_detect.exceptions import ValidationError
 
 
 @dataclass(frozen=True, slots=True)
