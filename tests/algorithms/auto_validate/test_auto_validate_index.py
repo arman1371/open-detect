@@ -215,6 +215,7 @@ class TestCorpusInputShapes:
         assert len(index) == 0
         assert index.n_columns == 0
 
+
 def _datetime_column(seed: int, n: int, repeat: int = 1) -> list[str]:
     rng = random.Random(seed)
     values = [
@@ -229,9 +230,7 @@ def _wide_mixed_column() -> list[str]:
     rng = random.Random(0)
     alphabet = "abcXYZ0123456789"
     return [
-        "-".join(
-            "".join(rng.choice(alphabet) for _ in range(rng.randint(1, 4))) for _ in range(6)
-        )
+        "-".join("".join(rng.choice(alphabet) for _ in range(rng.randint(1, 4))) for _ in range(6))
         for _ in range(8)
     ]
 
