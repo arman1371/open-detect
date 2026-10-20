@@ -31,3 +31,23 @@ def test_version_matches_installed_package_metadata():
     assert isinstance(open_detect.__version__, str)
     assert open_detect.__version__
     assert open_detect.__version__ == version("open-detect")
+
+
+def test_registry_does_not_import_spelling_or_rapidfuzz():
+    """The algorithm registry must stay lazy about Uni-Detect's heavy imports.
+
+    `rapidfuzz` is a `uni_detect` extra, not a core dependency, and it is only
+    used by :mod:`open_detect.algorithms.uni_detect.metrics.spelling`. Calling
+    the registry's read path (`list_algorithms()`) must not import that module,
+    so a core-only install can `import open_detect` and list algorithms without
+    rapidfuzz being present.
+    """
+    import sys
+
+    sys.modules.pop("open_detect.algorithms.uni_detect.metrics.spelling", None)
+    spelling_module = sys.modules.get("open_detect.algorithms.uni_detect.metrics.spelling")
+
+    from open_detect.algorithms import list_algorithms
+
+    list_algorithms()
+    assert sys.modules.get("open_detect.algorithms.uni_detect.metrics.spelling") is spelling_module
