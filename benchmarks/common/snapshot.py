@@ -53,6 +53,8 @@ def _as_json_list(value: Any) -> str:
 
 def normalize(detections: pd.DataFrame) -> pd.DataFrame:
     """Project ``detections`` onto :data:`SNAPSHOT_COLUMNS` in a canonical, sorted form."""
+    if detections.empty and len(detections.columns) == 0:
+        detections = pd.DataFrame({c: [] for c in SNAPSHOT_COLUMNS})
     missing = [c for c in SNAPSHOT_COLUMNS if c not in detections.columns]
     if missing:
         raise ValueError(f"detections is missing snapshot columns: {missing}")
@@ -68,7 +70,7 @@ def normalize(detections: pd.DataFrame) -> pd.DataFrame:
 
 def save_snapshot(detections: pd.DataFrame, path: Path) -> Path:
     """Write ``detections`` (one or more concatenated ``detect()`` results) to ``path``."""
-    target = path / SNAPSHOT_FILENAME if path.suffix == "" else path
+    target = path if path.suffix == ".csv" else path / SNAPSHOT_FILENAME
     target.parent.mkdir(parents=True, exist_ok=True)
     normalize(detections).to_csv(target, index=False, float_format="%.17g")
     return target
@@ -117,9 +119,7 @@ def diff_snapshots(
     problems.extend(_list_keys("only in baseline", base_keys - cur_keys))
     problems.extend(_list_keys("only in new", cur_keys - base_keys))
 
-    merged = base.merge(
-        cur, on=list(KEY_COLUMNS), how="inner", suffixes=("_base", "_new"), validate="m:m"
-    )
+    merged = base.merge(cur, on=list(KEY_COLUMNS), how="inner", suffixes=("_base", "_new"))
     changed = 0
     for row in merged.itertuples(index=False):
         row_dict = row._asdict()
