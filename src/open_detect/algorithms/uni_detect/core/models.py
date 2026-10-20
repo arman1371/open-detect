@@ -12,7 +12,6 @@ from typing import Any
 
 from open_detect.algorithms.uni_detect.core.enums import ColumnDataType, ErrorType
 
-
 __all__ = [
     "Candidate",
     "CorpusColumnRecord",
