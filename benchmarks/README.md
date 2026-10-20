@@ -84,6 +84,10 @@ Run either with `make benchmark` / `make benchmark-real-world-gov` (or
 `make benchmark-all` for both); see each benchmark's own README for how its
 data was built/selected and how to read its results.
 
+Opt-in profiling (Spark job counts + detections snapshot) and the baseline diff are
+documented in [`PERF_BASELINE.md`](PERF_BASELINE.md) (`--profile-dir`,
+`make benchmark-profile`, `make benchmark-diff`).
+
 Adding a third benchmark means creating a new `benchmarks/<name>/` directory
 with the same shape as the two above: its own `data/` (or equivalent
 inputs), a `run_benchmark.py` built on `common.spark_session`/

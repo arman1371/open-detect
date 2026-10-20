@@ -48,21 +48,17 @@ benchmark-profile:
 # writes ``benchmarks/*/results/profile/latest``. Datasets without a committed baseline or a
 # latest run are skipped rather than failing the whole target.
 benchmark-diff:
-	@for ds in wiki_subset real_world_gov; do \
+	@compared=0; for ds in wiki_subset real_world_gov; do \
 	  base="benchmarks/$$ds/results/profile/baseline"; \
 	  latest="benchmarks/$$ds/results/profile/latest"; \
 	  if [ -f "$$base/detections.csv" ] && [ -f "$$latest/detections.csv" ]; then \
 	    uv run python benchmarks/common/snapshot.py diff "$$base" "$$latest" || exit 1; \
+	    compared=$$((compared + 1)); \
 	  else \
 	    echo "SKIP $$ds: missing baseline or latest profile snapshot"; \
 	  fi; \
-	done
-
-# Convenience: diff the latest run against itself (sanity check that the diff tool reads the
-# profile dir layout written by ``make benchmark-profile``).
-benchmark-diff-selfcheck:
-	uv run python benchmarks/common/snapshot.py diff benchmarks/wiki_subset/results/profile/latest benchmarks/wiki_subset/results/profile/latest
-	uv run python benchmarks/common/snapshot.py diff benchmarks/real_world_gov/results/profile/latest benchmarks/real_world_gov/results/profile/latest
+	done; \
+	if [ "$$compared" -eq 0 ]; then echo "FAIL: no dataset was compared"; exit 1; fi
 
 build:
 	uv build

@@ -1,75 +1,72 @@
 # Performance Baseline — OPE-87
 
-> Generated: 2026-10-16
-> Branch: `chore/ope-87-perf-baseline-v2`
+Reference for Uni-Detect Spark-performance work (OPE-63): timings, Spark job/stage
+counts per phase, and a detections snapshot that later changes must reproduce.
 
-## Environment
+## Scope and status
 
-- **Hardware**: 4 vCPU, ~5 GB RAM (cgroup-limited)
-- **Java**: JDK 17.0.20.1+1-jre
-- **Python**: 3.12.14 (venv)
-- **PySpark**: 3.5.9 + Delta 3.3.3
-- **Note**: Spark local mode is significantly slower here than the reference environment; full benchmark runs time out at 300s. Baseline figures below are from prior successful runs on the same codebase.
+| Benchmark | Snapshot | Job counts | Status |
+|---|---|---|---|
+| `wiki_subset` | `benchmarks/wiki_subset/results/profile/baseline/detections.csv` | `perf.json` + table below | measured |
+| `real_world_gov` | not committed | not measured | **pending** — needs a host with >= 8 GB free RAM (the runner requests `driver_memory=8g`); the driver JVM was OOM-killed on the 5 GB host used here |
 
-## Baseline Results (Prior Runs)
+The Java-free tooling is unchanged for gov: once a larger host is available run
+`make benchmark-profile PROFILE_NAME=baseline`, commit
+`benchmarks/real_world_gov/results/profile/baseline/`, and fill in the gov table.
 
-### real_world_gov (5 datasets, 47 columns)
+## Environment (wiki_subset measurement)
 
-| Algorithm | Precision | Recall | F1 | Accuracy | Duration (s) |
-|---|---|---|---|---|---|
-| raha | 1.000 | 1.000 | 1.000 | 1.000 | 5.68 |
-| auto_validate | 1.000 | 0.265 | 0.419 | 0.468 | 153.33 |
-| uni_detect | 0.800 | 0.824 | 0.812 | 0.723 | 484.07 |
+- Hardware: 4 vCPU, ~5 GB RAM (cgroup-limited), Linux 6.8
+- Java: JDK 17.0.20.1+1 (JRE); Python 3.12.14; PySpark 3.5.9 + Delta 3.3.3
+- Spark: `local[2]`, `spark.driver.memory=3g`, `spark.sql.shuffle.partitions=2`
+- Code measured: Uni-Detect from `main` as of capture (this PR changes only `benchmarks/`, `tests/benchmarks/`, `Makefile`; no `src/` changes). Captured at `2dfbbe73` on the earlier `chore/ope-87-perf-baseline-v2` branch, whose `src/` matched `main`.
 
-Source: `benchmarks/real_world_gov/results/baseline.json` (commit `5976e33`, 2026-10-06)
+## wiki_subset: Uni-Detect jobs / stages per phase
 
-### wiki_subset (60 tables)
+Each phase is one `build_corpus_statistics` or `detect()` call for a single error type
+(`benchmarks/common/spark_jobs.py` counts jobs and stages submitted inside the phase).
 
-| Algorithm | Precision | Recall | F1 | Accuracy | Duration (s) |
-|---|---|---|---|---|---|
-| raha | 1.000 | 0.825 | 0.904 | 0.883 | 4.58 |
-| uni_detect | 0.838 | 0.775 | 0.805 | 0.750 | 1013.24 |
-| auto_validate | 1.000 | 0.275 | 0.431 | 0.517 | 75.24 |
+| Phase | Spark jobs | Stages | Wall (s) |
+|---|---|---|---|
+| `build_corpus_statistics[uniqueness]` | 292 | 960 | 114.3 |
+| `build_corpus_statistics[numeric_outlier]` | 515 | 1529 | 185.0 |
+| `build_corpus_statistics[spelling]` | 347 | 1025 | 126.9 |
+| `build_corpus_statistics[functional_dependency]` | 800 | 2530 | 233.3 |
+| `detect[uniqueness]` | 151 | 397 | 58.4 |
+| `detect[numeric_outlier]` | 149 | 382 | 53.7 |
+| `detect[spelling]` | 148 | 378 | 48.7 |
+| `detect[functional_dependency]` | 181 | 535 | 58.3 |
 
-Source: `benchmarks/wiki_subset/results/baseline.json` (commit `84b5982`, 2026-10-05)
+Total `detect()` jobs across the four error types: 629. Whole Uni-Detect run
+including profiling overhead: 1048 s.
+Detections snapshot: 71 rows.
 
-## Key Observations
+## Earlier timings (no job counts)
 
-1. **Raha** is fast (<6s) but only evaluates on gov data where ground-truth labels exist.
-2. **Uni-Detect** dominates runtime (484–1013s) due to per-column Spark ingestion + mapInPandas scoring.
-3. **Auto-Validate** is moderate speed (75–153s) but has low recall (~27%) — it misses many errors.
-4. The Spark job-count helper (`benchmarks/common/spark_jobs.py`) and snapshot diff tool (`benchmarks/common/snapshot.py`) are ready for future runs.
+From the committed `baseline.json` files (older commits, shown for context only; wall time on this
+host differs from the reference machine):
 
-## Baseline Detections Snapshot
+| Benchmark | Algorithm | Duration (s) | Commit |
+|---|---|---|---|
+| real_world_gov | raha | 5.68 | `5976e33` |
+| real_world_gov | auto_validate | 153.33 | `5976e33` |
+| real_world_gov | uni_detect | 484.07 | `5976e33` |
+| wiki_subset | raha | 4.58 | `84b5982` |
+| wiki_subset | auto_validate | 75.24 | `84b5982` |
+| wiki_subset | uni_detect | 1013.24 | `84b5982` |
 
-The Uni-Detect detections snapshot for the wiki_subset benchmark is committed at
-`benchmarks/wiki_subset/results/profile/baseline/` (`detections.csv` + `perf.json`),
-captured at commit `2dfbbe73`. It is the reference for `make benchmark-diff`.
-
-The real_world_gov benchmark's profiling run OOM-killed the driver JVM on this
-machine (see below), so no gov baseline snapshot is committed yet; `make
-benchmark-diff` skips a dataset whose baseline/latest snapshot is missing.
-
-## How to Re-run
+## How to use
 
 ```bash
 export JAVA_HOME=/path/to/jdk-17
-export PYSPARK_PYTHON=$(which python)
-export PYSPARK_DRIVER_PYTHON=$(which python)
-export PYTHONPATH=src
-
-# Gov benchmark
-python benchmarks/real_world_gov/run_benchmark.py --profile-dir benchmarks/real_world_gov/results/profile/latest
-
-# Wiki benchmark
-python benchmarks/wiki_subset/run_benchmark.py --profile-dir benchmarks/wiki_subset/results/profile/latest
-
-# Diff against baseline
-python benchmarks/common/snapshot.py diff benchmarks/real_world_gov/results/profile/baseline benchmarks/real_world_gov/results/profile/latest
+make benchmark-profile                 # writes benchmarks/*/results/profile/latest
+make benchmark-diff                    # diff latest vs baseline; exits non-zero on any difference
+make benchmark-profile PROFILE_NAME=baseline   # regenerate the baseline (deliberate only)
 ```
 
-## Bug Fixes Applied in This Branch
-
-1. **Raha detector**: Removed `_ensure_dataframe_is_spark()` call — Raha accepts `pd.DataFrame`, not Spark DataFrames. The OPE-77 validation hardening incorrectly added this check.
-2. **validation.py**: Fixed `_check_unknown_kwargs()` signature to accept optional `param_name` argument (auto_validate calls it with 3 args).
-3. **auto_validate hierarchy**: Fixed `_value_matches()` to handle nested list patterns returned by `fmdv_vh` (multi-segment columns produce `list[list[str]]` instead of `list[str]`).
+`benchmark-diff` compares exact on `error_type`/`table_id`/`candidate_id`/`column_names`/`row_ids`/
+`is_significant`, 1e-9 tolerance on `lr_ratio`, order-insensitive. Datasets without a baseline or latest
+snapshot are skipped, but it fails if no dataset could be compared.
+Profiling is opt-in (`--profile-dir`); without it benchmarks run exactly as before. For `real_world_gov`
+the reported `duration_seconds` excludes the extra per-error-type `detect()` profiling pass; `perf.json`
+records the total including it.

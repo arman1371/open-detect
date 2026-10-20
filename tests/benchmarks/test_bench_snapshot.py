@@ -101,3 +101,9 @@ def test_save_load_roundtrip_and_cli_exit_codes(
 def test_missing_columns_rejected() -> None:
     with pytest.raises(ValueError, match="missing snapshot columns"):
         snapshot.normalize(pd.DataFrame({"candidate_id": ["c1"]}))
+
+
+def test_empty_detections_roundtrip(tmp_path: Path) -> None:
+    path = snapshot.save_snapshot(pd.DataFrame(), tmp_path / "empty")
+    assert snapshot.load_snapshot(path).empty
+    assert snapshot.main(["diff", str(path), str(path)]) == 0

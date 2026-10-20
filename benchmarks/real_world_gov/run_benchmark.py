@@ -122,9 +122,10 @@ def run_uni_detect(
 
     ``profile`` (opt-in, ``--profile-dir``) records Spark job/stage counts per
     phase and the detections snapshot; ``None`` leaves the run untouched. When
-    profiling, an extra per-detector ``detect()`` pass runs *after* the
-    measured one (so the main timings stay clean) to get job counts per
-    detector, which the single all-error-types ``detect()`` call can't give.
+    profiling, an extra per-detector ``detect()`` pass runs after the
+    measured work to get job counts per detector, which the single
+    all-error-types ``detect()`` call can't give. The returned duration is
+    net of that extra pass, so it stays comparable to unprofiled runs.
     """
     from open_detect.algorithms.uni_detect.config import UnityCatalogLocation
     from open_detect.algorithms.uni_detect.pipeline import UniDetect
@@ -171,11 +172,14 @@ def run_uni_detect(
             detections = ud.detect(
                 list(dirty_fqns.values()), error_types=list(ErrorType)
             ).toPandas()
+        profiling_seconds = 0.0
         if profile is not None:
             profile.add_detections(detections)
+            profiling_start = time.perf_counter()
             for error_type in ErrorType:
                 with maybe_scope(profile, f"detect[{error_type.value}]"):
                     ud.detect(list(dirty_fqns.values()), error_types=[error_type]).toPandas()
+            profiling_seconds = time.perf_counter() - profiling_start
 
         fqn_to_dataset = {fqn: name for name, fqn in dirty_fqns.items()}
 
@@ -209,9 +213,10 @@ def run_uni_detect(
                         "matched_error_type": hit["error_type"] if hit is not None else None,
                     }
                 )
-    duration = time.perf_counter() - start
+    total_seconds = time.perf_counter() - start
+    duration = total_seconds - profiling_seconds
     if profile is not None:
-        profile.finalize(git_commit(REPO_ROOT), duration)
+        profile.finalize(git_commit(REPO_ROOT), total_seconds)
 
     overall = confusion_metrics(targets)
     by_dataset = {
