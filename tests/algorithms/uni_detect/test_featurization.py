@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from open_detect.algorithms.uni_detect.core.enums import ColumnDataType, ErrorType
 from open_detect.algorithms.uni_detect.featurization import (
     bucket_by_edges,
     bucket_leftness,
@@ -13,8 +14,11 @@ from open_detect.algorithms.uni_detect.featurization import (
     log_transform_fits_better,
     token_prevalence,
 )
-from open_detect.core.enums import ColumnDataType, ErrorType
-from open_detect.text_utils import infer_column_data_type, is_mixed_alphanumeric, tokenize
+from open_detect.algorithms.uni_detect.text_utils import (
+    infer_column_data_type,
+    is_mixed_alphanumeric,
+    tokenize,
+)
 
 
 class TestBucketing:

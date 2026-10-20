@@ -11,13 +11,13 @@ import logging
 import pytest
 
 from open_detect.algorithms.uni_detect.config import UniDetectConfig
+from open_detect.algorithms.uni_detect.core.enums import ErrorType
 from open_detect.algorithms.uni_detect.corpus.builder import CorpusStatsBuilder
 from open_detect.algorithms.uni_detect.corpus.schema import CORPUS_PAIRS_SCHEMA
 from open_detect.algorithms.uni_detect.detectors.base import BaseDetector
 from open_detect.algorithms.uni_detect.detectors.schema import CANDIDATE_SCHEMA
+from open_detect.algorithms.uni_detect.exceptions import DataQualityError
 from open_detect.algorithms.uni_detect.failures import FailureCounts
-from open_detect.core.enums import ErrorType
-from open_detect.exceptions import DataQualityError
 
 FAILURES_LOGGER = "open_detect.algorithms.uni_detect.failures"
 

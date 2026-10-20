@@ -15,11 +15,11 @@ from __future__ import annotations
 import pytest
 
 from open_detect.algorithms.uni_detect.config import UniDetectConfig
+from open_detect.algorithms.uni_detect.core.enums import ErrorType
 from open_detect.algorithms.uni_detect.corpus.ingestion import CorpusIngestor
 from open_detect.algorithms.uni_detect.corpus.store import CorpusStatsStore
+from open_detect.algorithms.uni_detect.exceptions import CorpusNotFoundError
 from open_detect.algorithms.uni_detect.pipeline import UniDetect
-from open_detect.core.enums import ErrorType
-from open_detect.exceptions import CorpusNotFoundError
 
 
 def _write_table(spark, fqn: str, rows: list[dict], columns: list[str]) -> None:

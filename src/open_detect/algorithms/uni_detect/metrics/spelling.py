@@ -28,8 +28,9 @@ from itertools import combinations
 
 from rapidfuzz.distance import Levenshtein
 
+from open_detect.algorithms.uni_detect.exceptions import InsufficientDataError
 from open_detect.algorithms.uni_detect.metrics.base import drop_nulls, require_min_size
-from open_detect.exceptions import InsufficientDataError, ValidationError
+from open_detect.exceptions import ValidationError
 
 
 @dataclass(frozen=True, slots=True)
@@ -139,7 +140,7 @@ def try_min_pairwise_edit_distance(
     That happens when no two values share a blocking key and the column has
     more than ``max_block_size`` distinct values, so the exhaustive scan does
     not apply. Fewer than two distinct values still raises
-    :class:`~open_detect.exceptions.InsufficientDataError`.
+    :class:`~open_detect.algorithms.uni_detect.exceptions.InsufficientDataError`.
     """
     return _search_mpd(values, max_block_size)[0]
 
@@ -156,7 +157,7 @@ def min_pairwise_edit_distance(
         Column values; non-strings are stringified (``str(v)``) so this also
         works on mixed-alphanumeric columns. Exact repeats are collapsed
         before comparison; fewer than two distinct values raises
-        :class:`~open_detect.exceptions.InsufficientDataError`.
+        :class:`~open_detect.algorithms.uni_detect.exceptions.InsufficientDataError`.
     max_block_size:
         Columns with at most this many distinct values are compared
         exhaustively. Larger columns use blocking; blocks larger than this are

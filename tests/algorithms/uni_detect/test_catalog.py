@@ -19,7 +19,7 @@ from open_detect.algorithms.uni_detect.catalog import (
     table_exists,
 )
 from open_detect.algorithms.uni_detect.config import UnityCatalogLocation
-from open_detect.exceptions import UnityCatalogError
+from open_detect.algorithms.uni_detect.exceptions import UnityCatalogError
 
 
 class TestEnsureSchemaExists:

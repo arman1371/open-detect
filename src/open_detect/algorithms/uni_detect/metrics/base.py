@@ -27,7 +27,7 @@ def drop_nulls(values: Iterable[_T | None]) -> list[_T]:
 
 
 def require_min_size(values: Sized, minimum: int, metric_name: str) -> None:
-    from open_detect.exceptions import InsufficientDataError
+    from open_detect.algorithms.uni_detect.exceptions import InsufficientDataError
 
     if len(values) < minimum:
         raise InsufficientDataError(

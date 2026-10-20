@@ -21,7 +21,7 @@ if TYPE_CHECKING:
     from pyspark.sql import SparkSession
 
     from open_detect.algorithms.uni_detect.config import UniDetectConfig
-    from open_detect.core.enums import ErrorType
+    from open_detect.algorithms.uni_detect.core.enums import ErrorType
 
 logger = get_logger(__name__)
 

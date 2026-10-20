@@ -20,8 +20,8 @@ os.environ.setdefault("PYSPARK_PYTHON", sys.executable)
 os.environ.setdefault("PYSPARK_DRIVER_PYTHON", sys.executable)
 
 from open_detect.algorithms.uni_detect.config import UniDetectConfig, UnityCatalogLocation
+from open_detect.algorithms.uni_detect.core.enums import ErrorType
 from open_detect.algorithms.uni_detect.pipeline import UniDetect
-from open_detect.core.enums import ErrorType
 
 
 def build_spark() -> SparkSession:
