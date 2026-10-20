@@ -123,7 +123,7 @@ def _naive_histogram(values: pd.Series, thresholds) -> dict[str, np.ndarray]:
 
 
 def _naive_gaussian(values: pd.Series, thresholds) -> dict[str, np.ndarray]:
-    from open_detect.text_utils import is_float_like
+    from open_detect.algorithms.uni_detect.text_utils import is_float_like
 
     raw = _naive_str(values)
     if not raw:

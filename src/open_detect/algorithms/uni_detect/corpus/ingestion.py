@@ -204,7 +204,7 @@ class CorpusIngestor:
         """
         from pyspark.sql import functions as F
 
-        from open_detect.text_utils import tokenize
+        from open_detect.algorithms.uni_detect.text_utils import tokenize
 
         tokenize_udf = F.udf(lambda s: tokenize(s) if s else [], "array<string>")
 

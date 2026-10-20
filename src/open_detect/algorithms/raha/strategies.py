@@ -42,14 +42,20 @@ float on demand; identity/equality checks are bit-identical in ``uint8``.
 
 from __future__ import annotations
 
+import re
 from collections import defaultdict
 
 import numpy as np
 import pandas as pd
 
-from open_detect.text_utils import is_float_like
+_FLOAT_RE = re.compile(r"^[+-]?(\d+\.\d*|\.\d+|\d+)([eE][+-]?\d+)?$")
 
 NULL_SENTINEL = "__open_detect_raha_null__"
+
+
+def is_float_like(value: str) -> bool:
+    """True if ``value`` (stripped) parses as a plain decimal/scientific number."""
+    return bool(_FLOAT_RE.match(value.strip()))
 
 
 def normalize_to_str(values: pd.Series) -> pd.Series:

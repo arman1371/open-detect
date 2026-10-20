@@ -10,9 +10,10 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
+from open_detect.algorithms.uni_detect.core.enums import ErrorType
+from open_detect.algorithms.uni_detect.exceptions import InsufficientDataError
 from open_detect.algorithms.uni_detect.jobs.build_corpus_statistics import main, parse_args
-from open_detect.core.enums import ErrorType
-from open_detect.exceptions import ConfigurationError, InsufficientDataError
+from open_detect.exceptions import ConfigurationError
 
 
 class TestParseArgs:

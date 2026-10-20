@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
+from open_detect.algorithms.uni_detect.core.enums import ComparisonDirection, ErrorType
 from open_detect.algorithms.uni_detect.strategies import all_specs, get_spec
-from open_detect.core.enums import ComparisonDirection, ErrorType
 
 
 class TestGetSpec:

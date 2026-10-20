@@ -22,7 +22,7 @@ from collections.abc import Callable
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, TypeVar
 
-from open_detect.exceptions import DataQualityError, InsufficientDataError
+from open_detect.algorithms.uni_detect.exceptions import DataQualityError, InsufficientDataError
 from open_detect.logging_utils import get_logger
 
 if TYPE_CHECKING:
@@ -106,9 +106,7 @@ class FailureCountsAccumulatorParam:
     def zero(self, value: FailureCounts) -> FailureCounts:  # noqa: ARG002
         return FailureCounts()
 
-    def addInPlace(
-        self, value1: FailureCounts, value2: FailureCounts
-    ) -> FailureCounts:  # noqa: N802
+    def addInPlace(self, value1: FailureCounts, value2: FailureCounts) -> FailureCounts:  # noqa: N802
         value1.merge(value2)
         return value1
 

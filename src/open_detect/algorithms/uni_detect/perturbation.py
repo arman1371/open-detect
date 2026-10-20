@@ -3,7 +3,7 @@
 Each function here performs the "hypothetically remove a small subset O and
 recompute the metric" step described in Section 2.2.1, for one of the four
 error classes. The output (:class:`PerturbationOutcome`) carries everything
-a detector needs to build a :class:`~open_detect.core.models.Candidate`:
+a detector needs to build a :class:`~open_detect.algorithms.uni_detect.core.models.Candidate`:
 theta_before/theta_after, which rows/values were removed, and small bits of
 evidence for explainability.
 """
