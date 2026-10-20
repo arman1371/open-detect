@@ -53,7 +53,7 @@ _FLOAT_RE = re.compile(r"^[+-]?(\d+\.\d*|\.\d+|\d+)([eE][+-]?\d+)?$")
 NULL_SENTINEL = "__open_detect_raha_null__"
 
 
-def is_float_like(value: str) -> bool:
+def _is_float_like(value: str) -> bool:
     """True if ``value`` (stripped) parses as a plain decimal/scientific number."""
     return bool(_FLOAT_RE.match(value.strip()))
 
@@ -117,9 +117,9 @@ def gaussian_outlier_strategies(
     codes, uniques = _factorize_column(values)
     if len(uniques) == 0:
         return {}
-    parseable = np.array([is_float_like(u) for u in uniques])
+    parseable = np.array([_is_float_like(u) for u in uniques])
     # "Mostly numeric" is judged by row share, not unique-value share, to
-    # match the original ``raw.map(is_float_like).mean()`` semantics: a
+    # match the original ``raw.map(_is_float_like).mean()`` semantics: a
     # column of 1000 "1"s and one "x" is mostly numeric even though only
     # 1/2 of its *distinct* values parse. ``row_counts`` holds the per-unique
     # row counts from ``np.bincount``.

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import importlib
+import subprocess
 import sys
 import warnings
 
@@ -100,7 +101,32 @@ def test_core_package_getattr_shim():
 
 
 def test_internal_imports_use_new_paths_only():
-    code = "import warnings; warnings.simplefilter('error'); import open_detect, open_detect.algorithms.raha, open_detect.algorithms.uni_detect.pipeline"
-    import subprocess
-
+    code = (
+        "import importlib, pkgutil, open_detect\n"
+        "for m in pkgutil.walk_packages(open_detect.__path__, 'open_detect.'):\n"
+        "    if m.name in DEPRECATED or m.name.startswith('open_detect.core'):\n"
+        "        continue\n"
+        "    try:\n"
+        "        importlib.import_module(m.name)\n"
+        "    except ImportError as e:\n"
+        "        if 'pyspark' not in str(e) and 'delta' not in str(e):\n"
+        "            raise\n"
+    )
+    code = "DEPRECATED = {'open_detect.text_utils', 'open_detect.exceptions'}\n" + code
     subprocess.run([sys.executable, "-W", "error::DeprecationWarning", "-c", code], check=True)
+
+
+def test_from_core_import_submodule():
+    import open_detect.core as old
+
+    sys.modules.pop("open_detect.core.enums", None)
+    old.__dict__.pop("enums", None)
+    with pytest.warns(DeprecationWarning, match=NEW):
+        from open_detect.core import enums  # noqa: F401
+
+
+def test_core_missing_attr_raises():
+    import open_detect.core as old
+
+    with pytest.raises(AttributeError):
+        old.NoSuchThing  # noqa: B018

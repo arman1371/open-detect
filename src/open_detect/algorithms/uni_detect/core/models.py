@@ -13,6 +13,16 @@ from typing import Any
 from open_detect.algorithms.uni_detect.core.enums import ColumnDataType, ErrorType
 
 
+__all__ = [
+    "Candidate",
+    "CorpusColumnRecord",
+    "CorpusPairRecord",
+    "Detection",
+    "FeatureBucket",
+    "MetricObservation",
+]
+
+
 @dataclass(frozen=True, slots=True)
 class FeatureBucket:
     """A discretized point in the featurization "cube" (paper Figure 5).

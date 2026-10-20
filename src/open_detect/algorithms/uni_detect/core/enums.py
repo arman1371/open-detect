@@ -5,6 +5,13 @@ from __future__ import annotations
 from enum import Enum
 
 
+__all__ = [
+    "ColumnDataType",
+    "ComparisonDirection",
+    "ErrorType",
+]
+
+
 class ErrorType(str, Enum):
     """The four error classes Uni-Detect is instantiated for (paper Section 3).
 
