@@ -4,18 +4,18 @@ running example (Table 2 / Section 2.2, Wang & He -- er, Mahdavi et al., SIGMOD'
 
 from __future__ import annotations
 
-import numpy as np
-import pandas as pd
 import time
 
+import numpy as np
+import pandas as pd
+
+from open_detect.algorithms.raha.features import build_column_features
 from open_detect.algorithms.raha.strategies import (
     fd_violation_strategies,
     gaussian_outlier_strategies,
     histogram_outlier_strategies,
     pattern_character_strategies,
 )
-from open_detect.algorithms.raha.features import build_column_features
-
 
 # The paper's running example (Table 2), with the PDF-mangled placeholder
 # character replaced by a plain repeated string so the "twice-repeated
@@ -142,8 +142,8 @@ class TestUint8FeatureMatrixAssertion:
 
     def test_uint8_before_pdist_cast(self):
         """Features cast to float64 before pdist, as required by scipy."""
-        from scipy.spatial.distance import pdist
         import numpy as np
+        from scipy.spatial.distance import pdist
 
         # uint8 feature matrix
         X_uint8 = np.array([[0, 1, 2], [1, 2, 3], [2, 3, 4]], dtype=np.uint8)
@@ -220,7 +220,7 @@ class TestFactorizeOncePerformance:
 
         # Time the FD strategy
         start = time.perf_counter()
-        result = fd_violation_strategies(df, target_column="col0")
+        fd_violation_strategies(df, target_column="col0")
         elapsed = time.perf_counter() - start
 
         # FD strategy should complete in reasonable time
