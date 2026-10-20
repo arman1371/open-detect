@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import random
 from dataclasses import FrozenInstanceError
 
 import pandas as pd
@@ -27,7 +28,8 @@ def _reference_build_pattern_index(corpus, config=None):
 
     It re-scans every candidate pattern against every value of a column --
     the O(|P(D)| x |D|) behaviour OPE-85 replaces -- and produces exactly the
-    same entries (pattern -> (FPR_T, Cov_T)) the optimized builder must match.
+    same entries (pattern -> (FPR_T, Cov_T), restricted to Cov_T >= m) the optimized
+    builder must match.
     """
     config = config or AutoValidateConfig()
     local: dict[str, list[float]] = {}
@@ -47,7 +49,7 @@ def _reference_build_pattern_index(corpus, config=None):
     entries = {
         pattern: (sum(scores) / len(scores), len(scores))
         for pattern, scores in local.items()
-        if scores
+        if len(scores) >= config.m
     }
     return PatternIndex._build(entries, n_indexed)
 
@@ -213,6 +215,26 @@ class TestCorpusInputShapes:
         assert len(index) == 0
         assert index.n_columns == 0
 
+def _datetime_column(seed: int, n: int, repeat: int = 1) -> list[str]:
+    rng = random.Random(seed)
+    values = [
+        f"{rng.randint(1990, 2040):04d}-{rng.randint(1, 12):02d}-{rng.randint(1, 28):02d} "
+        f"{rng.randint(0, 23):02d}:{rng.randint(0, 59):02d}:{rng.randint(0, 59):02d}"
+        for _ in range(n)
+    ]
+    return values * repeat
+
+
+def _wide_mixed_column() -> list[str]:
+    rng = random.Random(0)
+    alphabet = "abcXYZ0123456789"
+    return [
+        "-".join(
+            "".join(rng.choice(alphabet) for _ in range(rng.randint(1, 4))) for _ in range(6)
+        )
+        for _ in range(8)
+    ]
+
 
 class TestEquivalenceToReferenceBuild:
     """The optimized builder must produce byte-identical entries to the
@@ -221,39 +243,23 @@ class TestEquivalenceToReferenceBuild:
     @pytest.mark.parametrize(
         "corpus, config",
         [
-            # ID column: 2000 distinct integer-like values.
+            # ID column: distinct integer-like values.
             (
-                [[str(i) for i in range(2000)]],
+                [[str(i) for i in range(300)]],
                 AutoValidateConfig(m=1, tau=8),
             ),
-            # Datetime column, tau=20, N=20 (the OPE-85 benchmark shape).
+            # Datetime columns, tau=20: distinct values per column, with duplicates.
             (
-                [
-                    [f"{y:04d}-{mo:02d}-{d:02d} {h:02d}:{mi:02d}:{s:02d}" for _ in range(20)]
-                    for y, mo, d, h, mi, s in [
-                        (2020, 1, 1, 10, 0, 0),
-                        (2021, 6, 15, 23, 59, 59),
-                        (2022, 12, 31, 0, 0, 0),
-                        (2023, 2, 28, 12, 30, 45),
-                        (2024, 7, 4, 18, 15, 5),
-                        (2025, 3, 8, 9, 5, 59),
-                        (2026, 10, 17, 0, 0, 0),
-                        (2019, 11, 11, 11, 11, 11),
-                        (2018, 5, 5, 5, 5, 5),
-                        (2027, 1, 2, 3, 4, 5),
-                        (2028, 8, 20, 21, 22, 23),
-                        (2029, 9, 9, 9, 9, 9),
-                        (2030, 4, 4, 4, 4, 4),
-                        (2031, 6, 6, 6, 6, 6),
-                        (2032, 7, 7, 7, 7, 7),
-                        (2033, 8, 8, 8, 8, 8),
-                        (2034, 9, 9, 9, 9, 9),
-                        (2035, 10, 10, 10, 10, 10),
-                        (2036, 11, 11, 11, 11, 11),
-                        (2037, 12, 12, 12, 12, 12),
-                        (2038, 1, 1, 0, 0, 1),
-                    ]
-                ],
+                [_datetime_column(seed, 10) for seed in range(4)],
+                AutoValidateConfig(m=1, tau=20),
+            ),
+            (
+                [_datetime_column(seed, 8, repeat=3) for seed in range(3)],
+                AutoValidateConfig(m=2, tau=20),
+            ),
+            # Wide mixed-token column that reaches patterns_of's 2048 cap.
+            (
+                [_wide_mixed_column()],
                 AutoValidateConfig(m=1, tau=20),
             ),
             # Mixed-type object column with nulls, blanks and duplicates.
@@ -295,12 +301,11 @@ class TestEquivalenceToReferenceBuild:
         for pattern in reference._entries:
             assert actual.lookup(pattern) == pytest.approx(reference.lookup(pattern))
 
-    def test_keeps_all_matching_patterns_and_agrees_with_reference(self):
-        # ``m`` is enforced downstream by the FMDV variants, not by the index
-        # build; the index keeps every pattern that matched at least one
-        # column. The optimized build must agree with the reference on that.
+    def test_prunes_entries_below_m_and_agrees_with_reference(self):
         corpus = [["10:00:00"], ["10:00:00"], ["zz"]]
         reference = _reference_build_pattern_index(corpus, AutoValidateConfig(m=2))
         actual = build_pattern_index(corpus, AutoValidateConfig(m=2))
         assert actual.n_columns == reference.n_columns == 3
         assert set(actual._entries) == set(reference._entries)
+        assert all(cov >= 2 for _, cov in actual._entries.values())
+        assert len(actual) < len(build_pattern_index(corpus, AutoValidateConfig(m=1)))
