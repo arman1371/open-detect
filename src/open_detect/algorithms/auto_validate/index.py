@@ -23,7 +23,7 @@ from typing import Any
 import pandas as pd
 
 from open_detect.algorithms.auto_validate.config import AutoValidateConfig
-from open_detect.algorithms.auto_validate.hierarchy import matches, token_count
+from open_detect.algorithms.auto_validate.hierarchy import token_count, value_matcher
 from open_detect.algorithms.auto_validate.patterns import DEFAULT_MAX_PATTERNS, patterns_of
 from open_detect.exceptions import ValidationError
 
@@ -186,8 +186,9 @@ def build_pattern_index(
         # its truncated set; those few values are matched exactly.
         for value, count in capped:
             value_patterns = patterns_of(value, config.tau)
+            matcher = value_matcher(value)
             for pattern in match_counts.keys() - value_patterns:
-                if matches(pattern, value):
+                if matcher(pattern):
                     match_counts[pattern] += count
         for pattern, n_match in match_counts.items():
             total, n_cols = local.get(pattern, (0.0, 0))
