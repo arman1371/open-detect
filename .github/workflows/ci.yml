@@ -58,7 +58,7 @@ jobs:
       UV_PYTHON: "3.11"
     steps:
       - uses: actions/checkout@v7
-      - uses: astral-sh/setup-uv@v10.2.0
+      - uses: astral-sh/setup-uv@v7
         with:
           enable-cache: true
       - run: uv run --group dev ruff check src tests benchmarks
@@ -71,7 +71,7 @@ jobs:
       UV_PYTHON: "3.11"
     steps:
       - uses: actions/checkout@v7
-      - uses: astral-sh/setup-uv@v10.2.0
+      - uses: astral-sh/setup-uv@v7
         with:
           enable-cache: true
       - run: uv sync
@@ -94,7 +94,7 @@ jobs:
       TMPDIR: /tmp
     steps:
       - uses: actions/checkout@v7
-      - uses: astral-sh/setup-uv@v10.2.0
+      - uses: astral-sh/setup-uv@v7
         with:
           enable-cache: true
       - uses: actions/setup-java@v6
@@ -125,7 +125,7 @@ jobs:
       UV_PYTHON: "3.11"
     steps:
       - uses: actions/checkout@v7
-      - uses: astral-sh/setup-uv@v10.2.0
+      - uses: astral-sh/setup-uv@v7
         with:
           enable-cache: true
       - run: uv build
@@ -145,7 +145,7 @@ jobs:
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v7
-      - uses: actions/setup-python@v7
+      - uses: actions/setup-python@v6
         with:
           python-version: "3.11"
           cache: pip
