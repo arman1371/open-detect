@@ -1,0 +1,63 @@
+name: Install matrix
+
+# Proves on real installs that the base package and the `raha` / `auto_validate` extras
+# never need pyspark (or another algorithm's extras). Each leg builds a fresh venv, installs
+# ONLY the named extra, asserts pyspark is absent, and runs the non-Spark test subset
+# (which includes the sys.modules import-policy tests).
+#
+# NOT part of `ci-passed`, so it is advisory. Flip it to required only after OPE-66 PR B
+# (packaging) and PR F (lazy imports) are on main and this workflow is green there: add
+# `install-matrix` to `ci-passed`'s `needs` in ci.yml (or require the three
+# `install (...)` checks by name in the ruleset).
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: install-matrix-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  install:
+    name: install (${{ matrix.name }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: core
+            extra: ""
+          - name: raha
+            extra: "[raha]"
+          - name: auto_validate
+            extra: "[auto_validate]"
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v10.2.0
+        with:
+          enable-cache: true
+      - name: Create a fresh venv and install the package (+ test runner only)
+        run: |
+          uv venv --python 3.11 "$RUNNER_TEMP/venv"
+          # Non-editable install so tests exercise the installed wheel contents, not ./src.
+          uv pip install --python "$RUNNER_TEMP/venv/bin/python" ".${{ matrix.extra }}" pytest
+      - name: Assert pyspark is not installed
+        run: |
+          "$RUNNER_TEMP/venv/bin/python" - <<'PY'
+          import importlib.util, sys
+          present = [m for m in ("pyspark", "delta", "pyarrow") if importlib.util.find_spec(m)]
+          if present:
+              sys.exit(f"unexpected packages in the ${{ matrix.name }} install: {present}")
+          PY
+      - name: Show installed packages
+        run: uv pip list --python "$RUNNER_TEMP/venv/bin/python"
+      - name: Run the non-Spark test subset
+        # Run from the repo root against the venv; `spark`-marked tests need Java + pyspark.
+        run: '"$RUNNER_TEMP/venv/bin/python" -m pytest -m "not spark" -p no:cacheprovider'
