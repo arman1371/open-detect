@@ -20,7 +20,11 @@ import numpy as np
 
 from open_detect.algorithms.base import AlgorithmResult, CellResult, ErrorDetectionAlgorithm
 from open_detect.algorithms.raha.classifier import train_and_predict
-from open_detect.algorithms.raha.clustering import cluster_column, sample_tuple
+from open_detect.algorithms.raha.clustering import (
+    cluster_column,
+    compute_linkage,
+    sample_tuple,
+)
 from open_detect.algorithms.raha.config import RahaConfig
 from open_detect.algorithms.raha.features import build_all_features
 from open_detect.algorithms.raha.labeling import HeuristicLabeler, Labeler, propagate_labels
@@ -81,10 +85,21 @@ class RahaDetector(ErrorDetectionAlgorithm):
             budget = min(self.config.labeling_budget, n)
             k = 2
             cluster_ids_by_column: dict[str, np.ndarray] = {}
+            # Precompute pdist+linkage once per column; inside the loop only
+            # fcluster is called so the cost per iteration is negligible.
+            column_linkages: dict[str, np.ndarray] = {
+                col: compute_linkage(column_features[col].matrix)
+                for col in df.columns
+            }
 
             while len(labeled_rows) < budget:
                 cluster_ids_by_column = {
-                    col: cluster_column(column_features[col].matrix, k) for col in df.columns
+                    col: cluster_column(
+                        column_features[col].matrix,
+                        k,
+                        linkage_matrix=column_linkages[col],
+                    )
+                    for col in df.columns
                 }
                 label_counts: dict[tuple[str, int], int] = {}
                 for col, ids in cluster_ids_by_column.items():
