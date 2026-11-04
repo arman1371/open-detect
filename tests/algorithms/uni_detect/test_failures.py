@@ -214,7 +214,9 @@ class TestPerElementFunctions:
         outcome, bucket = scored
         assert outcome.dropped_indices
         assert (
-            counts.attempt(uniqueness_detector._score_column, ["a", "b", "c"], [0, 1, 2], 3, 0, {}, config)
+            counts.attempt(
+                uniqueness_detector._score_column, ["a", "b", "c"], [0, 1, 2], 3, 0, {}, config
+            )
             is None
         )
         assert (counts.processed, counts.skipped) == (2, 0)
@@ -227,17 +229,14 @@ class TestPerElementFunctions:
         counts = FailureCounts()
         vals = [1.0, 2.0, 3.0, 4.0, 1000.0]
         row_ids = list(range(len(vals)))
-        scored = counts.attempt(
-            outlier_detector._score_column, vals, row_ids, 5, config
-        )
+        scored = counts.attempt(outlier_detector._score_column, vals, row_ids, 5, config)
         assert scored is not None
         assert counts.attempt(outlier_detector._score_column, [1.0], [0], 1, config) is None
         assert (counts.processed, counts.skipped, counts.not_applicable) == (1, 0, 1)
 
     def test_spelling_detector_scorer(self, config):
         counts = FailureCounts()
-        
-        
+
         scored = counts.attempt(
             spelling_detector._score_column, ["apple", "apple", "aple", "pear", "plum"], 5, config
         )
