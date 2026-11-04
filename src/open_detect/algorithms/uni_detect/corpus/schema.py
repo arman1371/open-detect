@@ -30,6 +30,13 @@ CORPUS_COLUMNS_SCHEMA = StructType(
     ]
 )
 
+#: ``CORPUS_COLUMNS_SCHEMA`` plus ``row_ids``: the source row id of each entry of ``values``
+#: (parallel arrays, ascending). Produced by ``CorpusIngestor.ingest_columns(...,
+#: include_row_ids=True)`` for detection; never persisted.
+INGESTED_COLUMNS_WITH_ROW_IDS_SCHEMA = StructType(
+    [*CORPUS_COLUMNS_SCHEMA.fields, StructField("row_ids", ArrayType(LongType()), nullable=False)]
+)
+
 #: One row per (table, lhs-column, rhs-column) candidate FD pair.
 CORPUS_PAIRS_SCHEMA = StructType(
     [
@@ -41,6 +48,11 @@ CORPUS_PAIRS_SCHEMA = StructType(
         StructField("lhs_values", ArrayType(StringType()), nullable=False),
         StructField("rhs_values", ArrayType(StringType()), nullable=False),
     ]
+)
+
+#: ``CORPUS_PAIRS_SCHEMA`` plus ``row_ids`` (parallel to ``lhs_values``/``rhs_values``).
+INGESTED_PAIRS_WITH_ROW_IDS_SCHEMA = StructType(
+    [*CORPUS_PAIRS_SCHEMA.fields, StructField("row_ids", ArrayType(LongType()), nullable=False)]
 )
 
 #: Global token -> number-of-distinct-corpus-tables-containing-it. Backs the

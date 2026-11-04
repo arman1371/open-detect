@@ -61,20 +61,20 @@ class TestPerturbNumericNonFinite:
     def test_nan_does_not_shift_dropped_index(self):
         outcome = perturb_numeric_outlier([1, 2, 3, float("nan"), 1000], epsilon=0.5)
         assert outcome.evidence["outlier_value"] == 1000.0
-        # index refers to the finite-filtered list [1, 2, 3, 1000]
-        assert outcome.dropped_indices == (3,)
+        # dropped_indices holds the source row id (0-based, nulls included)
+        assert outcome.dropped_indices == (4,)
 
     def test_inf_is_never_a_candidate_or_accepted(self):
         outcome = perturb_numeric_outlier([1, 2, float("inf"), 3, 100], epsilon=0.5)
         assert outcome.evidence["outlier_value"] == 100.0
-        assert outcome.dropped_indices == (3,)
+        assert outcome.dropped_indices == (4,)
         assert outcome.theta_before < 1e6
 
     def test_string_non_finite_forms_are_filtered(self):
         values = [1, 2, "nan", "inf", "-inf", "infinity", 3, 1000]
         outcome = perturb_numeric_outlier(values, epsilon=0.5)  # type: ignore[arg-type]
         assert outcome.evidence["outlier_value"] == 1000.0
-        assert outcome.dropped_indices == (3,)
+        assert outcome.dropped_indices == (7,)
 
     @pytest.mark.parametrize(
         "values",
