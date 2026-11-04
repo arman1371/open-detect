@@ -18,7 +18,7 @@ from open_detect.core.enums import ErrorType
 T = TypeVar("T")
 
 
-def _check_unknown_kwargs(kwargs: dict[str, Any], accepted: set[str]) -> None:
+def _check_unknown_kwargs(kwargs: dict[str, Any], accepted: set[str], param_name: str = "detect") -> None:
     """Raise ValidationError if any unknown kwargs are passed.
 
     Parameters
@@ -27,6 +27,8 @@ def _check_unknown_kwargs(kwargs: dict[str, Any], accepted: set[str]) -> None:
         The keyword arguments that were passed to detect().
     accepted:
         The set of kwarg names that are accepted by the algorithm.
+    param_name:
+        Name of the parameter/function for error messages (default: "detect").
     """
     unknown = set(kwargs) - accepted
     if unknown:
@@ -105,21 +107,6 @@ def _check_dataframe_is_spark(df: Any, param_name: str = "data") -> None:
         pass
 
 
-def _check_dataframe_is_spark(df: Any, param_name: str = "data") -> None:
-    """Validate that data is a Spark DataFrame (when PySpark is available)."""
-    try:
-        from pyspark.sql import DataFrame as SparkDataFrame
-
-        if not isinstance(df, SparkDataFrame):
-            raise ValidationError(
-                f"{param_name} must be a pyspark.sql.DataFrame, "
-                f"got {type(df).__name__}"
-            )
-    except ImportError:
-        # PySpark not available; skip this check
-        pass
-
-
 def _ensure_dataframe_is_spark(df: Any, param_name: str = "data") -> None:
     """Runtime guard: validate that data is a Spark DataFrame.
 
@@ -139,6 +126,39 @@ def _ensure_dataframe_is_spark(df: Any, param_name: str = "data") -> None:
         pass
 
 
+def _ensure_sequence_of_str(value: Any, param_name: str) -> None:
+    """Raise ValidationError if value is not a sequence of strings.
+
+    Also rejects bare str (which would be iterated character-by-character).
+    """
+    if isinstance(value, str):
+        raise ValidationError(
+            f"{param_name} must be a sequence of str, got str; wrap in a list"
+        )
+    if not isinstance(value, Sequence):
+        raise ValidationError(
+            f"{param_name} must be a sequence of str, got {type(value).__name__}"
+        )
+    for i, item in enumerate(value):
+        if not isinstance(item, str):
+            raise ValidationError(
+                f"{param_name}[{i}] must be str, got {type(item).__name__}"
+            )
+
+
+def _reject_unknown_kwargs(
+    kwargs: dict[str, Any], allowed: set[str], param_name: str
+) -> None:
+    """Raise ValidationError if any unknown kwargs are passed."""
+    unknown = set(kwargs) - allowed
+    if unknown:
+        msg = (
+            f"Unknown parameter(s): {', '.join(sorted(unknown))}. "
+            f"Accepted parameters: {', '.join(sorted(allowed))}"
+        )
+        raise ValidationError(msg)
+
+
 __all__ = [
     "_check_unknown_kwargs",
     "_check_expected_type",
@@ -146,4 +166,6 @@ __all__ = [
     "_check_columns_unique",
     "_check_dataframe_is_spark",
     "_ensure_dataframe_is_spark",
+    "_ensure_sequence_of_str",
+    "_reject_unknown_kwargs",
 ]
