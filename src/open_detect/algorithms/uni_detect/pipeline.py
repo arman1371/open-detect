@@ -14,7 +14,7 @@ This is the single entry point most users need:
 from __future__ import annotations
 
 from functools import reduce
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from open_detect.algorithms.uni_detect.catalog import ensure_schema_exists
 from open_detect.algorithms.uni_detect.config import UniDetectConfig
@@ -72,7 +72,7 @@ class UniDetect:
         **kwargs: Any,
     ) -> None:
         """Run shared validation before the online detection phase."""
-        from open_detect.validation import _reject_unknown_kwargs, _ensure_sequence_of_str
+        from open_detect.validation import _ensure_sequence_of_str, _reject_unknown_kwargs
 
         _reject_unknown_kwargs(
             kwargs,

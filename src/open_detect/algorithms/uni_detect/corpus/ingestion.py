@@ -193,7 +193,9 @@ class CorpusIngestor:
             return self.spark.createDataFrame(
                 [],
                 schema=(
-                    INGESTED_COLUMNS_WITH_ROW_IDS_SCHEMA if include_row_ids else CORPUS_COLUMNS_SCHEMA
+                    INGESTED_COLUMNS_WITH_ROW_IDS_SCHEMA
+                    if include_row_ids
+                    else CORPUS_COLUMNS_SCHEMA
                 ),
             )
         return reduce(lambda a, b: a.unionByName(b), per_column_frames)
@@ -211,9 +213,9 @@ class CorpusIngestor:
             col = field.name
             # Ordinals were assigned above, before nulls are dropped, so they index the
             # source table rather than the filtered/sampled list.
-            non_null = df.select(
-                F.col(_ROW_ID), F.col(f"`{col}`").cast("string").alias("v")
-            ).where(F.col("v").isNotNull())
+            non_null = df.select(F.col(_ROW_ID), F.col(f"`{col}`").cast("string").alias("v")).where(
+                F.col("v").isNotNull()
+            )
             sampled = self._sample(non_null, num_rows)
             pairs = F.sort_array(F.collect_list(F.struct(_ROW_ID, "v")))
             per_col = sampled.agg(pairs.alias("pairs")).select(
