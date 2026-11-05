@@ -130,6 +130,12 @@ class CallableLabeler(Labeler):
     this is where a real deployment plugs in a human labeler (a CLI prompt, a
     web form, a Slack message) without Raha's pipeline code needing to know
     about it.
+
+    ``row_index`` is the sampled tuple's row *label* (``df.index[position]``),
+    so a callback must look the row up with ``df.loc[row_index]``. ``position``
+    is Raha's internal positional key and is deliberately **not** forwarded:
+    a callback written against the documented contract would otherwise receive
+    a position and look up the wrong row on a non-default index.
     """
 
     def __init__(self, fn: Callable[[pd.DataFrame, int], dict[str, bool]]) -> None:
@@ -139,9 +145,12 @@ class CallableLabeler(Labeler):
         self, df: pd.DataFrame, row_index: int, position: int | None = None
     ) -> dict[str, bool]:
         # ``fn`` keeps the historical ``(df, row_index)`` contract: it is the
-        # interactive/UI escape hatch and may not know about positions. The
-        # detector passes the resolved position as ``row_index`` below.
-        return self._fn(df, position if position is not None else row_index)
+        # interactive/UI escape hatch and may not know about positions, so it
+        # receives the row's *label* (``df.index[position]``) exactly as it
+        # always did. ``position`` is Raha's internal positional key and is
+        # NOT forwarded -- passing it here would make ``df.loc[row_index]``
+        # inside a callback resolve to the wrong row on a non-default index.
+        return self._fn(df, row_index)
 
 
 class HeuristicLabeler(Labeler):

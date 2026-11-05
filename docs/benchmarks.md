@@ -44,6 +44,8 @@ and
 make benchmark                  # wiki_subset
 make benchmark-real-world-gov   # real_world_gov
 make benchmark-all
+make benchmark-profile            # opt-in: Spark job counts + detections snapshot (see benchmarks/PERF_BASELINE.md)
+make benchmark-diff               # diff latest profile vs committed baseline
 ```
 
 Uni-Detect's half needs a local Spark/Delta session on **JDK 17**; see
