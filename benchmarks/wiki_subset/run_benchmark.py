@@ -620,6 +620,9 @@ def main() -> None:
     profile = UniDetectProfile(args.profile_dir, "wiki_subset") if args.profile_dir else None
     results = run(profile)
 
+    if profile is not None:
+        require_uni_detect(results)
+
     LATEST_FILE.write_text(json.dumps(results, indent=2) + "\n")
 
     baseline = json.loads(BASELINE_FILE.read_text()) if BASELINE_FILE.exists() else None

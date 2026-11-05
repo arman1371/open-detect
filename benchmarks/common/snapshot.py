@@ -69,10 +69,15 @@ def normalize(detections: pd.DataFrame) -> pd.DataFrame:
 
 
 def save_snapshot(detections: pd.DataFrame, path: Path) -> Path:
-    """Write ``detections`` (one or more concatenated ``detect()`` results) to ``path``."""
+    """Write ``detections`` (one or more concatenated ``detect()`` results) to ``path``.
+
+    NaN values in ``lr_ratio`` are written as the explicit ``NaN`` marker so that
+    ``load_snapshot()`` (which uses ``na_values=["nan", "NaN"]``) can reload them
+    without a ``ValueError`` on the ``float64`` cast.
+    """
     target = path if path.suffix == ".csv" else path / SNAPSHOT_FILENAME
     target.parent.mkdir(parents=True, exist_ok=True)
-    normalize(detections).to_csv(target, index=False, float_format="%.17g")
+    normalize(detections).to_csv(target, index=False, float_format="%.17g", na_rep="NaN")
     return target
 
 
