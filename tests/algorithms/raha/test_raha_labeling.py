@@ -42,6 +42,35 @@ class TestCallableLabeler:
         assert labeler.label_tuple(df, 1) == {"a": True}
         assert calls == [(1, ["a"])]
 
+    def test_callback_receives_row_label_not_position(self):
+        # A callback written against the documented ``(df, row_index)`` contract
+        # looks the row up with ``df.loc[row_index]``. On a non-default index
+        # the position (Raha's internal positional key) and the label differ,
+        # so forwarding the position would silently label the wrong row.
+        received = []
+
+        def fn(df, row_index):
+            received.append(row_index)
+            return {"a": row_index == 10}
+
+        labeler = CallableLabeler(fn)
+        df = pd.DataFrame({"a": [1, 2]}, index=[10, 20])
+        assert labeler.label_tuple(df, 10, position=0) == {"a": True}
+        assert labeler.label_tuple(df, 20, position=1) == {"a": False}
+        assert received == [10, 20]
+
+    def test_callback_ignores_position_argument(self):
+        # The Labeler interface gained a third ``position`` argument (BUG-10),
+        # but CallableLabeler must keep its documented two-argument callback
+        # contract -- a callback that does not accept ``position`` must still
+        # work when the detector passes one.
+        def fn(df, row_index):
+            return {"a": True}
+
+        labeler = CallableLabeler(fn)
+        df = pd.DataFrame({"a": [1, 2]})
+        assert labeler.label_tuple(df, 0, position=0) == {"a": True}
+
 
 class TestHeuristicLabeler:
     def test_majority_vote_over_fired_strategies(self):

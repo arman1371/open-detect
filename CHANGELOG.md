@@ -2,6 +2,33 @@
 
 <!-- version list -->
 
+## v0.2.7 (2026-10-18)
+
+### Bug Fixes
+
+- **uni-detect**: SpellingDetector reports original row positions (OPE-104)
+  ([#48](https://github.com/arman1371/open-detect/pull/48),
+  [`cc66bea`](https://github.com/arman1371/open-detect/commit/cc66beaaca976e13c0568ec4e6479c9b1c2f97aa))
+
+### Documentation
+
+- Fix ARCHITECTURE.md drift (S-M6) ([#21](https://github.com/arman1371/open-detect/pull/21),
+  [`8ae637b`](https://github.com/arman1371/open-detect/commit/8ae637bf48873c5f5de6ab09ab601c6489b86520))
+
+### Refactoring
+
+- Hygiene batch for logging, asserts, evidence, plugins, pytest config (OPE-79)
+  ([`5fa6346`](https://github.com/arman1371/open-detect/commit/5fa6346941941d233add062dcd2a9c116294c6cf))
+
+- Unify library errors under OpenDetectError (ValidationError et al.) (OPE-75)
+  ([#27](https://github.com/arman1371/open-detect/pull/27),
+  [`3052b58`](https://github.com/arman1371/open-detect/commit/3052b589fa6f899f456e8fe0bb9b3873f7e759ae))
+
+---
+
+**Full Changelog**: [v0.2.6...v0.2.7](https://github.com/arman1371/open-detect/compare/v0.2.6...v0.2.7)
+
+
 ## v0.2.6 (2026-10-15)
 
 ### Bug Fixes

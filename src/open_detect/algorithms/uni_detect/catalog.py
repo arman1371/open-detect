@@ -12,7 +12,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from open_detect.algorithms.uni_detect.config import UnityCatalogLocation
-from open_detect.exceptions import UnityCatalogError
+from open_detect.algorithms.uni_detect.exceptions import UnityCatalogError
 from open_detect.logging_utils import get_logger
 
 if TYPE_CHECKING:

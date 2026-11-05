@@ -11,6 +11,7 @@ import pytest
 from pyspark.sql import Row
 
 from open_detect.algorithms.uni_detect.config import UniDetectConfig, UnityCatalogLocation
+from open_detect.algorithms.uni_detect.core.enums import ErrorType
 from open_detect.algorithms.uni_detect.corpus.build_metadata import (
     diff_fingerprints,
     property_key,
@@ -18,7 +19,6 @@ from open_detect.algorithms.uni_detect.corpus.build_metadata import (
     verify_build_config,
     write_build_config,
 )
-from open_detect.core.enums import ErrorType
 from open_detect.exceptions import ConfigurationError
 
 FQN = "main.s.open_detect_corpus_stats"

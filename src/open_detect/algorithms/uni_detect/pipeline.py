@@ -18,6 +18,7 @@ from typing import TYPE_CHECKING
 
 from open_detect.algorithms.uni_detect.catalog import ensure_schema_exists
 from open_detect.algorithms.uni_detect.config import UniDetectConfig
+from open_detect.algorithms.uni_detect.core.enums import ErrorType
 from open_detect.algorithms.uni_detect.corpus.builder import CorpusStatsBuilder
 from open_detect.algorithms.uni_detect.corpus.ingestion import CorpusIngestor
 from open_detect.algorithms.uni_detect.detectors import (
@@ -27,7 +28,6 @@ from open_detect.algorithms.uni_detect.detectors import (
     UniquenessDetector,
 )
 from open_detect.algorithms.uni_detect.spark_utils import get_spark
-from open_detect.core.enums import ErrorType
 from open_detect.exceptions import ConfigurationError, ValidationError
 from open_detect.logging_utils import get_logger, log_duration
 
@@ -79,7 +79,7 @@ class UniDetect:
         Idempotent per error type: each call only overwrites the
         ``error_type`` partitions it touches, so callers can incrementally
         (re)build one error type at a time, or refresh the whole corpus by
-        passing every :class:`~open_detect.core.enums.ErrorType`.
+        passing every :class:`~open_detect.algorithms.uni_detect.core.enums.ErrorType`.
 
         ``table_names`` is typically produced by
         :func:`open_detect.algorithms.uni_detect.catalog.list_tables_matching` -- e.g. "every table

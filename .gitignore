@@ -23,6 +23,7 @@ derby.log
 .DS_Store
 benchmarks/wiki_subset/results/latest.json
 benchmarks/real_world_gov/results/latest.json
+benchmarks/*/results/profile/latest/
 
 # MkDocs build output
 site/

@@ -4,14 +4,16 @@ from __future__ import annotations
 
 import pytest
 
-from open_detect.exceptions import (
-    ConfigurationError,
+from open_detect.algorithms.uni_detect.exceptions import (
     CorpusNotFoundError,
     DataQualityError,
-    IndexNotBuiltError,
     InsufficientDataError,
-    OpenDetectError,
     UnityCatalogError,
+)
+from open_detect.exceptions import (
+    ConfigurationError,
+    IndexNotBuiltError,
+    OpenDetectError,
     UnknownAlgorithmError,
     ValidationError,
 )

@@ -22,7 +22,7 @@ from collections.abc import Callable
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, TypeVar
 
-from open_detect.exceptions import DataQualityError, InsufficientDataError
+from open_detect.algorithms.uni_detect.exceptions import DataQualityError, InsufficientDataError
 from open_detect.logging_utils import get_logger
 
 if TYPE_CHECKING:
