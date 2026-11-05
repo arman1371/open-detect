@@ -41,7 +41,7 @@ REPO_ROOT = BENCHMARK_DIR.parent.parent
 sys.path.insert(0, str(BENCHMARK_DIR.parent))
 from common.comparison import comparison_table_markdown  # noqa: E402
 from common.metrics import confusion_metrics  # noqa: E402
-from common.profile import UniDetectProfile, maybe_scope  # noqa: E402
+from common.profile import UniDetectProfile, maybe_scope, require_uni_detect  # noqa: E402
 from common.spark_session import SparkUnavailable, git_commit, spark_session  # noqa: E402
 
 DATA_DIR = BENCHMARK_DIR / "data"

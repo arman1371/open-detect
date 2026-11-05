@@ -45,7 +45,7 @@ sys.path.insert(0, str(BENCHMARK_DIR))
 from dataset_utils import DATASETS, dataset_paths, load_changes, load_csv  # noqa: E402
 
 from common.metrics import confusion_metrics  # noqa: E402
-from common.profile import UniDetectProfile, maybe_scope  # noqa: E402
+from common.profile import UniDetectProfile, maybe_scope, require_uni_detect  # noqa: E402
 from common.spark_session import SparkUnavailable, git_commit, spark_session  # noqa: E402
 
 RESULTS_DIR = BENCHMARK_DIR / "results"
