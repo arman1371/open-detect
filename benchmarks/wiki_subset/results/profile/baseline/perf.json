@@ -1,0 +1,76 @@
+{
+  "benchmark": "wiki_subset",
+  "generated_at": "2026-10-16T06:13:52.474264+00:00",
+  "git_commit": "2dfbbe73",
+  "uni_detect_wall_seconds_including_profiling": 1048.1157663259655,
+  "detections_rows": 71,
+  "scopes": [
+    {
+      "label": "build_corpus_statistics[uniqueness]",
+      "jobs": 292,
+      "stages": 960,
+      "wall_seconds": 114.30314395204186,
+      "evicted_jobs": 0
+    },
+    {
+      "label": "build_corpus_statistics[numeric_outlier]",
+      "jobs": 515,
+      "stages": 1529,
+      "wall_seconds": 185.00707082892768,
+      "evicted_jobs": 0
+    },
+    {
+      "label": "build_corpus_statistics[spelling]",
+      "jobs": 347,
+      "stages": 1025,
+      "wall_seconds": 126.90607833000831,
+      "evicted_jobs": 0
+    },
+    {
+      "label": "build_corpus_statistics[functional_dependency]",
+      "jobs": 800,
+      "stages": 2530,
+      "wall_seconds": 233.3276860350743,
+      "evicted_jobs": 0
+    },
+    {
+      "label": "detect[uniqueness]",
+      "jobs": 151,
+      "stages": 397,
+      "wall_seconds": 58.368373489007354,
+      "evicted_jobs": 0
+    },
+    {
+      "label": "detect[numeric_outlier]",
+      "jobs": 149,
+      "stages": 382,
+      "wall_seconds": 53.65785205201246,
+      "evicted_jobs": 0
+    },
+    {
+      "label": "detect[spelling]",
+      "jobs": 148,
+      "stages": 378,
+      "wall_seconds": 48.67316844407469,
+      "evicted_jobs": 0
+    },
+    {
+      "label": "detect[functional_dependency]",
+      "jobs": 181,
+      "stages": 535,
+      "wall_seconds": 58.28451504698023,
+      "evicted_jobs": 0
+    }
+  ],
+  "spark": {
+    "version": "3.5.9",
+    "master": "local[2]",
+    "driver_memory": "3g",
+    "shuffle_partitions": "2"
+  },
+  "host": {
+    "platform": "Linux-6.8.0-136-generic-x86_64-with-glibc2.41",
+    "python": "3.12.14",
+    "cpu_count": 4
+  }
+}
