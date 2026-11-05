@@ -2,6 +2,30 @@
 
 <!-- version list -->
 
+## v0.2.8 (2026-11-05)
+
+### Performance Improvements
+
+- **ope-85**: Optimize index build to linear complexity
+  ([#47](https://github.com/arman1371/open-detect/pull/47),
+  [`b74c013`](https://github.com/arman1371/open-detect/commit/b74c0136b94347ba174b17a9060054e230183142))
+
+### Documentation
+
+- Finalize WP3 documentation and cleanup ([#66](https://github.com/arman1371/open-detect/pull/66),
+  [`d43e180`](https://github.com/arman1371/open-detect/commit/d43e18025442793e3480447e44bd8b84766706bc))
+
+### Refactoring
+
+- Move core/text_utils/Uni-Detect errors under uni_detect with shims (OPE-111 PR C)
+  ([#76](https://github.com/arman1371/open-detect/pull/76),
+  [`eea9296`](https://github.com/arman1371/open-detect/commit/eea92960e247245dd6ddcaa7166bc234aaff81f0))
+
+---
+
+**Full Changelog**: [v0.2.7...v0.2.8](https://github.com/arman1371/open-detect/compare/v0.2.7...v0.2.8)
+
+
 ## v0.2.7 (2026-10-18)
 
 ### Bug Fixes
