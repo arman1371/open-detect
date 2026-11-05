@@ -1,17 +1,17 @@
 # Graph Report - bd7b3e13-0c9e-4465-82cd-8ea9c7959798  (2026-11-05)
 
 ## Corpus Check
-- 1740 files · ~1,416,171 words
+- 1741 files · ~1,416,716 words
 - Verdict: corpus is large enough that graph structure adds value.
 - Unclassified: 2552 file(s) not represented in the graph (top: .csv 2487, (none) 32, .properties 11)
 
 ## Summary
-- 25369 nodes · 35247 edges · 1510 communities (967 shown, 543 thin omitted)
-- Extraction: 98% EXTRACTED · 2% INFERRED · 0% AMBIGUOUS · INFERRED: 817 edges (avg confidence: 0.85)
+- 25385 nodes · 35294 edges · 1512 communities (973 shown, 539 thin omitted)
+- Extraction: 98% EXTRACTED · 2% INFERRED · 0% AMBIGUOUS · INFERRED: 844 edges (avg confidence: 0.85)
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `4d269551`
+- Built from commit: `2aaeb5d0`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -34,7 +34,7 @@
 - AutoValidateConfig
 - check_drift
 - tests/algorithms/raha/test_raha_classifier.py
-- src/open_detect/algorithms/raha/strategies.py
+- KnownIndexLabeler
 - TestGetSpec
 - src/open_detect/algorithms/auto_validate/fmdv.py
 - src/open_detect/algorithms/auto_validate/patterns.py
@@ -55,7 +55,7 @@
 - TestAutoValidateDetector
 - pandas
 - src/open_detect/algorithms/raha/features.py
-- src/open_detect/exceptions.py
+- warnings
 - real_world_gov benchmark results
 - tempfile
 - Writing your own algorithm
@@ -89,7 +89,7 @@
 - typing
 - Auto-Validate
 - Raha
-- ope110-v2/benchmarks/real_world_gov/run_benchmark.py
+- ope110-v2/benchmarks/wiki_subset/run_benchmark.py
 - UniDetect
 - Commit conventions and releases
 - CorpusStatsBuilder
@@ -104,7 +104,7 @@
 - ope-73/benchmarks/wiki_subset/run_benchmark.py
 - src/open_detect/core/models.py
 - Raha
-- re
+- ope110-v2/benchmarks/wiki_subset/generate_report.py
 - src/open_detect/algorithms/uni_detect/config.py
 - tests/test_text_utils.py
 - TestConfigThreshold
@@ -118,14 +118,14 @@
 - ope110-v2/tests/algorithms/test_algorithms_registry.py
 - tests/test_exceptions.py
 - ope74-wt/tests/algorithms/auto_validate/test_auto_validate_fmdv_v.py
-- ope138-verify/tests/algorithms/auto_validate/test_auto_validate_fmdv_v.py
+- _build_index
 - ope104-wt/tests/algorithms/auto_validate/test_auto_validate_fmdv_v.py
 - ope110-v2/tests/algorithms/auto_validate/test_auto_validate_fmdv_v.py
 - ope74-wt/tests/algorithms/test_algorithms_registry.py
 - TestGetSpec
 - tests/test_logging_utils.py
-- ope76-wt/benchmarks/wiki_subset/run_benchmark.py
-- collections
+- ope89-wt/benchmarks/real_world_gov/run_benchmark.py
+- ope76-wt/benchmarks/real_world_gov/run_benchmark.py
 - ope83-verify/src/open_detect/algorithms/raha/labeling.py
 - ope85-clean/tests/algorithms/auto_validate/test_auto_validate_fmdv_v.py
 - ope89-wt/tests/algorithms/auto_validate/test_auto_validate_fmdv_v.py
@@ -296,7 +296,7 @@
 - ope110-v2/tests/algorithms/uni_detect/test_executor_failures.py
 - ope110-v2/tests/algorithms/uni_detect/test_metrics.py
 - ope138-verify/tests/algorithms/uni_detect/test_metrics.py
-- math
+- ope104-wt/benchmarks/common/charts.py
 - ope83-verify/tests/algorithms/uni_detect/test_perturbation.py
 - ope74-wt/tests/algorithms/uni_detect/test_perturbation.py
 - ope104-wt/tests/algorithms/uni_detect/test_perturbation.py
@@ -306,7 +306,7 @@
 - ope89-wt/tests/algorithms/uni_detect/test_perturbation.py
 - ope110-v2/tests/algorithms/uni_detect/test_perturbation.py
 - ope138-verify/tests/algorithms/uni_detect/test_perturbation.py
-- dataclasses
+- AutoValidateConfig
 - UniDetect
 - UniDetect
 - UniDetect
@@ -351,12 +351,12 @@
 - _score_single_column
 - ope-73/benchmarks/wiki_subset/generate_dataset.py
 - ope83-verify/src/open_detect/algorithms/auto_validate/patterns.py
-- ope110-v2/src/open_detect/algorithms/auto_validate/patterns.py
+- ope76-wt/src/open_detect/algorithms/auto_validate/patterns.py
 - ope85-clean/src/open_detect/algorithms/auto_validate/patterns.py
 - ope89-wt/src/open_detect/algorithms/auto_validate/patterns.py
 - ope74-wt/src/open_detect/algorithms/auto_validate/patterns.py
 - ope83-verify/tests/algorithms/raha/test_raha_labeling.py
-- _build_index
+- ope76-wt/tests/algorithms/auto_validate/test_auto_validate_fmdv_v.py
 - ope110-v2/tests/algorithms/uni_detect/detectors/test_spelling_detector.py
 - _make_pattern
 - ope104-wt/src/open_detect/algorithms/uni_detect/corpus/builder.py
@@ -376,7 +376,7 @@
 - ope74-wt/src/open_detect/algorithms/uni_detect/core/models.py
 - ope110-v2/src/open_detect/algorithms/registry.py
 - ope76-wt/tests/test_core_models.py
-- ope76-wt/tests/algorithms/auto_validate/test_auto_validate_fmdv_v.py
+- ope138-verify/tests/algorithms/auto_validate/test_auto_validate_fmdv_v.py
 - ope138-verify/tests/test_core_models.py
 - test_detect_cache_lifecycle.py
 - ope89-wt/tests/test_core_models.py
@@ -403,7 +403,6 @@
 - ope138-verify/src/open_detect/algorithms/uni_detect/corpus/builder.py
 - ope76-wt/src/open_detect/algorithms/uni_detect/corpus/build_metadata.py
 - ope85-clean/src/open_detect/algorithms/uni_detect/corpus/build_metadata.py
-- src/open_detect/algorithms/uni_detect/detectors/numeric_outlier.py
 - ope110-v2/tests/test_text_utils.py
 - ope76-wt/src/open_detect/algorithms/uni_detect/detectors/numeric_outlier.py
 - ope110-v2/src/open_detect/algorithms/raha/detector.py
@@ -487,7 +486,7 @@
 - ope83-verify/tests/algorithms/uni_detect/test_run_detection_job.py
 - ope-73/tests/algorithms/raha/test_raha_strategies.py
 - AlgorithmResult
-- ope74-wt/src/open_detect/algorithms/raha/strategies.py
+- ope138-verify/src/open_detect/algorithms/raha/strategies.py
 - CHANGELOG
 - AlgorithmResult
 - AlgorithmResult
@@ -560,7 +559,7 @@
 - ope110-v2/docs/algorithms/index.md
 - ope110-v2/src/open_detect/algorithms/auto_validate/hierarchy.py
 - Current Status: BLOCKED
-- TestFunctionalDependency
+- Architecture
 - `auto_validate`
 - ope138-verify/docs/algorithms/index.md
 - ope138-verify/src/open_detect/algorithms/auto_validate/hierarchy.py
@@ -577,7 +576,7 @@
 - `auto_validate`
 - ope76-wt/docs/algorithms/index.md
 - ope76-wt/src/open_detect/algorithms/auto_validate/hierarchy.py
-- TestFunctionalDependency
+- Architecture
 - `auto_validate`
 - ope83-verify/docs/algorithms/index.md
 - ope83-verify/src/open_detect/algorithms/auto_validate/hierarchy.py
@@ -635,11 +634,11 @@
 - ope-73/tests/algorithms/uni_detect/test_run_detection_job.py
 - ope85-clean/src/open_detect/algorithms/uni_detect/detectors/base.py
 - ope76-wt/src/open_detect/algorithms/uni_detect/perturbation.py
-- ope89-wt/src/open_detect/algorithms/uni_detect/detectors/base.py
+- ope110-v2/src/open_detect/algorithms/raha/strategies.py
 - ope110-v2/src/open_detect/algorithms/uni_detect/detectors/base.py
 - ope83-verify/src/open_detect/algorithms/uni_detect/perturbation.py
 - ope71-wt/tests/algorithms/auto_validate/test_auto_validate_config.py
-- ope71-wt/src/open_detect/algorithms/uni_detect/metrics/outliers.py
+- ope104-wt/benchmarks/wiki_subset/generate_report.py
 - ope71-wt/src/open_detect/algorithms/uni_detect/perturbation.py
 - ope104-wt/src/open_detect/algorithms/uni_detect/detectors/base.py
 - ope71-wt/src/open_detect/algorithms/auto_validate/drift.py
@@ -651,7 +650,7 @@
 - ope85-clean/src/open_detect/algorithms/uni_detect/perturbation.py
 - ope83-verify/src/open_detect/algorithms/uni_detect/metrics/outliers.py
 - ope89-wt/benchmarks/wiki_subset/generate_report.py
-- ope138-verify/benchmarks/wiki_subset/generate_report.py
+- re
 - src/open_detect/algorithms/uni_detect/perturbation.py
 - ope83-verify/benchmarks/wiki_subset/generate_report.py
 - ope76-wt/tests/algorithms/auto_validate/test_auto_validate_config.py
@@ -679,7 +678,7 @@
 - ope-73/src/open_detect/algorithms/raha/strategies.py
 - ope104-wt/src/open_detect/algorithms/uni_detect/metrics/outliers.py
 - ope85-clean/src/open_detect/algorithms/uni_detect/metrics/outliers.py
-- ope85-clean/src/open_detect/algorithms/raha/strategies.py
+- ope138-verify/src/open_detect/algorithms/uni_detect/metrics/outliers.py
 - snapshot.py
 - Auto-Validate
 - TestSpelling
@@ -764,7 +763,6 @@
 - ope85-clean/tests/test_logging_utils.py
 - ope76-wt/src/open_detect/algorithms/uni_detect/jobs/build_corpus_statistics.py
 - ope83-verify/src/open_detect/algorithms/uni_detect/jobs/build_corpus_statistics.py
-- ope76-wt/src/open_detect/algorithms/raha/detector.py
 - ope85-clean/src/open_detect/algorithms/uni_detect/jobs/build_corpus_statistics.py
 - TestClusterColumn
 - ope-73/tests/algorithms/raha/test_raha_classifier.py
@@ -781,9 +779,9 @@
 - ope89-wt/benchmarks/real_world_gov/generate_report.py
 - ope83-verify/tests/algorithms/uni_detect/test_corpus_ingestion.py
 - TestClusterColumn
-- ope71-wt/benchmarks/real_world_gov/generate_report.py
+- ope110-v2/src/open_detect/algorithms/uni_detect/config.py
 - TestClusterColumn
-- ope110-v2/benchmarks/real_world_gov/generate_report.py
+- ope-73/benchmarks/real_world_gov/generate_report.py
 - ope71-wt/tests/algorithms/test_algorithms_registry.py
 - ope89-wt/src/open_detect/algorithms/uni_detect/catalog.py
 - ope71-wt/src/open_detect/algorithms/uni_detect/catalog.py
@@ -803,14 +801,14 @@
 - ope138-verify/tests/algorithms/uni_detect/test_corpus_ingestion.py
 - ope74-wt/tests/algorithms/uni_detect/test_failures.py
 - ope104-wt/tests/test_logging_utils.py
-- ope138-verify/src/open_detect/algorithms/uni_detect/strategies.py
+- ope71-wt/src/open_detect/algorithms/uni_detect/strategies.py
 - ope85-clean/tests/algorithms/test_algorithms_registry.py
 - TestClusterColumn
 - ope76-wt/tests/algorithms/uni_detect/test_corpus_ingestion.py
 - ope89-wt/tests/algorithms/raha/test_raha_classifier.py
 - ope74-wt/src/open_detect/algorithms/uni_detect/config.py
 - ope83-verify/src/open_detect/algorithms/uni_detect/config.py
-- ope104-wt/benchmarks/real_world_gov/generate_report.py
+- ope85-clean/benchmarks/real_world_gov/generate_report.py
 - ope110-v2/tests/algorithms/uni_detect/test_corpus_ingestion.py
 - ope76-wt/tests/algorithms/raha/test_raha_classifier.py
 - ope76-wt/tests/algorithms/uni_detect/test_build_corpus_statistics_job.py
@@ -836,12 +834,12 @@
 - Raha
 - AutoValidateAlgorithm
 - CorpusIngestor
-- BaseDetector
+- ope74-wt/benchmarks/real_world_gov/generate_report.py
 - real_world_gov benchmark results
 - Benchmark: WIKI subset
 - Raha
 - CorpusIngestor
-- BaseDetector
+- ope-73/src/open_detect/algorithms/uni_detect/metrics/outliers.py
 - real_world_gov benchmark results
 - Benchmark: WIKI subset
 - Raha
@@ -954,6 +952,8 @@
 - TestPerElementFunctions
 - InferredPattern
 - ope110-v2/tests/algorithms/uni_detect/test_uni_detect_algorithm.py
+- ope104-wt/src/open_detect/algorithms/uni_detect/detectors/numeric_outlier.py
+- ope110-v2/src/open_detect/algorithms/uni_detect/detectors/numeric_outlier.py
 - ope85-clean/tests/algorithms/uni_detect/test_uni_detect_algorithm.py
 - ope110-v2/tests/algorithms/auto_validate/test_auto_validate_patterns.py
 - ope83-verify/src/open_detect/algorithms/raha/features.py
@@ -998,7 +998,7 @@
 - Concepts
 - Current Status: BLOCKED
 - Concepts
-- ope71-wt/benchmarks/common/charts.py
+- math
 - Concepts
 - PatternIndex
 - ope74-wt/benchmarks/common/charts.py
@@ -1011,16 +1011,18 @@
 - ope85-clean/benchmarks/common/charts.py
 - Concepts
 - RahaConfig
-- ope89-wt/benchmarks/common/charts.py
+- ope-73/src/open_detect/algorithms/uni_detect/config.py
 - Concepts
 - ope-73/benchmarks/common/charts.py
 - Concepts
 - PatternIndex
 - ope74-wt/src/open_detect/__init__.py
 - src/open_detect/__init__.py
+- ope104-wt/src/open_detect/algorithms/uni_detect/config.py
 - ope71-wt/src/open_detect/algorithms/uni_detect/jobs/build_corpus_statistics.py
 - rapidfuzz_distance
-- ope74-wt/tests/test_exceptions.py
+- BaseDetector
+- BaseDetector
 - ope85-clean/src/open_detect/_sql.py
 - ope104-wt/docs/algorithms/uni-detect.md
 - Commit conventions and releases
@@ -1071,43 +1073,41 @@
 - TestCheckFailureThreshold
 - TestSpelling
 - ope110-v2/src/open_detect/__init__.py
-- ope85-clean/src/open_detect/algorithms/uni_detect/jobs/run_detection.py
+- BaseDetector
 - ope104-wt/src/open_detect/__init__.py
 - ope110-v2/src/open_detect/algorithms/raha/classifier.py
 - AutoValidateConfig
-- ope104-wt/src/open_detect/algorithms/uni_detect/jobs/run_detection.py
+- ope74-wt/src/open_detect/algorithms/uni_detect/text_utils.py
 - ope71-wt/src/open_detect/algorithms/raha/classifier.py
-- ope138-verify/src/open_detect/algorithms/uni_detect/jobs/run_detection.py
-- ope83-verify/src/open_detect/algorithms/uni_detect/jobs/run_detection.py
-- ope-73/src/open_detect/algorithms/uni_detect/jobs/run_detection.py
+- ope138-verify/benchmarks/common/charts.py
 - ope83-verify/src/open_detect/__init__.py
 - ope74-wt/src/open_detect/algorithms/raha/classifier.py
 - ope138-verify/src/open_detect/algorithms/raha/classifier.py
 - ope138-verify/src/open_detect/__init__.py
 - ope85-clean/src/open_detect/algorithms/raha/classifier.py
 - ope76-wt/src/open_detect/__init__.py
-- src/open_detect/algorithms/uni_detect/jobs/run_detection.py
+- TestHistogramOutlierStrategies
+- ope89-wt/src/open_detect/algorithms/uni_detect/jobs/run_detection.py
 - AutoValidateConfig
-- AutoValidateConfig
-- AutoValidateConfig
-- ope74-wt/src/open_detect/algorithms/uni_detect/jobs/run_detection.py
+- ope104-wt/src/open_detect/core/enums.py
+- ope83-verify/tests/algorithms/raha/test_raha_detector.py
 - ope104-wt/src/open_detect/algorithms/raha/classifier.py
 - ope85-clean/src/open_detect/__init__.py
 - ope138-verify/tests/test_exceptions.py
 - ope83-verify/tests/test_exceptions.py
-- ope76-wt/tests/test_exceptions.py
+- ope71-wt/tests/algorithms/raha/test_raha_detector.py
 - AutoValidateConfig
 - ope89-wt/src/open_detect/__init__.py
 - ope-73/src/open_detect/algorithms/raha/classifier.py
 - src/open_detect/algorithms/raha/classifier.py
 - ope76-wt/src/open_detect/algorithms/raha/classifier.py
-- AutoValidateConfig
+- TestGaussianOutlierStrategies
 - ope104-wt/tests/test_exceptions.py
 - AutoValidateConfig
-- ope110-v2/src/open_detect/algorithms/uni_detect/jobs/run_detection.py
+- TestFunctionalDependency
 - ope-73/tests/test_logging_utils.py
 - ope110-v2/tests/test_exceptions.py
-- ope89-wt/tests/test_exceptions.py
+- TestFunctionalDependency
 - AutoValidateConfig
 - AutoValidateConfig
 - ope89-wt/src/open_detect/algorithms/raha/classifier.py
@@ -1137,13 +1137,13 @@
 - Auto-Validate
 - ope-73/src/open_detect/core/enums.py
 - src/open_detect/algorithms/uni_detect/core/enums.py
-- ope76-wt/tests/algorithms/raha/test_raha_detector.py
+- _score_column
 - src/open_detect/algorithms/uni_detect/metrics/functional_dependency.py
 - ope74-wt/tests/algorithms/raha/test_raha_detector.py
-- ope89-wt/tests/algorithms/raha/test_raha_detector.py
+- ope-73/src/open_detect/algorithms/uni_detect/metrics/functional_dependency.py
 - ope74-wt/src/open_detect/algorithms/uni_detect/metrics/functional_dependency.py
-- ope-73/tests/algorithms/raha/test_raha_detector.py
-- tests/algorithms/raha/test_raha_detector.py
+- ope138-verify/src/open_detect/algorithms/uni_detect/strategies.py
+- ope83-verify/tests/test_package_init.py
 - ope76-wt/src/open_detect/_sql.py
 - src/open_detect/algorithms/raha/config.py
 - Uni-Detect
@@ -1164,12 +1164,14 @@
 - TestFunctionalDependency
 - ope-73/src/open_detect/algorithms/__init__.py
 - ope89-wt/src/open_detect/algorithms/__init__.py
+- TestSegmentDp
 - ope83-verify/src/open_detect/algorithms/uni_detect/metrics/functional_dependency.py
 - ope71-wt/src/open_detect/algorithms/__init__.py
 - ope83-verify/src/open_detect/algorithms/__init__.py
 - ope104-wt/src/open_detect/algorithms/__init__.py
 - src/open_detect/algorithms/__init__.py
 - ope110-v2/src/open_detect/algorithms/__init__.py
+- TestSegmentDp
 - ope138-verify/src/open_detect/algorithms/__init__.py
 - ope110-v2/src/open_detect/algorithms/uni_detect/metrics/functional_dependency.py
 - ope138-verify/src/open_detect/algorithms/uni_detect/metrics/functional_dependency.py
@@ -1181,16 +1183,16 @@
 - ope76-wt/src/open_detect/algorithms/__init__.py
 - ope74-wt/src/open_detect/algorithms/__init__.py
 - ope104-wt/docs/index.md
-- _score_column
+- tests/algorithms/uni_detect/test_spark_utils.py
 - ope110-v2/docs/index.md
-- _score_column
+- Raha (Mahdavi et al., SIGMOD 2019)
 - ope138-verify/docs/index.md
 - Heartbeat Status — 2026-10-18 ~17:48Z (heartbeat acb2350a, wake_reason=heartbeat_timer)
 - Heartbeat Status — 2026-10-18 ~17:48Z (heartbeat acb2350a, wake_reason=heartbeat_timer)
 - ope71-wt/docs/index.md
 - sorted_patterns
 - ope74-wt/docs/index.md
-- ope74-wt/tests/test_console_scripts.py
+- Raha (Mahdavi et al., SIGMOD 2019)
 - ope76-wt/docs/index.md
 - .detect
 - ope83-verify/docs/index.md
@@ -1203,7 +1205,7 @@
 - ope104-wt/src/open_detect/algorithms/auto_validate/metrics.py
 - ope71-wt/tests/test_package_init.py
 - ope-73/tests/test_exceptions.py
-- ope74-wt/src/open_detect/algorithms/uni_detect/strategies.py
+- dataclasses
 - src/open_detect/algorithms/uni_detect/metrics/uniqueness.py
 - ope138-verify/src/open_detect/algorithms/auto_validate/metrics.py
 - ope89-wt/src/open_detect/algorithms/auto_validate/metrics.py
@@ -1215,7 +1217,7 @@
 - ope-73/src/open_detect/algorithms/auto_validate/metrics.py
 - ope83-verify/src/open_detect/algorithms/auto_validate/metrics.py
 - ope110-v2/src/open_detect/algorithms/auto_validate/metrics.py
-- ope85-clean/src/open_detect/algorithms/uni_detect/strategies.py
+- TestUniquenessRatio
 - ope138-verify/src/open_detect/algorithms/uni_detect/metrics/uniqueness.py
 - ope71-wt/tests/test_exceptions.py
 - ope71-wt/src/open_detect/algorithms/uni_detect/metrics/functional_dependency.py
@@ -1232,7 +1234,7 @@
 - ope85-clean/src/open_detect/algorithms/auto_validate/metrics.py
 - ope74-wt/src/open_detect/algorithms/uni_detect/metrics/uniqueness.py
 - ope74-wt/src/open_detect/algorithms/auto_validate/metrics.py
-- ope104-wt/tests/test_package_init.py
+- `uni_detect`
 - ope104-wt/src/open_detect/algorithms/uni_detect/metrics/uniqueness.py
 - ope110-v2/tests/test_package_init.py
 - ope76-wt/src/open_detect/algorithms/auto_validate/metrics.py
@@ -1259,7 +1261,7 @@
 - TestNumericOutliers
 - Auto-Validate (Song & He, SIGMOD 2021)
 - Token
-- TestSegmentDp
+- TestGaussianOutlierStrategies
 - _raise
 - TestNumericOutliers
 - Auto-Validate (Song & He, SIGMOD 2021)
@@ -1273,7 +1275,7 @@
 - TestNumericOutliers
 - Auto-Validate (Song & He, SIGMOD 2021)
 - Token
-- TestSegmentDp
+- `uni_detect`
 - _raise
 - TestNumericOutliers
 - ope-73/ARCHITECTURE.md
@@ -1284,15 +1286,15 @@
 - TestNumericOutliers
 - ope104-wt/src/open_detect/algorithms/uni_detect/__init__.py
 - ope89-wt/src/open_detect/algorithms/uni_detect/__init__.py
-- ope74-wt/src/open_detect/algorithms/uni_detect/__init__.py
+- TestUniquenessRatio
 - ope71-wt/src/open_detect/algorithms/uni_detect/__init__.py
 - ope83-verify/src/open_detect/algorithms/uni_detect/__init__.py
 - ope110-v2/src/open_detect/algorithms/uni_detect/__init__.py
 - src/open_detect/algorithms/uni_detect/__init__.py
 - ope-73/src/open_detect/algorithms/uni_detect/__init__.py
-- ope138-verify/src/open_detect/algorithms/uni_detect/__init__.py
-- ope85-clean/src/open_detect/algorithms/uni_detect/__init__.py
-- ope138-verify/tests/algorithms/uni_detect/test_spark_utils.py
+- TestEmptyFrames
+- TestFdViolationStrategies
+- TestFeatureMatrixDtype
 - ope-73/src/open_detect/algorithms/auto_validate/exceptions.py
 - ope76-wt/src/open_detect/algorithms/uni_detect/__init__.py
 - ope71-wt/src/open_detect/algorithms/auto_validate/exceptions.py
@@ -1395,10 +1397,12 @@
 - open-detect
 - open-detect
 - open-detect
+- TestFdRepeatedGroupsAndNulls
+- TestRowWeightedNumericGate
 
 ## God Nodes (most connected - your core abstractions)
-1. `ARCHITECTURE.md — Uni-Detect paper-to-code map` - 26 edges
-2. `TestAutoValidateDetector` - 18 edges
+1. `KnownIndexLabeler` - 29 edges
+2. `ARCHITECTURE.md — Uni-Detect paper-to-code map` - 26 edges
 3. `TestAutoValidateDetector` - 18 edges
 4. `TestAutoValidateDetector` - 18 edges
 5. `TestAutoValidateDetector` - 18 edges
@@ -1409,16 +1413,16 @@
 10. `TestAutoValidateDetector` - 18 edges
 
 ## Surprising Connections (you probably didn't know these)
-- `WIKI-subset benchmark methodology redesign` --semantically_similar_to--> `functional_dependency metric (FR, Section 3.4)`  [INFERRED] [semantically similar]
-  benchmarks/README.md → ARCHITECTURE.md
-- `README.md — Uni-Detect overview` --references--> `CI workflow: Benchmark (wiki-subset, workflow_dispatch)`  [AMBIGUOUS]
-  README.md → .github/workflows/benchmark.yml
-- `WIKI-subset benchmark methodology redesign` --semantically_similar_to--> `FD metric deviation from literal paper formula`  [INFERRED] [semantically similar]
-  benchmarks/README.md → ARCHITECTURE.md
-- `6. Deviations from a literal reading of the paper, and why` --references--> `TestFunctionalDependency`  [EXTRACTED]
-  ope-73/ARCHITECTURE.md → ope-73/tests/algorithms/uni_detect/test_metrics.py
-- `test_counts_jobs_and_distinct_stages_per_scope()` --uses--> `SparkJobCounter`  [INFERRED]
-  tests/benchmarks/test_bench_spark_jobs.py → benchmarks/common/spark_jobs.py
+- `Scoring raha` --references--> `KnownIndexLabeler`  [INFERRED]
+  benchmarks/wiki_subset/README.md → tests/benchmarks/test_labeler_compat.py
+- `Scoring raha` --references--> `KnownIndexLabeler`  [INFERRED]
+  ope104-wt/benchmarks/wiki_subset/README.md → tests/benchmarks/test_labeler_compat.py
+- `Scoring raha` --references--> `KnownIndexLabeler`  [INFERRED]
+  ope110-v2/benchmarks/wiki_subset/README.md → tests/benchmarks/test_labeler_compat.py
+- `Scoring raha` --references--> `KnownIndexLabeler`  [INFERRED]
+  ope138-verify/benchmarks/wiki_subset/README.md → tests/benchmarks/test_labeler_compat.py
+- `Scoring raha` --references--> `KnownIndexLabeler`  [INFERRED]
+  ope71-wt/benchmarks/wiki_subset/README.md → tests/benchmarks/test_labeler_compat.py
 
 ## Import Cycles
 - None detected.
@@ -1426,7 +1430,7 @@
 ## Hyperedges (group relationships)
 - **Uni-Detect paper-to-code mapping table** — architecture, paper_unidetect, unidetect_detectors_base_basedetector, unidetect_corpus_builder_corpusstatsbuilder, unidetect_corpus_store_corpusstatsstore [EXTRACTED 1.00]
 
-## Communities (1510 total, 543 thin omitted)
+## Communities (1512 total, 539 thin omitted)
 
 ### Community 0 - "tests/algorithms/uni_detect/test_corpus_build_metadata.py"
 Cohesion: 0.12
@@ -1442,7 +1446,7 @@ Nodes (9): _positions_of(), _row(), _score(), test_build_row_maps_row_ids_via_or
 
 ### Community 3 - "sys"
 Cohesion: 0.03
-Nodes (28): spark_session(), SparkUnavailable, main(), parse_args(), _algorithm_section(), _by_dataset_chart(), _fmt_pct(), main() (+20 more)
+Nodes (23): spark_session(), SparkUnavailable, main(), parse_args(), _algorithm_section(), _by_dataset_chart(), _fmt_pct(), main() (+15 more)
 
 ### Community 4 - "ARCHITECTURE.md — Uni-Detect paper-to-code map"
 Cohesion: 0.15
@@ -1462,7 +1466,7 @@ Nodes (11): Auto-Validate: learn patterns from clean columns, Quickstart, Raha: 
 
 ### Community 11 - "numpy"
 Cohesion: 0.03
-Nodes (40): cluster_column(), sample_tuple(), cluster_column(), sample_tuple(), _factorize_column(), fd_violation_strategies(), gaussian_outlier_strategies(), histogram_outlier_strategies() (+32 more)
+Nodes (42): cluster_column(), sample_tuple(), cluster_column(), sample_tuple(), cluster_column(), sample_tuple(), cluster_column(), sample_tuple() (+34 more)
 
 ### Community 12 - "CorpusIngestor"
 Cohesion: 0.10
@@ -1473,8 +1477,8 @@ Cohesion: 0.07
 Nodes (9): _build_index(), _date_index(), _date_values(), TestCoarseSignature, TestFmdvV, TestFmdvVh, TestLargeGroups, TestMinConforming (+1 more)
 
 ### Community 14 - "src/open_detect/algorithms/uni_detect/metrics/outliers.py"
-Cohesion: 0.09
-Nodes (13): mad_scores(), MADResult, max_mad(), MaxMADResult, median_absolute_deviation(), sd_scores(), finite_floats(), mad_scores() (+5 more)
+Cohesion: 0.17
+Nodes (7): finite_floats(), mad_scores(), MADResult, max_mad(), MaxMADResult, median_absolute_deviation(), sd_scores()
 
 ### Community 15 - "AutoValidateConfig"
 Cohesion: 0.05
@@ -1488,9 +1492,9 @@ Nodes (3): _make_pattern(), TestCheckDrift, TestCheckDriftVerticalCutPatterns
 Cohesion: 0.19
 Nodes (3): _features(), TestClassifierTrainingPath, TestDegenerateCases
 
-### Community 18 - "src/open_detect/algorithms/raha/strategies.py"
-Cohesion: 0.18
-Nodes (7): _factorize_column(), fd_violation_strategies(), gaussian_outlier_strategies(), histogram_outlier_strategies(), _is_float_like(), normalize_to_str(), pattern_character_strategies()
+### Community 18 - "KnownIndexLabeler"
+Cohesion: 0.08
+Nodes (12): _build_config(), _load_corpus_tables(), _load_targets(), main(), _print_comparison(), run(), run_auto_validate(), run_raha() (+4 more)
 
 ### Community 19 - "TestGetSpec"
 Cohesion: 0.16
@@ -1501,7 +1505,7 @@ Cohesion: 0.11
 Nodes (13): _append_literal(), _char_class(), _class_of_token(), generality_weight(), generalize(), _is_numeric(), _iter_runs(), matches() (+5 more)
 
 ### Community 21 - "src/open_detect/algorithms/auto_validate/patterns.py"
-Cohesion: 0.13
+Cohesion: 0.11
 Nodes (9): _alternatives(), any_pattern(), _best_first_patterns(), common_patterns(), iter_patterns(), matching_pattern(), _ordered_alternatives(), patterns_of() (+1 more)
 
 ### Community 22 - "wiki_subset/generate_report.py"
@@ -1509,8 +1513,8 @@ Cohesion: 0.25
 Nodes (9): _algorithm_section(), _by_dataset_chart(), _fmt_pct(), main(), _metrics_table_row(), render_markdown(), _short_name(), _slug() (+1 more)
 
 ### Community 23 - "src/open_detect/algorithms/uni_detect/detectors/base.py"
-Cohesion: 0.09
-Nodes (4): BaseDetector, _hash_value(), make_evidence_json(), redact_evidence()
+Cohesion: 0.16
+Nodes (3): _hash_value(), make_evidence_json(), redact_evidence()
 
 ### Community 25 - "json"
 Cohesion: 0.02
@@ -1530,7 +1534,7 @@ Nodes (3): UniDetectConfig, UnityCatalogLocation, _validate_edges()
 
 ### Community 29 - "csv"
 Cohesion: 0.03
-Nodes (40): canonical_column(), dataset_paths(), load_changes(), load_csv(), canonical_column(), dataset_paths(), load_changes(), load_csv() (+32 more)
+Nodes (44): canonical_column(), dataset_paths(), load_changes(), load_csv(), canonical_column(), dataset_paths(), load_changes(), load_csv() (+36 more)
 
 ### Community 30 - "src/open_detect/algorithms/base.py"
 Cohesion: 0.10
@@ -1545,8 +1549,8 @@ Cohesion: 0.12
 Nodes (4): TestEpsilonAndMismatchFlags, TestMain, TestMainConfiguresLogging, TestParseArgs
 
 ### Community 35 - "pytest"
-Cohesion: 0.04
-Nodes (22): __getattr__(), _fresh_import(), test_core_missing_attr_raises(), test_core_package_getattr_shim(), test_exceptions_getattr_shim(), test_from_core_import_submodule(), test_internal_imports_use_new_paths_only(), test_module_shims_are_identity_preserving() (+14 more)
+Cohesion: 0.03
+Nodes (28): _fresh_import(), test_core_missing_attr_raises(), test_core_package_getattr_shim(), test_exceptions_getattr_shim(), test_from_core_import_submodule(), test_internal_imports_use_new_paths_only(), test_module_shims_are_identity_preserving(), test_unknown_exception_attr_raises() (+20 more)
 
 ### Community 36 - "os"
 Cohesion: 0.05
@@ -1560,9 +1564,9 @@ Nodes (12): Concepts, Configuration objects, Errors, One contract: `detect()`, T
 Cohesion: 0.19
 Nodes (4): build_all_features(), build_column_features(), ColumnFeatures, _compact_dtype()
 
-### Community 40 - "src/open_detect/exceptions.py"
-Cohesion: 0.15
-Nodes (6): ConfigurationError, __getattr__(), IndexNotBuiltError, OpenDetectError, UnknownAlgorithmError, ValidationError
+### Community 40 - "warnings"
+Cohesion: 0.05
+Nodes (9): __getattr__(), test_old_except_clause_catches_new_error(), __getattr__(), ConfigurationError, __getattr__(), IndexNotBuiltError, OpenDetectError, UnknownAlgorithmError (+1 more)
 
 ### Community 41 - "real_world_gov benchmark results"
 Cohesion: 0.14
@@ -1570,7 +1574,7 @@ Nodes (13): Algorithm comparison, `auto_validate`, By dataset (cell-level), By d
 
 ### Community 42 - "tempfile"
 Cohesion: 0.02
-Nodes (45): _delta_jars(), _download(), spark(), uc_location(), _delta_jars(), _download(), spark(), uc_location() (+37 more)
+Nodes (46): UnityCatalogLocation, _delta_jars(), _download(), spark(), uc_location(), git_commit(), spark_session(), SparkUnavailable (+38 more)
 
 ### Community 43 - "Writing your own algorithm"
 Cohesion: 0.33
@@ -1586,7 +1590,7 @@ Nodes (17): Algorithm comparison, `auto_validate`, By corruption severity, By co
 
 ### Community 46 - "pandas"
 Cohesion: 0.01
-Nodes (62): main(), run(), main(), test_empty_dataframe_returns_no_cells(), test_build_all_features_covers_every_column(), test_drops_constant_features(), test_feature_values_are_binary(), test_keeps_informative_features() (+54 more)
+Nodes (65): main(), run(), main(), test_empty_dataframe_returns_no_cells(), test_build_all_features_covers_every_column(), test_drops_constant_features(), test_feature_values_are_binary(), test_keeps_informative_features() (+57 more)
 
 ### Community 47 - "FailureCounts"
 Cohesion: 0.10
@@ -1602,11 +1606,11 @@ Nodes (20): Bug Fixes, Bug Fixes, Bug Fixes, Bug Fixes, Bug Fixes, Bug Fixes, Bu
 
 ### Community 50 - "collections_abc"
 Cohesion: 0.02
-Nodes (52): confusion_metrics(), confusion_metrics(), configure_logging(), get_logger(), log_duration(), confusion_metrics(), configure_logging(), get_logger() (+44 more)
+Nodes (58): configure_logging(), get_logger(), log_duration(), _build_config(), _dataset_frames(), main(), _print_comparison(), _register_table() (+50 more)
 
 ### Community 51 - "tests/algorithms/raha/test_raha_labeling.py"
-Cohesion: 0.11
-Nodes (4): TestCallableLabeler, TestGroundTruthLabeler, TestHeuristicLabeler, TestPropagateLabels
+Cohesion: 0.10
+Nodes (5): TestCallableLabeler, fn(), TestGroundTruthLabeler, TestHeuristicLabeler, TestPropagateLabels
 
 ### Community 52 - "tests/algorithms/uni_detect/test_uni_detect_algorithm.py"
 Cohesion: 0.24
@@ -1625,8 +1629,8 @@ Cohesion: 0.10
 Nodes (4): _build_index(), TestFmdvBasic, TestFmdvH, _tiny_corpus()
 
 ### Community 56 - "argparse"
-Cohesion: 0.05
-Nodes (40): candidates(), main(), select(), canonical_column(), dataset_paths(), load_changes(), load_csv(), candidates() (+32 more)
+Cohesion: 0.03
+Nodes (43): candidates(), main(), select(), candidates(), main(), select(), candidates(), main() (+35 more)
 
 ### Community 57 - "src/open_detect/algorithms/raha/labeling.py"
 Cohesion: 0.10
@@ -1634,7 +1638,7 @@ Nodes (7): CallableLabeler, GroundTruthLabeler, HeuristicLabeler, Labeler, propa
 
 ### Community 58 - "itertools"
 Cohesion: 0.02
-Nodes (30): select_fd_column_pairs(), test_evidence_honors_redact_mode(), select_fd_column_pairs(), _alternatives(), any_pattern(), _best_first_patterns(), common_patterns(), iter_patterns() (+22 more)
+Nodes (28): _alternatives(), any_pattern(), _best_first_patterns(), common_patterns(), iter_patterns(), matching_pattern(), _ordered_alternatives(), patterns_of() (+20 more)
 
 ### Community 59 - "Benchmark: WIKI subset"
 Cohesion: 0.14
@@ -1649,11 +1653,11 @@ Cohesion: 0.06
 Nodes (6): config(), TestCoerceNumeric, TestScoreFdPair, TestScoreSingleColumn, score(), TestStatsSchemaWithoutErrorType
 
 ### Community 62 - "subprocess"
-Cohesion: 0.02
-Nodes (37): git_commit(), git_commit(), spark_session(), SparkUnavailable, git_commit(), spark_session(), SparkUnavailable, git_commit() (+29 more)
+Cohesion: 0.01
+Nodes (48): confusion_metrics(), git_commit(), confusion_metrics(), git_commit(), spark_session(), SparkUnavailable, confusion_metrics(), confusion_metrics() (+40 more)
 
 ### Community 63 - "functools"
-Cohesion: 0.02
+Cohesion: 0.03
 Nodes (9): _alternatives(), any_pattern(), _best_first_patterns(), common_patterns(), iter_patterns(), matching_pattern(), _ordered_alternatives(), patterns_of() (+1 more)
 
 ### Community 64 - "_ensure_dataframe_is_spark"
@@ -1661,8 +1665,8 @@ Cohesion: 0.14
 Nodes (3): pair_table(), TestIngestColumnPairsNullAlignment, TestSelectFdColumnPairs
 
 ### Community 65 - "ope104-wt/benchmarks/real_world_gov/run_benchmark.py"
-Cohesion: 0.03
-Nodes (27): _build_config(), _dataset_frames(), main(), _print_comparison(), _register_table(), run(), run_auto_validate(), run_raha() (+19 more)
+Cohesion: 0.04
+Nodes (22): _build_config(), _dataset_frames(), main(), _print_comparison(), _register_table(), run(), run_auto_validate(), run_raha() (+14 more)
 
 ### Community 66 - "docs/algorithms/index.md"
 Cohesion: 0.14
@@ -1674,19 +1678,19 @@ Nodes (5): compute(), _require_min_rows(), _score_fd_pair(), _score_single_colum
 
 ### Community 70 - "ope-73/benchmarks/real_world_gov/run_benchmark.py"
 Cohesion: 0.04
-Nodes (24): _build_config(), _dataset_frames(), main(), _print_comparison(), _register_table(), run(), run_auto_validate(), run_raha() (+16 more)
+Nodes (26): _build_config(), _dataset_frames(), main(), _print_comparison(), _register_table(), run(), run_auto_validate(), run_raha() (+18 more)
 
 ### Community 72 - "typing"
 Cohesion: 0.01
-Nodes (10): get_spark(), get_spark(), get_spark(), get_spark(), get_spark(), get_spark(), get_spark(), get_spark() (+2 more)
+Nodes (13): get_spark(), get_spark(), __getattr__(), get_spark(), get_spark(), __getattr__(), get_spark(), get_spark() (+5 more)
 
 ### Community 73 - "Auto-Validate"
 Cohesion: 0.12
 Nodes (13): Auto-Validate, Configuration, Detector, Drift, Pattern index, Pattern inference, API reference, Configuration (+5 more)
 
-### Community 75 - "ope110-v2/benchmarks/real_world_gov/run_benchmark.py"
-Cohesion: 0.04
-Nodes (24): _build_config(), _dataset_frames(), main(), _print_comparison(), _register_table(), run(), run_auto_validate(), run_raha() (+16 more)
+### Community 75 - "ope110-v2/benchmarks/wiki_subset/run_benchmark.py"
+Cohesion: 0.08
+Nodes (12): _build_config(), _load_corpus_tables(), _load_targets(), main(), _print_comparison(), run(), run_auto_validate(), run_raha() (+4 more)
 
 ### Community 76 - "UniDetect"
 Cohesion: 0.36
@@ -1705,7 +1709,7 @@ Cohesion: 0.11
 Nodes (17): Blocking Issues (Resolved vs Remaining):, CI Workflow (`.github/workflows/ci.yml`):, Completed Tasks:, Current Status: BLOCKED, CURRENTLY BLOCKING ISSUES:, Dependencies:, Next Steps:, Project Structure: (+9 more)
 
 ### Community 82 - "src/open_detect/algorithms/auto_validate/index.py"
-Cohesion: 0.07
+Cohesion: 0.08
 Nodes (6): build_pattern_index(), clean_column(), indexable_values(), _is_null(), _iter_corpus_columns(), PatternIndex
 
 ### Community 83 - "src/open_detect/algorithms/uni_detect/__init__.py"
@@ -1740,9 +1744,9 @@ Nodes (5): Job arguments, Jobs, Notebooks, Practical advice, Running on Databric
 Cohesion: 0.14
 Nodes (12): Configuration, How it works, Install, Raha, Reading the output, Scope, Usage, Who answers the labeling questions? (+4 more)
 
-### Community 91 - "re"
-Cohesion: 0.06
-Nodes (40): _algorithm_section(), _by_error_type_section(), _f1_by_error_type_chart(), _fmt_pct(), main(), _metrics_table_row(), _ranking_chart(), render_markdown() (+32 more)
+### Community 91 - "ope110-v2/benchmarks/wiki_subset/generate_report.py"
+Cohesion: 0.23
+Nodes (11): _algorithm_section(), _by_error_type_section(), _f1_by_error_type_chart(), _fmt_pct(), main(), _metrics_table_row(), _ranking_chart(), render_markdown() (+3 more)
 
 ### Community 92 - "src/open_detect/algorithms/uni_detect/config.py"
 Cohesion: 0.17
@@ -1753,28 +1757,28 @@ Cohesion: 0.10
 Nodes (4): TestFloatLike, TestIntegerLike, TestMixedAlphanumeric, TestTokenize
 
 ### Community 95 - "ope138-verify/benchmarks/real_world_gov/run_benchmark.py"
-Cohesion: 0.04
-Nodes (22): _build_config(), _dataset_frames(), main(), _print_comparison(), _register_table(), run(), run_auto_validate(), run_raha() (+14 more)
+Cohesion: 0.08
+Nodes (12): _build_config(), _load_corpus_tables(), _load_targets(), main(), _print_comparison(), run(), run_auto_validate(), run_raha() (+4 more)
 
 ### Community 96 - "importlib_metadata"
-Cohesion: 0.04
-Nodes (9): _console_scripts(), test_all_four_console_scripts_are_declared(), test_console_script_targets_match_pyproject(), test_primary_and_alias_resolve_to_identical_callables(), test_lazy_import_raises_for_unknown_attribute(), test_lazy_import_raises_for_unknown_attribute(), test_lazy_import_raises_for_unknown_attribute(), test_lazy_import_raises_for_unknown_attribute() (+1 more)
+Cohesion: 0.03
+Nodes (13): test_lazy_import_raises_for_unknown_attribute(), _console_scripts(), test_all_four_console_scripts_are_declared(), test_console_script_targets_match_pyproject(), test_primary_and_alias_resolve_to_identical_callables(), test_lazy_import_raises_for_unknown_attribute(), _console_scripts(), test_all_four_console_scripts_are_declared() (+5 more)
 
 ### Community 97 - "docs/index.md"
 Cohesion: 0.25
 Nodes (6): open-detect, What is in the box, Why a common interface, Registry, Registry and results, Result types
 
 ### Community 98 - "ope71-wt/benchmarks/real_world_gov/run_benchmark.py"
-Cohesion: 0.05
+Cohesion: 0.04
 Nodes (22): _build_config(), _dataset_frames(), main(), _print_comparison(), _register_table(), run(), run_auto_validate(), run_raha() (+14 more)
 
 ### Community 99 - "ope74-wt/benchmarks/real_world_gov/run_benchmark.py"
-Cohesion: 0.05
-Nodes (21): _build_config(), _dataset_frames(), main(), _print_comparison(), _register_table(), run(), run_auto_validate(), run_raha() (+13 more)
+Cohesion: 0.07
+Nodes (14): _build_config(), _dataset_frames(), main(), _print_comparison(), _register_table(), run(), run_auto_validate(), run_raha() (+6 more)
 
 ### Community 100 - "ope74-wt/tests/algorithms/raha/test_raha_strategies.py"
-Cohesion: 0.05
-Nodes (17): _assert_same(), _naive_fd(), _naive_gaussian(), _naive_histogram(), _naive_pattern(), _naive_str(), _random_column(), TestEmptyFrames (+9 more)
+Cohesion: 0.25
+Nodes (8): _assert_same(), _naive_fd(), _naive_gaussian(), _naive_histogram(), _naive_pattern(), _naive_str(), _random_column(), TestRandomizedEquivalenceWithNaiveReference
 
 ### Community 101 - "ope83-verify/tests/algorithms/auto_validate/test_auto_validate_fmdv_v.py"
 Cohesion: 0.05
@@ -1792,13 +1796,13 @@ Nodes (3): test_all_errors_derive_from_open_detect_error(), test_open_detect_err
 Cohesion: 0.05
 Nodes (10): _build_index(), _date_index(), _date_values(), TestCoarseSignature, TestFmdvV, TestFmdvVh, TestLargeGroups, TestMinConforming (+2 more)
 
-### Community 105 - "ope138-verify/tests/algorithms/auto_validate/test_auto_validate_fmdv_v.py"
-Cohesion: 0.05
-Nodes (10): _build_index(), _date_index(), _date_values(), TestCoarseSignature, TestFmdvV, TestFmdvVh, TestLargeGroups, TestMinConforming (+2 more)
+### Community 105 - "_build_index"
+Cohesion: 0.12
+Nodes (5): _build_index(), _date_index(), TestFmdvV, TestFmdvVh, _time_corpus()
 
 ### Community 106 - "ope104-wt/tests/algorithms/auto_validate/test_auto_validate_fmdv_v.py"
-Cohesion: 0.05
-Nodes (10): _build_index(), _date_index(), _date_values(), TestCoarseSignature, TestFmdvV, TestFmdvVh, TestLargeGroups, TestMinConforming (+2 more)
+Cohesion: 0.07
+Nodes (9): _build_index(), _date_index(), _date_values(), TestCoarseSignature, TestFmdvV, TestFmdvVh, TestLargeGroups, TestMinConforming (+1 more)
 
 ### Community 107 - "ope110-v2/tests/algorithms/auto_validate/test_auto_validate_fmdv_v.py"
 Cohesion: 0.05
@@ -1812,13 +1816,13 @@ Nodes (10): _FakeEntryPoint, fresh_registry(), _good_plugin_class(), real_plugin
 Cohesion: 0.14
 Nodes (3): TestConfigureLogging, TestGetLogger, TestLogDuration
 
-### Community 111 - "ope76-wt/benchmarks/wiki_subset/run_benchmark.py"
-Cohesion: 0.05
-Nodes (16): _build_config(), _load_corpus_tables(), _load_targets(), main(), _print_comparison(), run(), run_auto_validate(), run_raha() (+8 more)
+### Community 111 - "ope89-wt/benchmarks/real_world_gov/run_benchmark.py"
+Cohesion: 0.04
+Nodes (22): _build_config(), _dataset_frames(), main(), _print_comparison(), _register_table(), run(), run_auto_validate(), run_raha() (+14 more)
 
-### Community 112 - "collections"
-Cohesion: 0.06
-Nodes (21): _build_config(), _dataset_frames(), main(), _print_comparison(), _register_table(), run(), run_auto_validate(), run_raha() (+13 more)
+### Community 112 - "ope76-wt/benchmarks/real_world_gov/run_benchmark.py"
+Cohesion: 0.07
+Nodes (13): _build_config(), _dataset_frames(), main(), _print_comparison(), _register_table(), run(), run_auto_validate(), run_raha() (+5 more)
 
 ### Community 113 - "ope83-verify/src/open_detect/algorithms/raha/labeling.py"
 Cohesion: 0.07
@@ -1829,8 +1833,8 @@ Cohesion: 0.07
 Nodes (9): _build_index(), _date_index(), _date_values(), TestCoarseSignature, TestFmdvV, TestFmdvVh, TestLargeGroups, TestMinConforming (+1 more)
 
 ### Community 115 - "ope89-wt/tests/algorithms/auto_validate/test_auto_validate_fmdv_v.py"
-Cohesion: 0.07
-Nodes (9): _build_index(), _date_index(), _date_values(), TestCoarseSignature, TestFmdvV, TestFmdvVh, TestLargeGroups, TestMinConforming (+1 more)
+Cohesion: 0.05
+Nodes (10): _build_index(), _date_index(), _date_values(), TestCoarseSignature, TestFmdvV, TestFmdvVh, TestLargeGroups, TestMinConforming (+2 more)
 
 ### Community 124 - "ope71-wt/src/open_detect/algorithms/auto_validate/detector.py"
 Cohesion: 0.08
@@ -2029,8 +2033,8 @@ Cohesion: 0.07
 Nodes (6): config(), TestCoerceNumeric, TestScoreFdPair, TestScoreSingleColumn, score(), TestStatsSchemaWithoutErrorType
 
 ### Community 173 - "ope104-wt/tests/algorithms/uni_detect/test_metrics.py"
-Cohesion: 0.08
-Nodes (8): _brute_force_mpd(), _random_words(), _single_edit(), TestDropNulls, TestDuplicateValueIndices, TestFiniteFloats, TestSpellingBlocking, TestUniquenessRatio
+Cohesion: 0.10
+Nodes (7): _brute_force_mpd(), _random_words(), _single_edit(), TestDropNulls, TestDuplicateValueIndices, TestFiniteFloats, TestSpellingBlocking
 
 ### Community 174 - "ope83-verify/src/open_detect/algorithms/raha/classifier.py"
 Cohesion: 0.08
@@ -2089,7 +2093,7 @@ Cohesion: 0.08
 Nodes (6): build_pattern_index(), clean_column(), indexable_values(), _is_null(), _iter_corpus_columns(), PatternIndex
 
 ### Community 190 - "ope138-verify/src/open_detect/algorithms/auto_validate/index.py"
-Cohesion: 0.08
+Cohesion: 0.07
 Nodes (6): build_pattern_index(), clean_column(), indexable_values(), _is_null(), _iter_corpus_columns(), PatternIndex
 
 ### Community 191 - "ope104-wt/src/open_detect/algorithms/auto_validate/index.py"
@@ -2109,12 +2113,8 @@ Cohesion: 0.12
 Nodes (6): _config(), FakeSpark, TestLegacyCorpus, TestMismatch, TestRoundTrip, TestWiring
 
 ### Community 195 - "ope76-wt/src/open_detect/algorithms/uni_detect/detectors/base.py"
-Cohesion: 0.09
-Nodes (4): BaseDetector, _hash_value(), make_evidence_json(), redact_evidence()
-
-### Community 196 - "CorpusIngestor"
-Cohesion: 0.10
-Nodes (6): CorpusIngestor, infer_column_data_type(), is_float_like(), is_integer_like(), is_mixed_alphanumeric(), tokenize()
+Cohesion: 0.16
+Nodes (3): _hash_value(), make_evidence_json(), redact_evidence()
 
 ### Community 197 - "_make_pattern"
 Cohesion: 0.09
@@ -2141,8 +2141,8 @@ Cohesion: 0.09
 Nodes (3): _make_pattern(), TestCheckDrift, TestCheckDriftVerticalCutPatterns
 
 ### Community 203 - "ope83-verify/src/open_detect/algorithms/uni_detect/detectors/base.py"
-Cohesion: 0.09
-Nodes (4): BaseDetector, _hash_value(), make_evidence_json(), redact_evidence()
+Cohesion: 0.16
+Nodes (3): _hash_value(), make_evidence_json(), redact_evidence()
 
 ### Community 204 - "ope71-wt/src/open_detect/algorithms/auto_validate/fmdv_v.py"
 Cohesion: 0.14
@@ -2257,8 +2257,8 @@ Cohesion: 0.12
 Nodes (3): TestRedactEvidence, TestUniDetectConfig, TestUnityCatalogLocation
 
 ### Community 232 - "ope85-clean/src/open_detect/algorithms/raha/labeling.py"
-Cohesion: 0.10
-Nodes (7): CallableLabeler, GroundTruthLabeler, HeuristicLabeler, Labeler, propagate_labels(), _resolve_position(), _values_equal()
+Cohesion: 0.07
+Nodes (12): CallableLabeler, GroundTruthLabeler, HeuristicLabeler, Labeler, propagate_labels(), _resolve_position(), _values_equal(), fd_violation_strategies() (+4 more)
 
 ### Community 233 - "FailureCounts"
 Cohesion: 0.10
@@ -2285,8 +2285,8 @@ Cohesion: 0.10
 Nodes (4): check_failure_threshold(), FailureCounts, FailureCountsAccumulatorParam, FailureTracker
 
 ### Community 239 - "TestGaussianOutlierStrategies"
-Cohesion: 0.07
-Nodes (4): TestFdViolationStrategies, TestGaussianOutlierStrategies, TestHistogramOutlierStrategies, TestPatternCharacterStrategies
+Cohesion: 0.10
+Nodes (3): TestFdViolationStrategies, TestHistogramOutlierStrategies, TestPatternCharacterStrategies
 
 ### Community 240 - "TestUniDetectConfig"
 Cohesion: 0.12
@@ -2460,9 +2460,9 @@ Nodes (7): _brute_force_mpd(), _random_words(), _single_edit(), TestDropNulls, T
 Cohesion: 0.10
 Nodes (7): _brute_force_mpd(), _random_words(), _single_edit(), TestDropNulls, TestDuplicateValueIndices, TestFiniteFloats, TestSpellingBlocking
 
-### Community 283 - "math"
-Cohesion: 0.09
-Nodes (11): grouped_bar_chart(), _nice_ceiling(), _rounded_top_rect(), comparison_charts(), comparison_table_markdown(), grouped_bar_chart(), _nice_ceiling(), _rounded_top_rect() (+3 more)
+### Community 283 - "ope104-wt/benchmarks/common/charts.py"
+Cohesion: 0.20
+Nodes (5): grouped_bar_chart(), _nice_ceiling(), _rounded_top_rect(), comparison_charts(), comparison_table_markdown()
 
 ### Community 284 - "ope83-verify/tests/algorithms/uni_detect/test_perturbation.py"
 Cohesion: 0.08
@@ -2500,20 +2500,16 @@ Nodes (5): TestPerturbFunctionalDependency, TestPerturbNumericNonFinite, TestPer
 Cohesion: 0.08
 Nodes (5): TestPerturbFunctionalDependency, TestPerturbNumericNonFinite, TestPerturbNumericOutlier, TestPerturbSpelling, TestPerturbUniqueness
 
-### Community 293 - "dataclasses"
-Cohesion: 0.11
-Nodes (4): ErrorDetectionAlgorithm, ErrorDetectionAlgorithm, ErrorDetectionAlgorithm, ErrorDetectionAlgorithm
-
 ### Community 294 - "UniDetect"
 Cohesion: 0.09
 Nodes (3): UniDetectAlgorithm, _require_columns(), UniDetect
 
 ### Community 296 - "UniDetect"
-Cohesion: 0.09
+Cohesion: 0.05
 Nodes (3): UniDetectAlgorithm, _require_columns(), UniDetect
 
 ### Community 297 - "SparkJobCounter"
-Cohesion: 0.16
+Cohesion: 0.15
 Nodes (9): ScopeStats, SparkJobCounter, _FakeContext, _FakeTracker, _spark(), test_counts_jobs_and_distinct_stages_per_scope(), test_disabled_counter_is_a_noop(), test_evicted_jobs_are_reported() (+1 more)
 
 ### Community 298 - "src/open_detect/algorithms/uni_detect/detectors/spelling.py"
@@ -2664,7 +2660,7 @@ Nodes (19): build_corpus(), build_eval_targets(), build_fd_targets(), build_outl
 Cohesion: 0.11
 Nodes (9): _alternatives(), any_pattern(), _best_first_patterns(), common_patterns(), iter_patterns(), matching_pattern(), _ordered_alternatives(), patterns_of() (+1 more)
 
-### Community 338 - "ope110-v2/src/open_detect/algorithms/auto_validate/patterns.py"
+### Community 338 - "ope76-wt/src/open_detect/algorithms/auto_validate/patterns.py"
 Cohesion: 0.11
 Nodes (9): _alternatives(), any_pattern(), _best_first_patterns(), common_patterns(), iter_patterns(), matching_pattern(), _ordered_alternatives(), patterns_of() (+1 more)
 
@@ -2684,13 +2680,13 @@ Nodes (9): _alternatives(), any_pattern(), _best_first_patterns(), common_patter
 Cohesion: 0.09
 Nodes (4): TestCallableLabeler, TestGroundTruthLabeler, TestHeuristicLabeler, TestPropagateLabels
 
-### Community 343 - "_build_index"
-Cohesion: 0.12
-Nodes (5): _build_index(), _date_index(), TestFmdvV, TestFmdvVh, _time_corpus()
+### Community 343 - "ope76-wt/tests/algorithms/auto_validate/test_auto_validate_fmdv_v.py"
+Cohesion: 0.05
+Nodes (10): _build_index(), _date_index(), _date_values(), TestCoarseSignature, TestFmdvV, TestFmdvVh, TestLargeGroups, TestMinConforming (+2 more)
 
 ### Community 344 - "ope110-v2/tests/algorithms/uni_detect/detectors/test_spelling_detector.py"
-Cohesion: 0.13
-Nodes (9): _positions_of(), _row(), _score(), test_build_row_maps_row_ids_via_original_positions(), test_candidate_id_suffix_uses_first_mapped_row_id(), test_duplicates_map_every_occurrence_in_ascending_order(), test_evidence_honors_redact_mode(), test_leading_nulls_map_to_original_positions() (+1 more)
+Cohesion: 0.07
+Nodes (12): _positions_of(), _row(), _score(), test_build_row_maps_row_ids_via_original_positions(), test_candidate_id_suffix_uses_first_mapped_row_id(), test_duplicates_map_every_occurrence_in_ascending_order(), test_evidence_honors_redact_mode(), test_leading_nulls_map_to_original_positions() (+4 more)
 
 ### Community 346 - "ope104-wt/src/open_detect/algorithms/uni_detect/corpus/builder.py"
 Cohesion: 0.11
@@ -2756,7 +2752,7 @@ Nodes (9): _constant_factory(), get_algorithm(), get_algorithm_class(), list_alg
 Cohesion: 0.10
 Nodes (5): TestCandidate, TestCorpusRecords, TestDetection, TestFeatureBucket, TestMetricObservation
 
-### Community 363 - "ope76-wt/tests/algorithms/auto_validate/test_auto_validate_fmdv_v.py"
+### Community 363 - "ope138-verify/tests/algorithms/auto_validate/test_auto_validate_fmdv_v.py"
 Cohesion: 0.10
 Nodes (4): _date_values(), TestCoarseSignature, TestLargeGroups, TestMinConforming
 
@@ -2860,10 +2856,6 @@ Nodes (5): diff_fingerprints(), property_key(), read_build_config(), verify_buil
 Cohesion: 0.16
 Nodes (5): diff_fingerprints(), property_key(), read_build_config(), verify_build_config(), write_build_config()
 
-### Community 390 - "src/open_detect/algorithms/uni_detect/detectors/numeric_outlier.py"
-Cohesion: 0.11
-Nodes (3): NumericOutlierDetector, compute(), _score_column()
-
 ### Community 391 - "ope110-v2/tests/test_text_utils.py"
 Cohesion: 0.10
 Nodes (4): TestFloatLike, TestIntegerLike, TestMixedAlphanumeric, TestTokenize
@@ -2894,7 +2886,7 @@ Nodes (3): NumericOutlierDetector, compute(), _score_column()
 
 ### Community 400 - "ope104-wt/tests/algorithms/uni_detect/detectors/test_spelling_detector.py"
 Cohesion: 0.13
-Nodes (8): _positions_of(), _row(), _score(), test_build_row_maps_row_ids_via_original_positions(), test_candidate_id_suffix_uses_first_mapped_row_id(), test_duplicates_map_every_occurrence_in_ascending_order(), test_leading_nulls_map_to_original_positions(), test_no_nulls_is_identity_mapping()
+Nodes (9): _positions_of(), _row(), _score(), test_build_row_maps_row_ids_via_original_positions(), test_candidate_id_suffix_uses_first_mapped_row_id(), test_duplicates_map_every_occurrence_in_ascending_order(), test_evidence_honors_redact_mode(), test_leading_nulls_map_to_original_positions() (+1 more)
 
 ### Community 401 - "ope71-wt/tests/test_text_utils.py"
 Cohesion: 0.10
@@ -3017,8 +3009,8 @@ Cohesion: 0.12
 Nodes (4): TestEpsilonAndMismatchFlags, TestMain, TestMainConfiguresLogging, TestParseArgs
 
 ### Community 433 - "ope76-wt/tests/algorithms/uni_detect/test_sql_quoting.py"
-Cohesion: 0.13
-Nodes (4): TestConfigValidation, TestQuoteColumn, TestQuoteIdent, TestQuoteQualified
+Cohesion: 0.15
+Nodes (3): TestQuoteColumn, TestQuoteIdent, TestQuoteQualified
 
 ### Community 434 - "ope83-verify/src/open_detect/algorithms/registry.py"
 Cohesion: 0.16
@@ -3176,13 +3168,29 @@ Nodes (4): TestEpsilonAndMismatchFlags, TestMain, TestMainConfiguresLogging, Tes
 Cohesion: 0.11
 Nodes (4): TestFdViolationStrategies, TestGaussianOutlierStrategies, TestHistogramOutlierStrategies, TestPatternCharacterStrategies
 
-### Community 474 - "ope74-wt/src/open_detect/algorithms/raha/strategies.py"
-Cohesion: 0.18
-Nodes (7): _factorize_column(), fd_violation_strategies(), gaussian_outlier_strategies(), histogram_outlier_strategies(), _is_float_like(), normalize_to_str(), pattern_character_strategies()
+### Community 473 - "AlgorithmResult"
+Cohesion: 0.10
+Nodes (3): AlgorithmResult, CellResult, ErrorDetectionAlgorithm
+
+### Community 474 - "ope138-verify/src/open_detect/algorithms/raha/strategies.py"
+Cohesion: 0.19
+Nodes (6): _factorize_column(), fd_violation_strategies(), gaussian_outlier_strategies(), histogram_outlier_strategies(), normalize_to_str(), pattern_character_strategies()
 
 ### Community 475 - "CHANGELOG"
 Cohesion: 0.11
 Nodes (18): Bug Fixes, Bug Fixes, Bug Fixes, Bug Fixes, Bug Fixes, Bug Fixes, Bug Fixes, CHANGELOG (+10 more)
+
+### Community 476 - "AlgorithmResult"
+Cohesion: 0.10
+Nodes (3): AlgorithmResult, CellResult, ErrorDetectionAlgorithm
+
+### Community 477 - "AlgorithmResult"
+Cohesion: 0.11
+Nodes (3): AlgorithmResult, CellResult, ErrorDetectionAlgorithm
+
+### Community 478 - "AlgorithmResult"
+Cohesion: 0.10
+Nodes (3): AlgorithmResult, CellResult, ErrorDetectionAlgorithm
 
 ### Community 479 - "ope104-wt/src/open_detect/algorithms/uni_detect/detectors/functional_dependency.py"
 Cohesion: 0.12
@@ -3456,13 +3464,13 @@ Nodes (10): _append_literal(), _char_class(), _class_of_token(), _is_numeric(), 
 Cohesion: 0.11
 Nodes (17): Blocking Issues (Resolved vs Remaining):, CI Workflow (`.github/workflows/ci.yml`):, Completed Tasks:, Current Status: BLOCKED, CURRENTLY BLOCKING ISSUES:, Dependencies:, Next Steps:, Project Structure: (+9 more)
 
-### Community 547 - "TestFunctionalDependency"
-Cohesion: 0.11
-Nodes (10): 0. The multi-algorithm framework, 1. The core statistical idea (paper Section 2.2), 2. Code map, 3. Generalizing Equation (12): `ComparisonDirection`, 4. Why the corpus statistics table is the whole "model", 5. Featurization as Unity-Catalog-scale corpus subsetting, 6. Deviations from a literal reading of the paper, and why, 7. Explainability (+2 more)
+### Community 547 - "Architecture"
+Cohesion: 0.22
+Nodes (9): 0. The multi-algorithm framework, 1. The core statistical idea (paper Section 2.2), 2. Code map, 3. Generalizing Equation (12): `ComparisonDirection`, 4. Why the corpus statistics table is the whole "model", 5. Featurization as Unity-Catalog-scale corpus subsetting, 6. Deviations from a literal reading of the paper, and why, 7. Explainability (+1 more)
 
 ### Community 548 - "`auto_validate`"
-Cohesion: 0.11
-Nodes (17): Algorithm comparison, `auto_validate`, By corruption severity, By corruption severity, By corruption severity (target-level), By error type, By error type (cell-level), By error type (cell-level) (+9 more)
+Cohesion: 0.15
+Nodes (12): Algorithm comparison, `auto_validate`, By corruption severity, By corruption severity (target-level), By error type (cell-level), By error type (cell-level), By error type (target-level), By error type (target-level) (+4 more)
 
 ### Community 549 - "ope138-verify/docs/algorithms/index.md"
 Cohesion: 0.14
@@ -3524,13 +3532,13 @@ Nodes (7): Algorithms, Fidelity to the papers, Getting started, At a glance, Cho
 Cohesion: 0.18
 Nodes (10): _append_literal(), _char_class(), _class_of_token(), _is_numeric(), _iter_runs(), matches(), _parse(), _part_matches() (+2 more)
 
-### Community 564 - "TestFunctionalDependency"
-Cohesion: 0.11
-Nodes (10): 0. The multi-algorithm framework, 1. The core statistical idea (paper Section 2.2), 2. Code map, 3. Generalizing Equation (12): `ComparisonDirection`, 4. Why the corpus statistics table is the whole "model", 5. Featurization as Unity-Catalog-scale corpus subsetting, 6. Deviations from a literal reading of the paper, and why, 7. Explainability (+2 more)
+### Community 564 - "Architecture"
+Cohesion: 0.22
+Nodes (9): 0. The multi-algorithm framework, 1. The core statistical idea (paper Section 2.2), 2. Code map, 3. Generalizing Equation (12): `ComparisonDirection`, 4. Why the corpus statistics table is the whole "model", 5. Featurization as Unity-Catalog-scale corpus subsetting, 6. Deviations from a literal reading of the paper, and why, 7. Explainability (+1 more)
 
 ### Community 565 - "`auto_validate`"
-Cohesion: 0.11
-Nodes (17): Algorithm comparison, `auto_validate`, By corruption severity, By corruption severity, By corruption severity (target-level), By error type, By error type (cell-level), By error type (cell-level) (+9 more)
+Cohesion: 0.15
+Nodes (12): Algorithm comparison, `auto_validate`, By corruption severity, By corruption severity (target-level), By error type (cell-level), By error type (cell-level), By error type (target-level), By error type (target-level) (+4 more)
 
 ### Community 566 - "ope83-verify/docs/algorithms/index.md"
 Cohesion: 0.14
@@ -3622,7 +3630,7 @@ Nodes (4): config(), corpus_tables_by_category(), TestCorpusBuilderAndDetectors,
 
 ### Community 588 - "ope76-wt/src/open_detect/validation.py"
 Cohesion: 0.15
-Nodes (6): _check_columns_unique(), _check_dataframe_is_spark(), _check_expected_type(), _check_unknown_kwargs(), _ensure_dataframe_is_spark(), _reject_unknown_kwargs()
+Nodes (6): _check_columns_unique(), _check_dataframe_is_spark(), _check_expected_type(), _check_unknown_kwargs(), _reject_unknown_kwargs(), _validate_literal_value()
 
 ### Community 589 - "ope-73/tests/algorithms/uni_detect/test_corpus_and_detectors.py"
 Cohesion: 0.18
@@ -3752,29 +3760,29 @@ Nodes (3): _hash_value(), make_evidence_json(), redact_evidence()
 Cohesion: 0.17
 Nodes (6): _max_drop(), perturb_functional_dependency(), perturb_numeric_outlier(), perturb_spelling(), perturb_uniqueness(), PerturbationOutcome
 
-### Community 622 - "ope89-wt/src/open_detect/algorithms/uni_detect/detectors/base.py"
-Cohesion: 0.16
-Nodes (3): _hash_value(), make_evidence_json(), redact_evidence()
+### Community 622 - "ope110-v2/src/open_detect/algorithms/raha/strategies.py"
+Cohesion: 0.19
+Nodes (6): _factorize_column(), fd_violation_strategies(), gaussian_outlier_strategies(), histogram_outlier_strategies(), normalize_to_str(), pattern_character_strategies()
 
 ### Community 623 - "ope110-v2/src/open_detect/algorithms/uni_detect/detectors/base.py"
-Cohesion: 0.16
-Nodes (3): _hash_value(), make_evidence_json(), redact_evidence()
+Cohesion: 0.09
+Nodes (4): BaseDetector, _hash_value(), make_evidence_json(), redact_evidence()
 
 ### Community 624 - "ope83-verify/src/open_detect/algorithms/uni_detect/perturbation.py"
 Cohesion: 0.17
 Nodes (6): _max_drop(), perturb_functional_dependency(), perturb_numeric_outlier(), perturb_spelling(), perturb_uniqueness(), PerturbationOutcome
 
-### Community 626 - "ope71-wt/src/open_detect/algorithms/uni_detect/metrics/outliers.py"
-Cohesion: 0.17
-Nodes (7): finite_floats(), mad_scores(), MADResult, max_mad(), MaxMADResult, median_absolute_deviation(), sd_scores()
+### Community 626 - "ope104-wt/benchmarks/wiki_subset/generate_report.py"
+Cohesion: 0.23
+Nodes (11): _algorithm_section(), _by_error_type_section(), _f1_by_error_type_chart(), _fmt_pct(), main(), _metrics_table_row(), _ranking_chart(), render_markdown() (+3 more)
 
 ### Community 627 - "ope71-wt/src/open_detect/algorithms/uni_detect/perturbation.py"
 Cohesion: 0.17
 Nodes (6): _max_drop(), perturb_functional_dependency(), perturb_numeric_outlier(), perturb_spelling(), perturb_uniqueness(), PerturbationOutcome
 
 ### Community 628 - "ope104-wt/src/open_detect/algorithms/uni_detect/detectors/base.py"
-Cohesion: 0.16
-Nodes (3): _hash_value(), make_evidence_json(), redact_evidence()
+Cohesion: 0.09
+Nodes (4): BaseDetector, _hash_value(), make_evidence_json(), redact_evidence()
 
 ### Community 629 - "ope71-wt/src/open_detect/algorithms/auto_validate/drift.py"
 Cohesion: 0.18
@@ -3804,9 +3812,9 @@ Nodes (7): finite_floats(), mad_scores(), MADResult, max_mad(), MaxMADResult, me
 Cohesion: 0.23
 Nodes (11): _algorithm_section(), _by_error_type_section(), _f1_by_error_type_chart(), _fmt_pct(), main(), _metrics_table_row(), _ranking_chart(), render_markdown() (+3 more)
 
-### Community 638 - "ope138-verify/benchmarks/wiki_subset/generate_report.py"
-Cohesion: 0.23
-Nodes (11): _algorithm_section(), _by_error_type_section(), _f1_by_error_type_chart(), _fmt_pct(), main(), _metrics_table_row(), _ranking_chart(), render_markdown() (+3 more)
+### Community 638 - "re"
+Cohesion: 0.06
+Nodes (38): _algorithm_section(), _by_dataset_chart(), _fmt_pct(), main(), _metrics_table_row(), render_markdown(), _short_name(), _slug() (+30 more)
 
 ### Community 639 - "src/open_detect/algorithms/uni_detect/perturbation.py"
 Cohesion: 0.17
@@ -3865,8 +3873,8 @@ Cohesion: 0.21
 Nodes (5): fd_violation_strategies(), gaussian_outlier_strategies(), histogram_outlier_strategies(), normalize_to_str(), pattern_character_strategies()
 
 ### Community 660 - "ope74-wt/src/open_detect/algorithms/uni_detect/metrics/outliers.py"
-Cohesion: 0.17
-Nodes (7): finite_floats(), mad_scores(), MADResult, max_mad(), MaxMADResult, median_absolute_deviation(), sd_scores()
+Cohesion: 0.20
+Nodes (6): mad_scores(), MADResult, max_mad(), MaxMADResult, median_absolute_deviation(), sd_scores()
 
 ### Community 661 - "ope104-wt/src/open_detect/algorithms/uni_detect/perturbation.py"
 Cohesion: 0.17
@@ -3888,9 +3896,9 @@ Nodes (7): finite_floats(), mad_scores(), MADResult, max_mad(), MaxMADResult, me
 Cohesion: 0.17
 Nodes (7): finite_floats(), mad_scores(), MADResult, max_mad(), MaxMADResult, median_absolute_deviation(), sd_scores()
 
-### Community 666 - "ope85-clean/src/open_detect/algorithms/raha/strategies.py"
-Cohesion: 0.21
-Nodes (5): fd_violation_strategies(), gaussian_outlier_strategies(), histogram_outlier_strategies(), normalize_to_str(), pattern_character_strategies()
+### Community 666 - "ope138-verify/src/open_detect/algorithms/uni_detect/metrics/outliers.py"
+Cohesion: 0.17
+Nodes (7): finite_floats(), mad_scores(), MADResult, max_mad(), MaxMADResult, median_absolute_deviation(), sd_scores()
 
 ### Community 667 - "snapshot.py"
 Cohesion: 0.23
@@ -3987,6 +3995,10 @@ Nodes (3): CorpusStatsBuilder, compute(), _stats_schema_without_error_type()
 ### Community 700 - "ope71-wt/src/open_detect/algorithms/auto_validate/patterns.py"
 Cohesion: 0.18
 Nodes (6): _alternatives(), _best_first_patterns(), common_patterns(), iter_patterns(), _ordered_alternatives(), patterns_of()
+
+### Community 701 - "ope76-wt/src/open_detect/algorithms/uni_detect/config.py"
+Cohesion: 0.10
+Nodes (4): UniDetectConfig, UnityCatalogLocation, _validate_edges(), TestConfigValidation
 
 ### Community 704 - "ope74-wt/src/open_detect/algorithms/uni_detect/jobs/build_corpus_statistics.py"
 Cohesion: 0.15
@@ -4128,11 +4140,7 @@ Nodes (9): _algorithm_section(), _by_dataset_chart(), _fmt_pct(), main(), _metri
 Cohesion: 0.14
 Nodes (3): pair_table(), TestIngestColumnPairsNullAlignment, TestSelectFdColumnPairs
 
-### Community 768 - "ope71-wt/benchmarks/real_world_gov/generate_report.py"
-Cohesion: 0.25
-Nodes (9): _algorithm_section(), _by_dataset_chart(), _fmt_pct(), main(), _metrics_table_row(), render_markdown(), _short_name(), _slug() (+1 more)
-
-### Community 770 - "ope110-v2/benchmarks/real_world_gov/generate_report.py"
+### Community 770 - "ope-73/benchmarks/real_world_gov/generate_report.py"
 Cohesion: 0.25
 Nodes (9): _algorithm_section(), _by_dataset_chart(), _fmt_pct(), main(), _metrics_table_row(), render_markdown(), _short_name(), _slug() (+1 more)
 
@@ -4184,9 +4192,9 @@ Nodes (3): pair_table(), TestIngestColumnPairsNullAlignment, TestSelectFdColumnP
 Cohesion: 0.14
 Nodes (3): TestConfigureLogging, TestGetLogger, TestLogDuration
 
-### Community 790 - "ope138-verify/src/open_detect/algorithms/uni_detect/strategies.py"
-Cohesion: 0.18
-Nodes (6): all_specs(), ErrorTypeSpec, get_spec(), all_specs(), ErrorTypeSpec, get_spec()
+### Community 790 - "ope71-wt/src/open_detect/algorithms/uni_detect/strategies.py"
+Cohesion: 0.38
+Nodes (3): all_specs(), ErrorTypeSpec, get_spec()
 
 ### Community 793 - "ope76-wt/tests/algorithms/uni_detect/test_corpus_ingestion.py"
 Cohesion: 0.14
@@ -4196,7 +4204,7 @@ Nodes (3): pair_table(), TestIngestColumnPairsNullAlignment, TestSelectFdColumnP
 Cohesion: 0.19
 Nodes (3): _features(), TestClassifierTrainingPath, TestDegenerateCases
 
-### Community 797 - "ope104-wt/benchmarks/real_world_gov/generate_report.py"
+### Community 797 - "ope85-clean/benchmarks/real_world_gov/generate_report.py"
 Cohesion: 0.25
 Nodes (9): _algorithm_section(), _by_dataset_chart(), _fmt_pct(), main(), _metrics_table_row(), render_markdown(), _short_name(), _slug() (+1 more)
 
@@ -4217,8 +4225,8 @@ Cohesion: 0.14
 Nodes (3): pair_table(), TestIngestColumnPairsNullAlignment, TestSelectFdColumnPairs
 
 ### Community 805 - "ope89-wt/src/open_detect/algorithms/raha/strategies.py"
-Cohesion: 0.20
-Nodes (4): fd_violation_strategies(), gaussian_outlier_strategies(), histogram_outlier_strategies(), pattern_character_strategies()
+Cohesion: 0.21
+Nodes (5): fd_violation_strategies(), gaussian_outlier_strategies(), histogram_outlier_strategies(), normalize_to_str(), pattern_character_strategies()
 
 ### Community 806 - "ope89-wt/tests/algorithms/uni_detect/test_corpus_ingestion.py"
 Cohesion: 0.14
@@ -4276,6 +4284,10 @@ Nodes (14): A note on methodology (read this before trusting the numbers), Bench
 Cohesion: 0.14
 Nodes (12): Configuration, How it works, Install, Raha, Reading the output, Scope, Usage, Who answers the labeling questions? (+4 more)
 
+### Community 823 - "ope74-wt/benchmarks/real_world_gov/generate_report.py"
+Cohesion: 0.25
+Nodes (9): _algorithm_section(), _by_dataset_chart(), _fmt_pct(), main(), _metrics_table_row(), render_markdown(), _short_name(), _slug() (+1 more)
+
 ### Community 824 - "real_world_gov benchmark results"
 Cohesion: 0.14
 Nodes (13): Algorithm comparison, `auto_validate`, By dataset (cell-level), By dataset (cell-level), By dataset (column-level), By dataset (column-level), By dataset (column-level), Evaluated columns (column-level) (+5 more)
@@ -4287,6 +4299,10 @@ Nodes (14): A note on methodology (read this before trusting the numbers), Bench
 ### Community 826 - "Raha"
 Cohesion: 0.14
 Nodes (12): Configuration, How it works, Install, Raha, Reading the output, Scope, Usage, Who answers the labeling questions? (+4 more)
+
+### Community 828 - "ope-73/src/open_detect/algorithms/uni_detect/metrics/outliers.py"
+Cohesion: 0.20
+Nodes (6): mad_scores(), MADResult, max_mad(), MaxMADResult, median_absolute_deviation(), sd_scores()
 
 ### Community 829 - "real_world_gov benchmark results"
 Cohesion: 0.14
@@ -4412,10 +4428,6 @@ Nodes (11): Auto-Validate: learn patterns from clean columns, Quickstart, Raha: 
 Cohesion: 0.31
 Nodes (5): _fmdv_h_single(), _fmdv_single_segment(), _segment_dp(), _segment_fmdv_v(), _segment_fmdv_vh()
 
-### Community 908 - "ope138-verify/ARCHITECTURE.md"
-Cohesion: 0.22
-Nodes (8): 10. Clustering, sampling, and labeling, 11. Classification and cell-level output, 12. Deviations from a literal reading of the paper, and why, 8. Code map, 9. Strategy families and what each feature means, Raha (Mahdavi et al., SIGMOD 2019), Benchmarks, The three algorithms, and what they each bring
-
 ### Community 909 - "Benchmark: real_world_gov"
 Cohesion: 0.15
 Nodes (13): Benchmark: real_world_gov, Comparing across versions, Duration methodology, Expected weakness: read Auto-Validate's numbers honestly, Layout, Methodology: auto_validate, Methodology: raha, Methodology: uni_detect -- mapping real dirty data onto its four error types (+5 more)
@@ -4459,10 +4471,6 @@ Nodes (13): Benchmark: real_world_gov, Comparing across versions, Duration metho
 ### Community 922 - "ope76-wt/docs/getting-started/quickstart.md"
 Cohesion: 0.15
 Nodes (11): Auto-Validate: learn patterns from clean columns, Quickstart, Raha: find errors with a few labels, Reading results, Uni-Detect: score tables in Unity Catalog, Choosing a budget, Custom labelers (Raha), Labeling with rules you already trust (+3 more)
-
-### Community 924 - "ope83-verify/ARCHITECTURE.md"
-Cohesion: 0.22
-Nodes (8): 10. Clustering, sampling, and labeling, 11. Classification and cell-level output, 12. Deviations from a literal reading of the paper, and why, 8. Code map, 9. Strategy families and what each feature means, Raha (Mahdavi et al., SIGMOD 2019), Benchmarks, The three algorithms, and what they each bring
 
 ### Community 925 - "Benchmark: real_world_gov"
 Cohesion: 0.15
@@ -4511,6 +4519,14 @@ Nodes (5): _fmdv_h_single(), _fmdv_single_segment(), _segment_dp(), _segment_fmd
 ### Community 941 - "ope110-v2/tests/algorithms/uni_detect/test_uni_detect_algorithm.py"
 Cohesion: 0.24
 Nodes (3): _config(), _row(), TestUniDetectAlgorithm
+
+### Community 943 - "ope104-wt/src/open_detect/algorithms/uni_detect/detectors/numeric_outlier.py"
+Cohesion: 0.11
+Nodes (3): NumericOutlierDetector, compute(), _score_column()
+
+### Community 944 - "ope110-v2/src/open_detect/algorithms/uni_detect/detectors/numeric_outlier.py"
+Cohesion: 0.11
+Nodes (3): NumericOutlierDetector, compute(), _score_column()
 
 ### Community 945 - "ope85-clean/tests/algorithms/uni_detect/test_uni_detect_algorithm.py"
 Cohesion: 0.24
@@ -4640,9 +4656,9 @@ Nodes (11): Current Blockers:, Current Status: BLOCKED, Dependencies:, Emergency
 Cohesion: 0.15
 Nodes (12): Concepts, Configuration objects, Errors, One contract: `detect()`, The registry, The shared result schema, Combine, Comparing algorithms (+4 more)
 
-### Community 998 - "ope71-wt/benchmarks/common/charts.py"
-Cohesion: 0.20
-Nodes (5): grouped_bar_chart(), _nice_ceiling(), _rounded_top_rect(), comparison_charts(), comparison_table_markdown()
+### Community 998 - "math"
+Cohesion: 0.09
+Nodes (11): grouped_bar_chart(), _nice_ceiling(), _rounded_top_rect(), comparison_charts(), comparison_table_markdown(), finite_floats(), grouped_bar_chart(), _nice_ceiling() (+3 more)
 
 ### Community 999 - "Concepts"
 Cohesion: 0.15
@@ -4688,10 +4704,6 @@ Nodes (12): Concepts, Configuration objects, Errors, One contract: `detect()`, T
 Cohesion: 0.18
 Nodes (3): RahaConfig, TestUint8BoolFeatureMatrices, test_get_algorithm_constructs_with_args()
 
-### Community 1011 - "ope89-wt/benchmarks/common/charts.py"
-Cohesion: 0.20
-Nodes (5): grouped_bar_chart(), _nice_ceiling(), _rounded_top_rect(), comparison_charts(), comparison_table_markdown()
-
 ### Community 1012 - "Concepts"
 Cohesion: 0.15
 Nodes (12): Concepts, Configuration objects, Errors, One contract: `detect()`, The registry, The shared result schema, Combine, Comparing algorithms (+4 more)
@@ -4707,10 +4719,6 @@ Nodes (12): Concepts, Configuration objects, Errors, One contract: `detect()`, T
 ### Community 1022 - "rapidfuzz_distance"
 Cohesion: 0.24
 Nodes (5): _blocking_key(), differing_token_lengths(), _length_bucket(), min_pairwise_edit_distance(), MPDResult
-
-### Community 1025 - "ope74-wt/tests/test_exceptions.py"
-Cohesion: 0.18
-Nodes (3): test_all_errors_derive_from_open_detect_error(), test_open_detect_error_is_catchable_broadly(), test_validation_error_is_also_a_value_error()
 
 ### Community 1026 - "ope85-clean/src/open_detect/_sql.py"
 Cohesion: 0.22
@@ -4800,6 +4808,22 @@ Nodes (8): Benchmarks, How to read them, Latest results, Running them, Check it 
 Cohesion: 0.18
 Nodes (11): Adding an algorithm, Commit conventions and releases, Contributing, Everyday commands, First release bootstrap, How a release happens, Knowledge graph automation, Publishing to PyPI (optional, off by default) (+3 more)
 
+### Community 1082 - "ope74-wt/src/open_detect/algorithms/uni_detect/text_utils.py"
+Cohesion: 0.21
+Nodes (5): infer_column_data_type(), is_float_like(), is_integer_like(), is_mixed_alphanumeric(), tokenize()
+
+### Community 1084 - "ope138-verify/benchmarks/common/charts.py"
+Cohesion: 0.20
+Nodes (5): grouped_bar_chart(), _nice_ceiling(), _rounded_top_rect(), comparison_charts(), comparison_table_markdown()
+
+### Community 1093 - "TestHistogramOutlierStrategies"
+Cohesion: 0.15
+Nodes (3): TestHistogramOutlierStrategies, TestNullSentinel, TestPatternCharacterStrategies
+
+### Community 1096 - "ope104-wt/src/open_detect/core/enums.py"
+Cohesion: 0.31
+Nodes (3): ColumnDataType, ComparisonDirection, ErrorType
+
 ### Community 1101 - "ope138-verify/tests/test_exceptions.py"
 Cohesion: 0.20
 Nodes (3): test_all_errors_derive_from_open_detect_error(), test_open_detect_error_is_catchable_broadly(), test_validation_error_is_also_a_value_error()
@@ -4808,19 +4832,11 @@ Nodes (3): test_all_errors_derive_from_open_detect_error(), test_open_detect_err
 Cohesion: 0.20
 Nodes (3): test_all_errors_derive_from_open_detect_error(), test_open_detect_error_is_catchable_broadly(), test_validation_error_is_also_a_value_error()
 
-### Community 1103 - "ope76-wt/tests/test_exceptions.py"
-Cohesion: 0.20
-Nodes (3): test_all_errors_derive_from_open_detect_error(), test_open_detect_error_is_catchable_broadly(), test_validation_error_is_also_a_value_error()
-
 ### Community 1111 - "ope104-wt/tests/test_exceptions.py"
 Cohesion: 0.20
 Nodes (3): test_all_errors_derive_from_open_detect_error(), test_open_detect_error_is_catchable_broadly(), test_validation_error_is_also_a_value_error()
 
 ### Community 1115 - "ope110-v2/tests/test_exceptions.py"
-Cohesion: 0.20
-Nodes (3): test_all_errors_derive_from_open_detect_error(), test_open_detect_error_is_catchable_broadly(), test_validation_error_is_also_a_value_error()
-
-### Community 1116 - "ope89-wt/tests/test_exceptions.py"
 Cohesion: 0.20
 Nodes (3): test_all_errors_derive_from_open_detect_error(), test_open_detect_error_is_catchable_broadly(), test_validation_error_is_also_a_value_error()
 
@@ -4916,13 +4932,25 @@ Nodes (3): ColumnDataType, ComparisonDirection, ErrorType
 Cohesion: 0.31
 Nodes (3): ColumnDataType, ComparisonDirection, ErrorType
 
+### Community 1146 - "_score_column"
+Cohesion: 0.25
+Nodes (3): NumericOutlierDetector, compute(), _score_column()
+
 ### Community 1148 - "src/open_detect/algorithms/uni_detect/metrics/functional_dependency.py"
 Cohesion: 0.25
+Nodes (3): fd_compliance_ratio(), FDResult, minority_violation_rows()
+
+### Community 1152 - "ope-73/src/open_detect/algorithms/uni_detect/metrics/functional_dependency.py"
+Cohesion: 0.33
 Nodes (3): fd_compliance_ratio(), FDResult, minority_violation_rows()
 
 ### Community 1153 - "ope74-wt/src/open_detect/algorithms/uni_detect/metrics/functional_dependency.py"
 Cohesion: 0.25
 Nodes (3): fd_compliance_ratio(), FDResult, minority_violation_rows()
+
+### Community 1155 - "ope138-verify/src/open_detect/algorithms/uni_detect/strategies.py"
+Cohesion: 0.38
+Nodes (3): all_specs(), ErrorTypeSpec, get_spec()
 
 ### Community 1157 - "ope76-wt/src/open_detect/_sql.py"
 Cohesion: 0.25
@@ -5064,17 +5092,13 @@ Nodes (3): _load_auto_validate(), _load_raha(), _load_uni_detect()
 Cohesion: 0.25
 Nodes (6): open-detect, What is in the box, Why a common interface, Registry, Registry and results, Result types
 
-### Community 1197 - "_score_column"
-Cohesion: 0.25
-Nodes (3): NumericOutlierDetector, compute(), _score_column()
-
 ### Community 1198 - "ope110-v2/docs/index.md"
 Cohesion: 0.25
 Nodes (6): open-detect, What is in the box, Why a common interface, Registry, Registry and results, Result types
 
-### Community 1199 - "_score_column"
-Cohesion: 0.25
-Nodes (3): NumericOutlierDetector, compute(), _score_column()
+### Community 1199 - "Raha (Mahdavi et al., SIGMOD 2019)"
+Cohesion: 0.33
+Nodes (6): 10. Clustering, sampling, and labeling, 11. Classification and cell-level output, 12. Deviations from a literal reading of the paper, and why, 8. Code map, 9. Strategy families and what each feature means, Raha (Mahdavi et al., SIGMOD 2019)
 
 ### Community 1200 - "ope138-verify/docs/index.md"
 Cohesion: 0.25
@@ -5100,9 +5124,9 @@ Nodes (3): any_pattern(), matching_pattern(), sorted_patterns()
 Cohesion: 0.25
 Nodes (6): open-detect, What is in the box, Why a common interface, Registry, Registry and results, Result types
 
-### Community 1206 - "ope74-wt/tests/test_console_scripts.py"
-Cohesion: 0.36
-Nodes (4): _console_scripts(), test_all_four_console_scripts_are_declared(), test_console_script_targets_match_pyproject(), test_primary_and_alias_resolve_to_identical_callables()
+### Community 1206 - "Raha (Mahdavi et al., SIGMOD 2019)"
+Cohesion: 0.33
+Nodes (6): 10. Clustering, sampling, and labeling, 11. Classification and cell-level output, 12. Deviations from a literal reading of the paper, and why, 8. Code map, 9. Strategy families and what each feature means, Raha (Mahdavi et al., SIGMOD 2019)
 
 ### Community 1207 - "ope76-wt/docs/index.md"
 Cohesion: 0.25
@@ -5128,9 +5152,9 @@ Nodes (6): open-detect, What is in the box, Why a common interface, Registry, Re
 Cohesion: 0.25
 Nodes (3): any_pattern(), matching_pattern(), sorted_patterns()
 
-### Community 1219 - "ope74-wt/src/open_detect/algorithms/uni_detect/strategies.py"
-Cohesion: 0.38
-Nodes (3): all_specs(), ErrorTypeSpec, get_spec()
+### Community 1219 - "dataclasses"
+Cohesion: 0.10
+Nodes (6): all_specs(), ErrorTypeSpec, get_spec(), all_specs(), ErrorTypeSpec, get_spec()
 
 ### Community 1223 - "ope104-wt/src/open_detect/algorithms/uni_detect/strategies.py"
 Cohesion: 0.38
@@ -5141,10 +5165,6 @@ Cohesion: 0.38
 Nodes (3): all_specs(), ErrorTypeSpec, get_spec()
 
 ### Community 1227 - "ope83-verify/src/open_detect/algorithms/uni_detect/strategies.py"
-Cohesion: 0.38
-Nodes (3): all_specs(), ErrorTypeSpec, get_spec()
-
-### Community 1231 - "ope85-clean/src/open_detect/algorithms/uni_detect/strategies.py"
 Cohesion: 0.38
 Nodes (3): all_specs(), ErrorTypeSpec, get_spec()
 
@@ -5167,6 +5187,10 @@ Nodes (3): all_specs(), ErrorTypeSpec, get_spec()
 ### Community 1244 - "ope76-wt/src/open_detect/algorithms/uni_detect/strategies.py"
 Cohesion: 0.38
 Nodes (3): all_specs(), ErrorTypeSpec, get_spec()
+
+### Community 1248 - "`uni_detect`"
+Cohesion: 0.40
+Nodes (5): By corruption severity, By error type, Evaluation targets, Ranking correctness, `uni_detect`
 
 ### Community 1252 - "Performance Baseline — OPE-87"
 Cohesion: 0.29
@@ -5207,6 +5231,10 @@ Nodes (7): Auto-Validate (Song & He, SIGMOD 2021), Code map, Config, Detector AP
 ### Community 1287 - "Auto-Validate (Song & He, SIGMOD 2021)"
 Cohesion: 0.29
 Nodes (7): Auto-Validate (Song & He, SIGMOD 2021), Code map, Config, Detector API, Fidelity notes, Public API, Scope exclusions
+
+### Community 1289 - "`uni_detect`"
+Cohesion: 0.40
+Nodes (5): By corruption severity, By error type, Evaluation targets, Ranking correctness, `uni_detect`
 
 ### Community 1293 - "Auto-Validate (Song & He, SIGMOD 2021)"
 Cohesion: 0.29
@@ -5302,19 +5330,19 @@ Nodes (6): 1. Implement `ErrorDetectionAlgorithm`, 2. Register it, 3. Test it, A
 
 ## Knowledge Gaps
 - **19 isolated node(s):** `open-detect`, `open-detect`, `open-detect`, `open-detect`, `open-detect` (+14 more)
-  These have ≤1 connection - possible missing edges or undocumented components. (Counts symbols only; 14719 node(s) total have ≤1 connection when file, concept and rationale nodes are included.)
-- **543 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
+  These have ≤1 connection - possible missing edges or undocumented components. (Counts symbols only; 14715 node(s) total have ≤1 connection when file, concept and rationale nodes are included.)
+- **539 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
 
 ## Suggested Questions
 _Questions this graph is uniquely positioned to answer:_
 
-- **Why does `TestFunctionalDependency` connect `TestFunctionalDependency` to `ope104-wt/tests/algorithms/uni_detect/test_metrics.py`?**
-  _High betweenness centrality (0.012) - this node is a cross-community bridge._
+- **Why does `KnownIndexLabeler` connect `KnownIndexLabeler` to `json`, `os`, `Benchmark: WIKI subset`, `Benchmark: WIKI subset`, `Benchmark: WIKI subset`, `subprocess`, `Benchmark: WIKI subset`, `ope104-wt/benchmarks/real_world_gov/run_benchmark.py`, `Benchmark: WIKI subset`, `ope-73/benchmarks/real_world_gov/run_benchmark.py`, `Benchmark: WIKI subset`, `ope110-v2/benchmarks/wiki_subset/run_benchmark.py`, `Benchmark: WIKI subset`, `Benchmark: WIKI subset`, `ope83-verify/benchmarks/real_world_gov/run_benchmark.py`, `Benchmark: WIKI subset`, `Benchmark: WIKI subset`, `ope138-verify/benchmarks/real_world_gov/run_benchmark.py`, `ope71-wt/benchmarks/real_world_gov/run_benchmark.py`, `Benchmark: WIKI subset`, `ope89-wt/benchmarks/real_world_gov/run_benchmark.py`?**
+  _High betweenness centrality (0.044) - this node is a cross-community bridge._
 - **What connects `open-detect`, `open-detect`, `open-detect` to the rest of the system?**
   _19 weakly-connected nodes found - possible documentation gaps or missing edges._
 - **Should `tests/algorithms/uni_detect/test_corpus_build_metadata.py` be split into smaller, more focused modules?**
   _Cohesion score 0.12043010752688173 - nodes in this community are weakly interconnected._
-- **Why does `TestFunctionalDependency` connect `TestFunctionalDependency` to `ope138-verify/tests/algorithms/uni_detect/test_metrics.py`?**
+- **Why does `Scoring raha` connect `Benchmark: WIKI subset` to `KnownIndexLabeler`?**
   _High betweenness centrality (0.012) - this node is a cross-community bridge._
 - **Should `UniDetectConfig` be split into smaller, more focused modules?**
   _Cohesion score 0.11576354679802955 - nodes in this community are weakly interconnected._

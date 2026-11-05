@@ -408,8 +408,13 @@ def run_raha() -> tuple[list[dict], dict, dict, float]:
             self._target_column = target_column
             self._injected_indices = injected_indices
 
-        def label_tuple(self, df, row_index):
-            is_error = row_index in self._injected_indices
+        def label_tuple(self, df, row_index, position=None):
+            # ``injected_row_indices`` are positional (see generate_dataset.py),
+            # so this labeler indexes by ``position`` when the detector supplies
+            # it and falls back to the label otherwise -- matching the Labeler
+            # contract, which now accepts an optional third argument.
+            key = position if position is not None else row_index
+            is_error = key in self._injected_indices
             return {col: (is_error if col == self._target_column else False) for col in df.columns}
 
     targets = json.loads(TARGETS_FILE.read_text())
