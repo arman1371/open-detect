@@ -107,3 +107,35 @@ def test_empty_detections_roundtrip(tmp_path: Path) -> None:
     path = snapshot.save_snapshot(pd.DataFrame(), tmp_path / "empty")
     assert snapshot.load_snapshot(path).empty
     assert snapshot.main(["diff", str(path), str(path)]) == 0
+
+
+def test_nan_lr_ratio_round_trips_through_save_and_load(tmp_path: Path) -> None:
+    """NaN lr_ratio must survive a CSV round-trip (review item: serialize NaNs with a
+    marker the loader recognizes)."""
+    base = _frame(_row("c1", float("nan")), _row("c2", 0.5, sig=False))
+    path = snapshot.save_snapshot(base, tmp_path / "nan")
+    reloaded = snapshot.load_snapshot(path)
+    assert reloaded.shape[0] == 2
+    # The real assertion: NaN compares equal to NaN in the diff (see _lr_equal).
+    assert snapshot.diff_snapshots(reloaded, base) == []
+
+
+def test_nan_is_written_as_explicit_marker_not_blank(tmp_path: Path) -> None:
+    """The raw CSV must not write NaN as an empty field (to_csv default na_rep)."""
+    base = _frame(_row("c1", float("nan")))
+    path = snapshot.save_snapshot(base, tmp_path / "nan")
+    text = path.read_text()
+    assert "NaN" in text
+    assert ",," not in text  # no blank lr_ratio field
+
+
+def test_require_uni_detect_fails_when_undetected() -> None:
+    """Profiling runs must fail loudly when Uni-Detect was skipped (review item)."""
+    from common.profile import ProfileRunSkippedUniDetect, require_uni_detect
+
+    with pytest.raises(ProfileRunSkippedUniDetect):
+        require_uni_detect({"algorithms": {"raha": {}}})
+    with pytest.raises(ProfileRunSkippedUniDetect):
+        require_uni_detect({"algorithms": {}})
+    # Ordinary runs that did execute Uni-Detect pass through.
+    require_uni_detect({"algorithms": {"uni_detect": {"duration_seconds": 1.0}}})
