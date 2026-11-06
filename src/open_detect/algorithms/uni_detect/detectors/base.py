@@ -174,11 +174,6 @@ class BaseDetector(ABC):
     # ------------------------------------------------------------------
     # Result lifecycle: persisted frames released by callers (req 2)
     # ------------------------------------------------------------------
-    _persisted: list[DataFrame]
-
-    def __post_init__(self) -> None:
-        self._persisted = []
-
     def _track(self, frame: DataFrame) -> DataFrame:
         """Register a persisted result frame for later release."""
         self._persisted.append(frame)
