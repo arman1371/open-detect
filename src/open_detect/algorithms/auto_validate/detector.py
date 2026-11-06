@@ -159,7 +159,11 @@ class AutoValidateAlgorithm(ErrorDetectionAlgorithm):
             # Use _is_null for the null mask to match the behavior of
             # pattern inference and n_total (which both use _is_null).
             # series.isna() differs for list-like nulls (e.g. [None]).
-            is_null_mask = obj_series.map(_is_null, na_action="ignore")
+            # Do NOT use na_action="ignore" here: that leaves None/pd.NA in
+            # the mask, which is falsy (spurious null CellResult) or raises
+            # TypeError when evaluated as a boolean. _is_null handles all
+            # values itself, including the pandas missing sentinels.
+            is_null_mask = obj_series.map(_is_null)
             for idx, is_error, is_null in zip(
                 series.index, verdict_map, is_null_mask, strict=False
             ):

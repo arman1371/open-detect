@@ -315,3 +315,28 @@ class TestAutoValidateDetector:
         # m=100 far exceeds the tiny corpus — no pattern can satisfy it.
         result = detector.infer_pattern(pd.Series(["x", "y"]))
         assert result is None
+
+    def test_null_mask_is_boolean_for_none_and_pd_na(self):
+        """The null mask must be boolean, never None/pd.NA.
+
+        ``na_action="ignore"`` leaves missing sentinels in the mask, which is
+        falsy (spurious null CellResult) or raises TypeError when evaluated as
+        a boolean (e.g. in nullable StringDtype columns). Every value, including
+        the pandas missing sentinels, must produce a real bool flag.
+        """
+        config = AutoValidateConfig(m=1, tau=16)
+        corpus = _make_tiny_corpus()
+        detector = AutoValidateAlgorithm(config)
+        detector.build_index(corpus)
+
+        # Object column mixing None and pd.NA.
+        col = pd.Series(["2024-01-15", None, pd.NA, "2024-02-20"], dtype=object)
+        result = detector.detect(pd.DataFrame({"date": col}), table_id="t1")
+        assert len(result.cells) == 2  # None and pd.NA are skipped
+        assert {c.row_index for c in result.cells} == {0, 3}
+
+        # Nullable StringDtype column: pd.NA must not raise TypeError.
+        col = pd.Series(["2024-01-15", None, "2024-02-20"], dtype="string")
+        result = detector.detect(pd.DataFrame({"date": col}), table_id="t1")
+        assert len(result.cells) == 2
+        assert {c.row_index for c in result.cells} == {0, 2}
