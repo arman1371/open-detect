@@ -143,12 +143,19 @@ class AutoValidateAlgorithm(ErrorDetectionAlgorithm):
             # Compute verdict once per distinct non-null value, then map back.
             # This avoids a per-cell `_value_matches` call and a per-cell
             # `pd.isna` call (replaced by the vectorized `is_null`).
-            distinct_values = series.dropna().unique()
-            verdicts = {v: not _value_matches(pattern, v) for v in distinct_values}
-            verdict_map = series.map(verdicts, na_action="ignore").fillna(False)
+            # Deduplicate on the text representation used by `_value_matches`
+            # rather than on the raw value: values that compare equal as Python
+            # objects (e.g. ``1`` and ``True``) can still differ in their string
+            # form and must not share a verdict.
+            text_values = series.map(
+                lambda v: v if isinstance(v, str) else str(v), na_action="ignore"
+            )
+            distinct_texts = text_values.dropna().unique()
+            verdicts = {t: not _value_matches(pattern, t) for t in distinct_texts}
+            verdict_map = text_values.map(verdicts, na_action="ignore").fillna(False)
             is_null_mask = series.isna()
-            for idx, is_error in zip(series.index, verdict_map):
-                if is_null_mask.iloc[idx]:
+            for idx, is_error, is_null in zip(series.index, verdict_map, is_null_mask, strict=False):
+                if is_null:
                     continue
                 cells.append(
                     CellResult(
