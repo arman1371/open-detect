@@ -2,21 +2,21 @@
 
 from __future__ import annotations
 
-from unittest.mock import patch
+from unittest.mock import MagicMock
 
 import pytest
 
+from open_detect.exceptions import ValidationError
 from open_detect.validation import (
-    _check_unknown_kwargs,
-    _check_expected_type,
-    _validate_literal_value,
     _check_columns_unique,
     _check_dataframe_is_spark,
+    _check_expected_type,
+    _check_unknown_kwargs,
     _ensure_dataframe_is_spark,
     _ensure_sequence_of_str,
     _reject_unknown_kwargs,
+    _validate_literal_value,
 )
-from open_detect.exceptions import ValidationError
 
 
 class TestCheckUnknownKwargs:
@@ -44,7 +44,7 @@ class TestCheckExpectedType:
 
     def test_rejects_str_for_sequence_str(self):
         # Special case: Sequence[str] should reject bare str
-        from typing import Sequence
+        from collections.abc import Sequence
         with pytest.raises(ValidationError, match="expected a sequence of str"):
             _check_expected_type("hello", Sequence[str], "param")
 
@@ -156,7 +156,3 @@ class TestRejectUnknownKwargs:
         except ValidationError as e:
             assert "b" in str(e) and "c" in str(e)
             assert "a" in str(e)  # accepted parameter shown
-
-
-# Need to import MagicMock and patch
-from unittest.mock import MagicMock, patch

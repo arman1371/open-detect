@@ -2,7 +2,8 @@
 
 from __future__ import annotations
 
-from unittest.mock import MagicMock, patch, PropertyMock
+from contextlib import contextmanager
+from unittest.mock import MagicMock, patch
 
 import pytest
 from pyspark.sql import DataFrame
@@ -34,9 +35,6 @@ def _mock_detector_result(spark: MagicMock) -> MagicMock:
     result.orderBy.return_value = result
     result.unionByName.return_value = result
     return result
-
-
-from contextlib import contextmanager
 
 
 @contextmanager
@@ -140,7 +138,7 @@ class TestUniDetectDetect:
                 mock_detector.detect.return_value = _mock_detector_result(spark)
                 ud._detectors[et] = mock_detector
 
-            result = ud.detect(table_names=["t1"])
+            ud.detect(table_names=["t1"])
 
             for et in ErrorType:
                 ud._detectors[et].detect.assert_called_once_with(["t1"])
@@ -165,7 +163,7 @@ class TestUniDetectInit:
         """Should call get_spark when no spark session is provided."""
         with patch("open_detect.algorithms.uni_detect.pipeline.get_spark") as mock_get_spark:
             mock_get_spark.return_value = _mock_spark()
-            ud = UniDetect(_config())
+            UniDetect(_config())
             mock_get_spark.assert_called_once()
 
 

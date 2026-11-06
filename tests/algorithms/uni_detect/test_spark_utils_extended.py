@@ -68,9 +68,8 @@ class TestScopedConf:
         spark = MagicMock()
         spark.conf.get.return_value = "old_value"
 
-        with pytest.raises(ValueError):
-            with scoped_conf(spark, test_key="new_value"):
-                raise ValueError("boom")
+        with pytest.raises(ValueError), scoped_conf(spark, test_key="new_value"):
+            raise ValueError("boom")
 
         # Should still restore
         calls = spark.conf.set.call_args_list
