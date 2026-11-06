@@ -41,7 +41,7 @@ REPO_ROOT = BENCHMARK_DIR.parent.parent
 sys.path.insert(0, str(BENCHMARK_DIR.parent))
 from common.comparison import comparison_table_markdown  # noqa: E402
 from common.metrics import confusion_metrics  # noqa: E402
-from common.profile import UniDetectProfile, maybe_scope  # noqa: E402
+from common.profile import UniDetectProfile, maybe_scope, require_uni_detect  # noqa: E402
 from common.spark_session import SparkUnavailable, git_commit, spark_session  # noqa: E402
 
 DATA_DIR = BENCHMARK_DIR / "data"
@@ -143,8 +143,8 @@ def run_uni_detect(profile: UniDetectProfile | None = None) -> tuple[list[dict],
     phase and the detections snapshot; ``None`` leaves the run untouched.
     """
     from open_detect.algorithms.uni_detect.config import UnityCatalogLocation
+    from open_detect.algorithms.uni_detect.core.enums import ErrorType
     from open_detect.algorithms.uni_detect.pipeline import UniDetect
-    from open_detect.core.enums import ErrorType
 
     uc_location = UnityCatalogLocation(catalog=TEST_CATALOG, schema=TEST_SCHEMA)
     config = _build_config(uc_location)
@@ -408,8 +408,13 @@ def run_raha() -> tuple[list[dict], dict, dict, float]:
             self._target_column = target_column
             self._injected_indices = injected_indices
 
-        def label_tuple(self, df, row_index):
-            is_error = row_index in self._injected_indices
+        def label_tuple(self, df, row_index, position=None):
+            # ``injected_row_indices`` are positional (see generate_dataset.py),
+            # so this labeler indexes by ``position`` when the detector supplies
+            # it and falls back to the label otherwise -- matching the Labeler
+            # contract, which now accepts an optional third argument.
+            key = position if position is not None else row_index
+            is_error = key in self._injected_indices
             return {col: (is_error if col == self._target_column else False) for col in df.columns}
 
     targets = json.loads(TARGETS_FILE.read_text())
@@ -619,6 +624,9 @@ def main() -> None:
 
     profile = UniDetectProfile(args.profile_dir, "wiki_subset") if args.profile_dir else None
     results = run(profile)
+
+    if profile is not None:
+        require_uni_detect(results)
 
     LATEST_FILE.write_text(json.dumps(results, indent=2) + "\n")
 

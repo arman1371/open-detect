@@ -25,12 +25,13 @@ import weakref
 from typing import TYPE_CHECKING
 
 from open_detect.algorithms.uni_detect.config import UniDetectConfig
+from open_detect.algorithms.uni_detect.core.enums import ErrorType
 from open_detect.algorithms.uni_detect.corpus.build_metadata import write_build_config
 from open_detect.algorithms.uni_detect.corpus.schema import CORPUS_STATS_SCHEMA
+from open_detect.algorithms.uni_detect.exceptions import InsufficientDataError
 from open_detect.algorithms.uni_detect.failures import FailureCounts, FailureTracker
 from open_detect.algorithms.uni_detect.strategies import get_spec
-from open_detect.core.enums import ErrorType
-from open_detect.exceptions import InsufficientDataError, ValidationError
+from open_detect.exceptions import ValidationError
 from open_detect.logging_utils import get_logger, log_duration
 
 if TYPE_CHECKING:
@@ -236,7 +237,7 @@ class CorpusStatsBuilder:
         For frames produced by this builder the (small) stats frame is cached
         and materialized first, so the executor-side skip totals can be
         logged and ``max_failure_ratio`` enforced *before* anything is
-        written; a breach raises :class:`~open_detect.exceptions.DataQualityError`
+        written; a breach raises :class:`~open_detect.algorithms.uni_detect.exceptions.DataQualityError`
         and leaves the existing table untouched.
         """
         tracker = self._trackers.pop(stats, None)

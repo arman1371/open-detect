@@ -23,11 +23,11 @@ from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING, Any, Literal
 
 from open_detect.algorithms.uni_detect.config import UniDetectConfig
+from open_detect.algorithms.uni_detect.core.enums import ErrorType
 from open_detect.algorithms.uni_detect.corpus.ingestion import CorpusIngestor
 from open_detect.algorithms.uni_detect.corpus.store import CorpusStatsStore
 from open_detect.algorithms.uni_detect.failures import FailureTracker
 from open_detect.algorithms.uni_detect.strategies import get_spec
-from open_detect.core.enums import ErrorType
 from open_detect.logging_utils import get_logger, log_duration
 
 if TYPE_CHECKING:

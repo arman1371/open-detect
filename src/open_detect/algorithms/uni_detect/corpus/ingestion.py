@@ -124,8 +124,15 @@ class CorpusIngestor:
         frames: list[DataFrame] = []
         for idx, field in enumerate(df.schema.fields):
             col = field.name
-            sampled = df.select(F.col(f"`{col}`").cast("string").alias("v")).limit(
-                self.max_values_per_column
+            # Order before limit: without an explicit orderBy, Spark's limit(n)
+            # returns an arbitrary n rows and collect_list preserves that order,
+            # so the per-column value list -- and therefore the row_ids derived
+            # from it -- can change between runs on identical input data. Ordering
+            # by value makes both the sampled set and the list order deterministic.
+            sampled = (
+                df.select(F.col(f"`{col}`").cast("string").alias("v"))
+                .orderBy(F.col("v"))
+                .limit(self.max_values_per_column)
             )
             per_col = sampled.agg(F.collect_list("v").alias("values")).select(
                 F.lit(fqn).alias("table_id"),
@@ -180,6 +187,7 @@ class CorpusIngestor:
                     F.col(f"`{rhs_col}`").cast("string").alias("rhs"),
                 )
                 .where(F.col("lhs").isNotNull() & F.col("rhs").isNotNull())
+                .orderBy(F.col("lhs"), F.col("rhs"))
                 .limit(self.max_values_per_column)
             )
             per_pair = sampled.agg(F.collect_list(F.struct("lhs", "rhs")).alias("pairs")).select(
@@ -204,7 +212,7 @@ class CorpusIngestor:
         """
         from pyspark.sql import functions as F
 
-        from open_detect.text_utils import tokenize
+        from open_detect.algorithms.uni_detect.text_utils import tokenize
 
         tokenize_udf = F.udf(lambda s: tokenize(s) if s else [], "array<string>")
 

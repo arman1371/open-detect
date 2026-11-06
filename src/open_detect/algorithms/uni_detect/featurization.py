@@ -14,9 +14,9 @@ from collections.abc import Sequence
 
 import numpy as np
 
-from open_detect.core.enums import ColumnDataType, ErrorType
-from open_detect.core.models import FeatureBucket
-from open_detect.text_utils import infer_column_data_type, tokenize
+from open_detect.algorithms.uni_detect.core.enums import ColumnDataType, ErrorType
+from open_detect.algorithms.uni_detect.core.models import FeatureBucket
+from open_detect.algorithms.uni_detect.text_utils import infer_column_data_type, tokenize
 
 
 def bucket_by_edges(value: float, edges: Sequence[int]) -> str:

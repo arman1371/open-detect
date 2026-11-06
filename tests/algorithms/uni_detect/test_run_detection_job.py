@@ -12,8 +12,8 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
+from open_detect.algorithms.uni_detect.core.enums import ErrorType
 from open_detect.algorithms.uni_detect.jobs.run_detection import main, parse_args
-from open_detect.core.enums import ErrorType
 
 
 class TestParseArgs:

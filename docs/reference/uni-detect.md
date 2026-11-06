@@ -32,7 +32,7 @@
 
 ## Enumerations
 
-::: open_detect.core.enums
+::: open_detect.algorithms.uni_detect.core.enums
     options:
       heading_level: 3
       show_root_heading: false

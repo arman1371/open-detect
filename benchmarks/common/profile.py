@@ -28,6 +28,29 @@ from common.spark_jobs import SparkJobCounter
 PERF_FILENAME = "perf.json"
 
 
+class ProfileRunSkippedUniDetect(Exception):
+    """Raised when a profiling run was requested but Uni-Detect was not executed."""
+
+    pass
+
+
+def require_uni_detect(results: dict) -> None:
+    """Fail if ``results['algorithms']`` lacks a Uni-Detect entry when profiling.
+
+    This guard is called by benchmark runners when ``--profile-dir`` is set.
+    Ordinary (non-profiling) runs skip Uni-Detect gracefully when Spark is
+    unavailable; a profiling run must not do that, because it would leave stale
+    snapshots for ``benchmark-diff`` to validate against.
+    """
+    if "uni_detect" not in results.get("algorithms", {}):
+        raise ProfileRunSkippedUniDetect(
+            "Profiling requested (--profile-dir) but Uni-Detect was not run. "
+            "This is usually because pyspark/delta-spark is not installed or a "
+            "Spark session could not start. Install the dev extras or fix the "
+            "Spark environment before running with --profile-dir."
+        )
+
+
 class UniDetectProfile:
     """Collects job counts and detections for one benchmark's Uni-Detect run."""
 

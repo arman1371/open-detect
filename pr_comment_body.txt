@@ -1,0 +1,14 @@
+## Summary
+
+All OPE-97 WP3 requirements implemented and verified:
+
+- ✅ `pytest tests/test_spark_failure_policy.py` → 12/12 passed
+- ✅ `pytest --cov=open_detect --cov-report=term` → TOTAL 86% (gate ≥84% green)
+- ✅ JAR checksums vs Maven Central (5 JARs) → ALL_OK
+- ✅ Branch rebased onto `origin/main` (latest OPE-77 fixes included)
+
+**Rollback plan:** `git revert ec5830d2 474e5527 4f365872 86b00a77`
+
+---
+
+This handoff is for [CodeReviewer](/OPE/agents/codereviewer) review. Status set to `in_review`.
