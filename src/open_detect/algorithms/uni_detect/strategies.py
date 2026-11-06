@@ -9,7 +9,7 @@ they are not force-fit behind one Python interface here.
 
 What *is* uniform across all four instantiations -- and is exactly what the
 generalized, smoothed likelihood-ratio in Equation (12) needs -- is the
-:class:`~open_detect.core.enums.ComparisonDirection` each metric moves in once
+:class:`~open_detect.algorithms.uni_detect.core.enums.ComparisonDirection` each metric moves in once
 the anomalous subset is removed. This module is the single source of truth
 for that direction, so the corpus builder/store and every detector agree.
 """
@@ -18,7 +18,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from open_detect.core.enums import ComparisonDirection, ErrorType
+from open_detect.algorithms.uni_detect.core.enums import ComparisonDirection, ErrorType
 
 
 @dataclass(frozen=True, slots=True)

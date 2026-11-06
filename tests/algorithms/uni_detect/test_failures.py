@@ -7,19 +7,20 @@ import logging
 import pytest
 
 from open_detect.algorithms.uni_detect.config import UniDetectConfig, UnityCatalogLocation
+from open_detect.algorithms.uni_detect.core.enums import ErrorType
 from open_detect.algorithms.uni_detect.corpus.builder import _score_fd_pair, _score_single_column
 from open_detect.algorithms.uni_detect.detectors import functional_dependency as fd_detector
 from open_detect.algorithms.uni_detect.detectors import numeric_outlier as outlier_detector
 from open_detect.algorithms.uni_detect.detectors import spelling as spelling_detector
 from open_detect.algorithms.uni_detect.detectors import uniqueness as uniqueness_detector
+from open_detect.algorithms.uni_detect.exceptions import DataQualityError, InsufficientDataError
 from open_detect.algorithms.uni_detect.failures import (
     MAX_REPORTED_EXCEPTION_TYPES,
     FailureCounts,
     FailureCountsAccumulatorParam,
     check_failure_threshold,
 )
-from open_detect.core.enums import ErrorType
-from open_detect.exceptions import ConfigurationError, DataQualityError, InsufficientDataError
+from open_detect.exceptions import ConfigurationError
 
 LOGGER_NAME = "open_detect.algorithms.uni_detect.failures"
 

@@ -1,4 +1,4 @@
-.PHONY: install dev-install lint format type-check test test-fast cov build clean benchmark benchmark-real-world-gov benchmark-all
+.PHONY: install dev-install lint format type-check test test-fast cov build clean benchmark benchmark-real-world-gov benchmark-all benchmark-profile benchmark-diff
 
 install:
 	uv sync --no-dev
@@ -32,6 +32,33 @@ benchmark-real-world-gov:
 	uv run python benchmarks/real_world_gov/run_benchmark.py
 
 benchmark-all: benchmark benchmark-real-world-gov
+
+# Opt-in perf profile: Uni-Detect detections snapshot + Spark job counts per phase
+# (writes benchmarks/*/results/profile/$(PROFILE_NAME)/{detections.csv,perf.json}).
+# `make benchmark-profile PROFILE_NAME=baseline` regenerates the committed baseline.
+PROFILE_NAME ?= latest
+
+benchmark-profile:
+	uv run python benchmarks/wiki_subset/run_benchmark.py --profile-dir benchmarks/wiki_subset/results/profile/$(PROFILE_NAME)
+	uv run python benchmarks/real_world_gov/run_benchmark.py --profile-dir benchmarks/real_world_gov/results/profile/$(PROFILE_NAME)
+
+# Diff the latest profile run against the committed baseline snapshot; non-zero exit on any
+# difference. The baseline snapshot is the committed ``benchmarks/*/results/profile/baseline``
+# directory (regenerate with ``make benchmark-profile PROFILE_NAME=baseline``); the latest run
+# writes ``benchmarks/*/results/profile/latest``. Datasets without a committed baseline or a
+# latest run are skipped rather than failing the whole target.
+benchmark-diff:
+	@compared=0; for ds in wiki_subset real_world_gov; do \
+	  base="benchmarks/$$ds/results/profile/baseline"; \
+	  latest="benchmarks/$$ds/results/profile/latest"; \
+	  if [ -f "$$base/detections.csv" ] && [ -f "$$latest/detections.csv" ]; then \
+	    uv run python benchmarks/common/snapshot.py diff "$$base" "$$latest" || exit 1; \
+	    compared=$$((compared + 1)); \
+	  else \
+	    echo "SKIP $$ds: missing baseline or latest profile snapshot"; \
+	  fi; \
+	done; \
+	if [ "$$compared" -eq 0 ]; then echo "FAIL: no dataset was compared"; exit 1; fi
 
 build:
 	uv build

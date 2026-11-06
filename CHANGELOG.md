@@ -2,6 +2,57 @@
 
 <!-- version list -->
 
+## v0.2.8 (2026-11-05)
+
+### Performance Improvements
+
+- **ope-85**: Optimize index build to linear complexity
+  ([#47](https://github.com/arman1371/open-detect/pull/47),
+  [`b74c013`](https://github.com/arman1371/open-detect/commit/b74c0136b94347ba174b17a9060054e230183142))
+
+### Documentation
+
+- Finalize WP3 documentation and cleanup ([#66](https://github.com/arman1371/open-detect/pull/66),
+  [`d43e180`](https://github.com/arman1371/open-detect/commit/d43e18025442793e3480447e44bd8b84766706bc))
+
+### Refactoring
+
+- Move core/text_utils/Uni-Detect errors under uni_detect with shims (OPE-111 PR C)
+  ([#76](https://github.com/arman1371/open-detect/pull/76),
+  [`eea9296`](https://github.com/arman1371/open-detect/commit/eea92960e247245dd6ddcaa7166bc234aaff81f0))
+
+---
+
+**Full Changelog**: [v0.2.7...v0.2.8](https://github.com/arman1371/open-detect/compare/v0.2.7...v0.2.8)
+
+
+## v0.2.7 (2026-10-18)
+
+### Bug Fixes
+
+- **uni-detect**: SpellingDetector reports original row positions (OPE-104)
+  ([#48](https://github.com/arman1371/open-detect/pull/48),
+  [`cc66bea`](https://github.com/arman1371/open-detect/commit/cc66beaaca976e13c0568ec4e6479c9b1c2f97aa))
+
+### Documentation
+
+- Fix ARCHITECTURE.md drift (S-M6) ([#21](https://github.com/arman1371/open-detect/pull/21),
+  [`8ae637b`](https://github.com/arman1371/open-detect/commit/8ae637bf48873c5f5de6ab09ab601c6489b86520))
+
+### Refactoring
+
+- Hygiene batch for logging, asserts, evidence, plugins, pytest config (OPE-79)
+  ([`5fa6346`](https://github.com/arman1371/open-detect/commit/5fa6346941941d233add062dcd2a9c116294c6cf))
+
+- Unify library errors under OpenDetectError (ValidationError et al.) (OPE-75)
+  ([#27](https://github.com/arman1371/open-detect/pull/27),
+  [`3052b58`](https://github.com/arman1371/open-detect/commit/3052b589fa6f899f456e8fe0bb9b3873f7e759ae))
+
+---
+
+**Full Changelog**: [v0.2.6...v0.2.7](https://github.com/arman1371/open-detect/compare/v0.2.6...v0.2.7)
+
+
 ## v0.2.6 (2026-10-15)
 
 ### Bug Fixes

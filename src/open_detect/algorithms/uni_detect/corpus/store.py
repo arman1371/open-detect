@@ -3,7 +3,7 @@
 This is the "at online prediction time... perform a lookup to find relevant
 predictions without computing LR from scratch" step described in the
 paper's System Architecture (Sec. 2.2.3), generalized across both
-:class:`~open_detect.core.enums.ComparisonDirection` families via the smoothed
+:class:`~open_detect.algorithms.uni_detect.core.enums.ComparisonDirection` families via the smoothed
 range-based formula in Equation (12):
 
     INCREASING (spelling, uniqueness, FD):
@@ -26,9 +26,9 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from open_detect.algorithms.uni_detect.config import UniDetectConfig
+from open_detect.algorithms.uni_detect.core.enums import ComparisonDirection, ErrorType
 from open_detect.algorithms.uni_detect.corpus.build_metadata import verify_build_config
-from open_detect.core.enums import ComparisonDirection, ErrorType
-from open_detect.exceptions import CorpusNotFoundError
+from open_detect.algorithms.uni_detect.exceptions import CorpusNotFoundError
 from open_detect.logging_utils import get_logger, log_duration
 
 if TYPE_CHECKING:
@@ -108,7 +108,7 @@ class CorpusStatsStore:
         candidates:
             A DataFrame with (at least) columns ``candidate_id`` (string,
             unique), ``feature_bucket`` (string, matching
-            :meth:`~open_detect.core.models.FeatureBucket.as_key`),
+            :meth:`~open_detect.algorithms.uni_detect.core.models.FeatureBucket.as_key`),
             ``theta_before`` (double) and ``theta_after`` (double).
         error_type, direction:
             Which materialized partition to read and which inequality

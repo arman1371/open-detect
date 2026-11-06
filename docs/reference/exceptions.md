@@ -8,6 +8,12 @@ Every exception raised deliberately by the library derives from `OpenDetectError
       show_root_heading: false
       show_root_toc_entry: false
 
+::: open_detect.algorithms.uni_detect.exceptions
+    options:
+      heading_level: 3
+      show_root_heading: false
+      show_root_toc_entry: false
+
 ::: open_detect.algorithms.auto_validate.exceptions
     options:
       heading_level: 3

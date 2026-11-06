@@ -9,13 +9,13 @@ from unittest.mock import MagicMock
 import pytest
 
 from open_detect.algorithms.uni_detect.config import UniDetectConfig, UnityCatalogLocation
+from open_detect.algorithms.uni_detect.core.enums import ErrorType
 from open_detect.algorithms.uni_detect.detectors.base import (
     BaseDetector,
     make_evidence_json,
     redact_evidence,
 )
 from open_detect.algorithms.uni_detect.pipeline import _require_columns
-from open_detect.core.enums import ErrorType
 from open_detect.exceptions import ConfigurationError
 
 EVIDENCE = {
