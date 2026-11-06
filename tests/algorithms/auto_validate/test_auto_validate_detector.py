@@ -19,6 +19,7 @@ def _make_tiny_corpus() -> list[pd.Series]:
         pd.Series(["2024-01-15", "2024-02-20", "2024-03-10"]),  # dates
         pd.Series(["john@example.com", "jane@test.org", "admin@site.net"]),  # emails
         pd.Series(["New York", "London", "Tokyo"]),  # cities
+        pd.Series(["1", "2", "3", "4", "5"]),  # numbers (for numeric pattern inference)
     ]
 
 
