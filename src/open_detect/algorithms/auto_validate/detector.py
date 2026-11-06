@@ -147,13 +147,19 @@ class AutoValidateAlgorithm(ErrorDetectionAlgorithm):
             # rather than on the raw value: values that compare equal as Python
             # objects (e.g. ``1`` and ``True``) can still differ in their string
             # form and must not share a verdict.
-            text_values = series.map(
+            # Convert to object dtype first: StringDtype.map(na_action="ignore")
+            # raises NotImplementedError on pandas >= 1.5.
+            obj_series = series.astype(object)
+            text_values = obj_series.map(
                 lambda v: v if isinstance(v, str) else str(v), na_action="ignore"
             )
             distinct_texts = text_values.dropna().unique()
             verdicts = {t: not _value_matches(pattern, t) for t in distinct_texts}
             verdict_map = text_values.map(verdicts, na_action="ignore").fillna(False)
-            is_null_mask = series.isna()
+            # Use _is_null for the null mask to match the behavior of
+            # pattern inference and n_total (which both use _is_null).
+            # series.isna() differs for list-like nulls (e.g. [None]).
+            is_null_mask = obj_series.map(_is_null, na_action="ignore")
             for idx, is_error, is_null in zip(
                 series.index, verdict_map, is_null_mask, strict=False
             ):
