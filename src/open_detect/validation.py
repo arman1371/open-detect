@@ -10,10 +10,9 @@ Provides cross-algorithm validation for detect() calls:
 from __future__ import annotations
 
 from collections.abc import Sequence
-from typing import Any, get_origin, TypeVar
+from typing import Any, TypeVar, get_origin
 
 from open_detect.exceptions import ValidationError
-from open_detect.core.enums import ErrorType
 
 T = TypeVar("T")
 
@@ -49,9 +48,9 @@ def _check_expected_type(value: Any, expected_type: type, param_name: str) -> No
     if origin is not None and origin is Sequence:
         # expected_type is Sequence[Something], check the args
         args = getattr(expected_type, '__args__', ())
-        if len(args) == 1 and args[0] is str and isinstance(value, str):
+        if args and args[0] is str and isinstance(value, str):
             raise ValidationError(
-                f"expected a sequence of str, got str; wrap in a list"
+                "expected a sequence of str, got str; wrap in a list"
             )
     # Default isinstance check
     if expected_type is not None and not isinstance(value, expected_type):
@@ -81,28 +80,13 @@ def _check_columns_unique(columns: list[str]) -> None:
     """Raise ValidationError if column names are not unique strings."""
     if not all(isinstance(c, str) for c in columns):
         raise ValidationError(
-            f"All column names must be strings, got non-string entries"
+            "All column names must be strings, got non-string entries"
         )
     if len(columns) != len(set(columns)):
         raise ValidationError(
             f"Column names must be unique, got duplicates: "
             f"{', '.join(sorted([c for c in columns if columns.count(c) > 1]))}"
         )
-
-
-def _check_dataframe_is_spark(df: Any, param_name: str = "data") -> None:
-    """Validate that data is a Spark DataFrame (when PySpark is available)."""
-    try:
-        from pyspark.sql import DataFrame as SparkDataFrame
-
-        if not isinstance(df, SparkDataFrame):
-            raise ValidationError(
-                f"{param_name} must be a pyspark.sql.DataFrame, "
-                f"got {type(df).__name__}"
-            )
-    except ImportError:
-        # PySpark not available; skip this check
-        pass
 
 
 def _check_dataframe_is_spark(df: Any, param_name: str = "data") -> None:
@@ -147,6 +131,39 @@ def _ensure_dataframe_is_spark(df: Any, param_name: str = "data") -> None:
         return
 
 
+def _ensure_sequence_of_str(value: Any, param_name: str) -> None:
+    """Raise ValidationError if value is not a sequence of strings.
+
+    Also rejects bare str (which would be iterated character-by-character).
+    """
+    if isinstance(value, str):
+        raise ValidationError(
+            f"{param_name} must be a sequence of str, got str; wrap in a list"
+        )
+    if not isinstance(value, Sequence):
+        raise ValidationError(
+            f"{param_name} must be a sequence of str, got {type(value).__name__}"
+        )
+    for i, item in enumerate(value):
+        if not isinstance(item, str):
+            raise ValidationError(
+                f"{param_name}[{i}] must be str, got {type(item).__name__}"
+            )
+
+
+def _reject_unknown_kwargs(
+    kwargs: dict[str, Any], allowed: set[str], param_name: str
+) -> None:
+    """Raise ValidationError if any unknown kwargs are passed."""
+    unknown = set(kwargs) - allowed
+    if unknown:
+        msg = (
+            f"Unknown parameter(s): {', '.join(sorted(unknown))}. "
+            f"Accepted parameters: {', '.join(sorted(allowed))}"
+        )
+        raise ValidationError(msg)
+
+
 __all__ = [
     "_check_unknown_kwargs",
     "_check_expected_type",
@@ -154,4 +171,6 @@ __all__ = [
     "_check_columns_unique",
     "_check_dataframe_is_spark",
     "_ensure_dataframe_is_spark",
+    "_ensure_sequence_of_str",
+    "_reject_unknown_kwargs",
 ]
