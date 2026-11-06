@@ -47,11 +47,9 @@ def _check_expected_type(value: Any, expected_type: type, param_name: str) -> No
     origin = get_origin(expected_type)
     if origin is not None and origin is Sequence:
         # expected_type is Sequence[Something], check the args
-        args = getattr(expected_type, '__args__', ())
+        args = getattr(expected_type, "__args__", ())
         if args and args[0] is str and isinstance(value, str):
-            raise ValidationError(
-                "expected a sequence of str, got str; wrap in a list"
-            )
+            raise ValidationError("expected a sequence of str, got str; wrap in a list")
     # Default isinstance check
     if expected_type is not None and not isinstance(value, expected_type):
         raise ValidationError(
@@ -71,17 +69,14 @@ def _validate_literal_value(
     """
     if value not in valid_values:
         raise ValidationError(
-            f"{param_name} must be one of {sorted(valid_values)}, "
-            f"got {value!r}"
+            f"{param_name} must be one of {sorted(valid_values)}, " f"got {value!r}"
         )
 
 
 def _check_columns_unique(columns: list[str]) -> None:
     """Raise ValidationError if column names are not unique strings."""
     if not all(isinstance(c, str) for c in columns):
-        raise ValidationError(
-            "All column names must be strings, got non-string entries"
-        )
+        raise ValidationError("All column names must be strings, got non-string entries")
     if len(columns) != len(set(columns)):
         raise ValidationError(
             f"Column names must be unique, got duplicates: "
@@ -96,8 +91,7 @@ def _check_dataframe_is_spark(df: Any, param_name: str = "data") -> None:
 
         if not isinstance(df, SparkDataFrame):
             raise ValidationError(
-                f"{param_name} must be a pyspark.sql.DataFrame, "
-                f"got {type(df).__name__}"
+                f"{param_name} must be a pyspark.sql.DataFrame, " f"got {type(df).__name__}"
             )
     except ImportError:
         # PySpark not available; skip this check
@@ -137,23 +131,15 @@ def _ensure_sequence_of_str(value: Any, param_name: str) -> None:
     Also rejects bare str (which would be iterated character-by-character).
     """
     if isinstance(value, str):
-        raise ValidationError(
-            f"{param_name} must be a sequence of str, got str; wrap in a list"
-        )
+        raise ValidationError(f"{param_name} must be a sequence of str, got str; wrap in a list")
     if not isinstance(value, Sequence):
-        raise ValidationError(
-            f"{param_name} must be a sequence of str, got {type(value).__name__}"
-        )
+        raise ValidationError(f"{param_name} must be a sequence of str, got {type(value).__name__}")
     for i, item in enumerate(value):
         if not isinstance(item, str):
-            raise ValidationError(
-                f"{param_name}[{i}] must be str, got {type(item).__name__}"
-            )
+            raise ValidationError(f"{param_name}[{i}] must be str, got {type(item).__name__}")
 
 
-def _reject_unknown_kwargs(
-    kwargs: dict[str, Any], allowed: set[str], param_name: str
-) -> None:
+def _reject_unknown_kwargs(kwargs: dict[str, Any], allowed: set[str], param_name: str) -> None:
     """Raise ValidationError if any unknown kwargs are passed."""
     unknown = set(kwargs) - allowed
     if unknown:

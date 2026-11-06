@@ -119,9 +119,7 @@ class TestDetectCacheContract:
         detector.store.batch_score = MagicMock()  # type: ignore[assignment]
         detector.detect(["t"])
         persist_levels = [
-            call.args[0]
-            for frame in detector._frames
-            for call in frame.persist.call_args_list
+            call.args[0] for frame in detector._frames for call in frame.persist.call_args_list
         ]
         assert persist_levels and all(level == _CANDIDATE_STORAGE_LEVEL for level in persist_levels)
 

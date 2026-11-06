@@ -79,7 +79,9 @@ class RahaDetector(ErrorDetectionAlgorithm):
 
         _ensure_dataframe_is_spark(data, "data")
         if conflict_resolution is not None:
-            _validate_literal_value(conflict_resolution, {"homogeneity", "majority"}, "conflict_resolution")
+            _validate_literal_value(
+                conflict_resolution, {"homogeneity", "majority"}, "conflict_resolution"
+            )
         if variant is not None:
             _validate_literal_value(variant, {"A", "B"}, "variant")
 
@@ -150,7 +152,11 @@ class RahaDetector(ErrorDetectionAlgorithm):
                         score = float(predictions.score[position])
 
                     # Precompute `fired` per unique feature row profile (key 1: tuple of flagged names)
-                    fired_key = tuple(name for name, flagged in zip(feature_names, matrix[position], strict=True) if flagged)
+                    fired_key = tuple(
+                        name
+                        for name, flagged in zip(feature_names, matrix[position], strict=True)
+                        if flagged
+                    )
                     if fired_key not in fired_cache:
                         fired_cache[fired_key] = [
                             name
