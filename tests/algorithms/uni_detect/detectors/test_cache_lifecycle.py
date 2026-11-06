@@ -207,16 +207,14 @@ class TestDetectCacheLifecycleSpark:
         self, spark
     ):
         """After ``detect()`` returns, downstream actions reuse the cached frame."""
-        from open_detect.algorithms.uni_detect.config import UniDetectConfig, UnityCatalogLocation
-        from open_detect.algorithms.uni_detect.detectors.uniqueness import UniquenessDetector
-        from open_detect.core.enums import ErrorType
-        from pyspark import StorageLevel
-
         # Import the job counter from benchmarks
         import sys
+        from pathlib import Path
 
         sys.path.insert(0, str(Path(__file__).parents[5] / "benchmarks"))
         from common.spark_jobs import SparkJobCounter
+        from open_detect.algorithms.uni_detect.config import UniDetectConfig, UnityCatalogLocation
+        from open_detect.algorithms.uni_detect.detectors.uniqueness import UniquenessDetector
 
         config = UniDetectConfig(
             location=UnityCatalogLocation(
@@ -272,14 +270,14 @@ class TestDetectCacheLifecycleSpark:
 
     def test_pipeline_detect_unioned_result_no_reexecution(self, spark):
         """UniDetect.detect() returns a unioned, persisted frame with no re-execution."""
-        from open_detect.algorithms.uni_detect.config import UniDetectConfig, UnityCatalogLocation
-        from open_detect.algorithms.uni_detect.pipeline import UniDetect
-        from open_detect.core.enums import ErrorType
-
+        # Import the job counter from benchmarks
         import sys
+        from pathlib import Path
 
         sys.path.insert(0, str(Path(__file__).parents[5] / "benchmarks"))
         from common.spark_jobs import SparkJobCounter
+        from open_detect.algorithms.uni_detect.config import UniDetectConfig, UnityCatalogLocation
+        from open_detect.algorithms.uni_detect.pipeline import UniDetect
 
         config = UniDetectConfig(
             location=UnityCatalogLocation(
