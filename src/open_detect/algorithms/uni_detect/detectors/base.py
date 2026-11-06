@@ -154,7 +154,7 @@ class BaseDetector(ABC):
                 # Materialize once while ``candidates`` is still cached, then
                 # release the inputs.  The persisted result survives on its own,
                 # so downstream actions never re-execute the scoring stage.
-                self._track(result.persist(StorageLevel.MEMORY_AND_DISK))
+                result = self._track(result.persist(StorageLevel.MEMORY_AND_DISK))
                 result.count()
                 return result
             finally:
