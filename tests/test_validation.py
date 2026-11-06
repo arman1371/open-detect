@@ -45,11 +45,13 @@ class TestCheckExpectedType:
     def test_rejects_str_for_sequence_str(self):
         # Special case: Sequence[str] should reject bare str
         from collections.abc import Sequence
+
         with pytest.raises(ValidationError, match="expected a sequence of str"):
             _check_expected_type("hello", Sequence[str], "param")
 
     def test_accepts_list_for_sequence_str(self):
         from collections.abc import Sequence
+
         # Use bare Sequence (not parameterized) for isinstance check
         _check_expected_type(["a", "b"], Sequence, "param")
 
@@ -86,6 +88,7 @@ class TestCheckColumnsUnique:
 class TestCheckDataFrameIsSpark:
     def test_accepts_spark_dataframe(self):
         from pyspark.sql import DataFrame as SparkDataFrame
+
         mock_df = MagicMock(spec=SparkDataFrame)
         _check_dataframe_is_spark(mock_df, "param")
 
@@ -102,11 +105,13 @@ class TestCheckDataFrameIsSpark:
 class TestEnsureDataFrameIsSpark:
     def test_accepts_spark_dataframe(self):
         from pyspark.sql import DataFrame as SparkDataFrame
+
         mock_df = MagicMock(spec=SparkDataFrame)
         _ensure_dataframe_is_spark(mock_df)  # Should not raise
 
     def test_accepts_pandas_dataframe(self):
         import pandas as pd
+
         _ensure_dataframe_is_spark(pd.DataFrame())  # Should not raise
 
     def test_no_op_when_pyspark_not_available(self):

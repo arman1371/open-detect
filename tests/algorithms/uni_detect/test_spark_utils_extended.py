@@ -103,5 +103,3 @@ class TestScopedConf:
         """Verify the constant values."""
         assert ARROW_MAX_RECORDS_PER_BATCH == 64
         assert ARROW_MAX_RECORDS_PER_BATCH_KEY == "spark.sql.execution.arrow.maxRecordsPerBatch"
-
-

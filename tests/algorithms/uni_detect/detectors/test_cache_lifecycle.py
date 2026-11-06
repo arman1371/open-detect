@@ -203,9 +203,7 @@ class TestDetectCacheLifecycleSpark:
     frame do not trigger additional Spark jobs beyond the initial materialization.
     """
 
-    def test_detect_returns_persisted_frame_no_reexecution_on_count_collect_write(
-        self, spark
-    ):
+    def test_detect_returns_persisted_frame_no_reexecution_on_count_collect_write(self, spark):
         """After ``detect()`` returns, downstream actions reuse the cached frame."""
         # Import the job counter from benchmarks
         import sys

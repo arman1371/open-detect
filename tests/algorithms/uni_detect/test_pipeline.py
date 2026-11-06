@@ -41,6 +41,7 @@ def _mock_detector_result(spark: MagicMock) -> MagicMock:
 def _mock_spark_context():
     """Create a mock SparkContext that can be set as active."""
     from pyspark import SparkContext
+
     mock_sc = MagicMock()
     mock_sc._jsc = MagicMock()
     # Patch the _active_spark_context class attribute
@@ -58,7 +59,9 @@ class TestUniDetectValidateInputs:
     def test_rejects_unknown_kwargs(self):
         ud = UniDetect(_config(), spark=_mock_spark())
         with pytest.raises(ValidationError, match="Unknown parameter"):
-            ud._validate_inputs(table_names=["t1"], error_types=[ErrorType.UNIQUENESS], unknown_kwarg="value")
+            ud._validate_inputs(
+                table_names=["t1"], error_types=[ErrorType.UNIQUENESS], unknown_kwarg="value"
+            )
 
     def test_accepts_valid_kwargs(self):
         ud = UniDetect(_config(), spark=_mock_spark())
@@ -180,7 +183,9 @@ class TestUniDetectWriteDetections:
 
         mock_df.write.format.assert_called_once_with("delta")
         mock_df.write.format.return_value.mode.assert_called_once_with("append")
-        mock_df.write.format.return_value.mode.return_value.saveAsTable.assert_called_once_with(ud.config.detections_fqn)
+        mock_df.write.format.return_value.mode.return_value.saveAsTable.assert_called_once_with(
+            ud.config.detections_fqn
+        )
 
 
 class TestUniDetectBuildCorpusStatistics:
@@ -192,5 +197,3 @@ class TestUniDetectBuildCorpusStatistics:
         # Test that invalid error_types raises ValidationError
         with pytest.raises(ValidationError):
             ud.build_corpus_statistics(table_names=["t1"], error_types="not_a_list")
-
-
