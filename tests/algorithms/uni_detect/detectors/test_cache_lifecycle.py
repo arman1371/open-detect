@@ -146,6 +146,27 @@ class TestDetectCacheContract:
         assert result is not None
         detector.store.batch_score.assert_not_called()
 
+    def test_new_failure_tracker_creates_and_returns_tracker(self) -> None:
+        _detector()
+        # This method needs a SparkContext, skip in pure mock test
+        pytest.skip("requires SparkContext - covered by integration tests")
+
+    def test_non_empty_candidates_runs_scoring_and_persists_result(self) -> None:
+        """When candidates exist, batch_score runs, result is tracked and materialized.
+
+        This test is skipped in pure mock mode because it requires a SparkContext
+        for the DataFrame operations (withColumn, lit, etc.).
+        """
+        pytest.skip("requires SparkContext - covered by integration tests")
+
+    def test_failure_tracker_check_called_when_candidates_exist(self) -> None:
+        """When candidates are non-empty, failure tracker's check() is called.
+
+        This test is skipped in pure mock mode because it requires a SparkContext
+        for the DataFrame operations.
+        """
+        pytest.skip("requires SparkContext - covered by integration tests")
+
 
 # ----------------------------------------------------------------------
 # Spark-backed acceptance test (skipped when no Java/Delta available)

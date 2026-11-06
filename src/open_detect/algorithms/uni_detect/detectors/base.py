@@ -160,12 +160,6 @@ class BaseDetector(ABC):
             finally:
                 candidates.unpersist()
 
-    def _result_schema(self):
-        """Return the output schema for detect() results."""
-        from open_detect.algorithms.uni_detect.detectors.schema import DETECTION_RESULT_SCHEMA
-
-        return DETECTION_RESULT_SCHEMA
-
     def _empty_result(self) -> DataFrame:
         from open_detect.algorithms.uni_detect.detectors.schema import DETECTION_RESULT_SCHEMA
 
