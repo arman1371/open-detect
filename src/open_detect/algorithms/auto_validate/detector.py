@@ -154,7 +154,9 @@ class AutoValidateAlgorithm(ErrorDetectionAlgorithm):
             verdicts = {t: not _value_matches(pattern, t) for t in distinct_texts}
             verdict_map = text_values.map(verdicts, na_action="ignore").fillna(False)
             is_null_mask = series.isna()
-            for idx, is_error, is_null in zip(series.index, verdict_map, is_null_mask, strict=False):
+            for idx, is_error, is_null in zip(
+                series.index, verdict_map, is_null_mask, strict=False
+            ):
                 if is_null:
                     continue
                 cells.append(
