@@ -280,7 +280,7 @@ class TestAutoValidateDetector:
         # Different text forms may diverge; the point is they are not forced equal.
         from open_detect.algorithms.auto_validate.detector import _value_matches
 
-        for value, cell in zip(col, result.cells):
+        for value, cell in zip(col, result.cells, strict=True):
             text = value if isinstance(value, str) else str(value)
             assert cell.is_error == (not _value_matches(inferred.pattern, text))
 
