@@ -159,6 +159,16 @@ release job (secret **`RELEASE_DEPLOY_KEY`**, write access), which is a bypass a
 ruleset. See the release setup table above for creating, rotating and registering the key. If the
 key is removed or loses write access, the push step fails.
 
+**Deploy key hardening**
+
+- `actions/checkout` runs with `persist-credentials: false`; the key is only injected into the
+  final "Commit and push updated graph" step (written to a temp file, removed on exit, GitHub host
+  keys pinned), never into the steps that install or run graphify.
+- graphify is installed with `pip install --require-hashes` from
+  `.github/requirements/graphify.txt` (exact version plus hashes of all dependencies). The release
+  job installs python-semantic-release the same way from `.github/requirements/semantic-release.txt`.
+  See `.github/requirements/README.md` to regenerate them; Dependabot also bumps them.
+
 **Loop prevention**
 
 - The push trigger uses `paths-ignore: graphify-out/**`, so the graph commit does not re-run the

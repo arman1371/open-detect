@@ -1,0 +1,8 @@
+# Changes to CI/CD, packaging and the security policy need review from a code owner.
+# Order matters: the last matching pattern wins.
+# TODO(OPE-95): replace @arman1371 with the CTO/admin team handle once supplied.
+/.github/**      @arman1371
+/pyproject.toml  @arman1371
+/uv.lock         @arman1371
+/SECURITY.md     @arman1371
+/LICENSE         @arman1371
