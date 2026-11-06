@@ -19,6 +19,7 @@ def _make_tiny_corpus() -> list[pd.Series]:
         pd.Series(["2024-01-15", "2024-02-20", "2024-03-10"]),  # dates
         pd.Series(["john@example.com", "jane@test.org", "admin@site.net"]),  # emails
         pd.Series(["New York", "London", "Tokyo"]),  # cities
+        pd.Series(["1", "2", "3", "4", "5"]),  # numbers (for numeric pattern inference)
     ]
 
 
@@ -248,6 +249,65 @@ class TestAutoValidateDetector:
         assert all(not cell.is_error for cell in result.cells)
         assert all(isinstance(cell.evidence["pattern"], list) for cell in result.cells)
 
+    def test_distinct_value_dedup_uses_text_representation(self):
+        """Values that compare equal as Python objects must not share a verdict.
+
+        ``1`` and ``True`` are equal under ``==`` but differ in their string form
+        (``"1"`` vs ``"True"``), and ``_value_matches`` keys on that string form.
+        Deduplicating on the raw value collapses both onto one verdict entry, so
+        whichever of them the inferred pattern rejects would poison the other.
+
+        The invariant we assert is that the text form is the dedup key: the two
+        distinct texts must be able to receive *different* verdicts, and the
+        verdict assigned to a cell must equal ``_value_matches`` on that cell's
+        own text form (not on some other value's text).
+        """
+        config = AutoValidateConfig(m=1, tau=16)
+        corpus = _make_tiny_corpus()
+        detector = AutoValidateAlgorithm(config)
+        detector.build_index(corpus)
+
+        col = pd.Series([1, True, "1", "True"])
+        inferred = detector.infer_pattern(col)
+        assert inferred is not None
+
+        result = detector.detect(pd.DataFrame({"mixed": col}), table_id="t1")
+        assert len(result.cells) == 4
+        verdicts = {c.row_index: c.is_error for c in result.cells}
+        # Same text form -> same verdict, regardless of the underlying Python type.
+        assert verdicts[0] == verdicts[2]  # str(1) == str("1")
+        assert verdicts[1] == verdicts[3]  # str(True) == str("True")
+        # Different text forms may diverge; the point is they are not forced equal.
+        from open_detect.algorithms.auto_validate.detector import _value_matches
+
+        for value, cell in zip(col, result.cells, strict=True):
+            text = value if isinstance(value, str) else str(value)
+            assert cell.is_error == (not _value_matches(inferred.pattern, text))
+
+    def test_null_flags_align_with_row_labels_not_positions(self):
+        """Null flags must stay aligned with rows on reordered indexes.
+
+        ``series.index`` holds row *labels*; indexing the null mask with a label
+        instead of a position misaligns the flag (and raises IndexError when the
+        index is not the default range).
+        """
+        config = AutoValidateConfig(m=1, tau=16)
+        corpus = _make_tiny_corpus()
+        detector = AutoValidateAlgorithm(config)
+        detector.build_index(corpus)
+
+        # Non-default, non-monotonic index: labels 10/11 are not positional offsets.
+        col = pd.Series(["2024-01-15", None, "2024-02-20"], index=[10, 11, 12])
+        result = detector.detect(pd.DataFrame({"date": col}), table_id="t1")
+        assert len(result.cells) == 2  # the None at index 11 is skipped
+        assert {c.row_index for c in result.cells} == {10, 12}
+
+        # Reordered index: every row must still be visited exactly once.
+        col = pd.Series(["2024-01-15", "2024-02-20", "2024-03-10"], index=[2, 1, 0])
+        result = detector.detect(pd.DataFrame({"date": col}), table_id="t1")
+        assert len(result.cells) == 3
+        assert {c.row_index for c in result.cells} == {0, 1, 2}
+
     def test_infer_pattern_returns_none_when_infeasible(self):
         detector = AutoValidateAlgorithm(AutoValidateConfig(m=100, tau=16))
         corpus = [pd.Series(["a", "b"])]
@@ -255,3 +315,28 @@ class TestAutoValidateDetector:
         # m=100 far exceeds the tiny corpus — no pattern can satisfy it.
         result = detector.infer_pattern(pd.Series(["x", "y"]))
         assert result is None
+
+    def test_null_mask_is_boolean_for_none_and_pd_na(self):
+        """The null mask must be boolean, never None/pd.NA.
+
+        ``na_action="ignore"`` leaves missing sentinels in the mask, which is
+        falsy (spurious null CellResult) or raises TypeError when evaluated as
+        a boolean (e.g. in nullable StringDtype columns). Every value, including
+        the pandas missing sentinels, must produce a real bool flag.
+        """
+        config = AutoValidateConfig(m=1, tau=16)
+        corpus = _make_tiny_corpus()
+        detector = AutoValidateAlgorithm(config)
+        detector.build_index(corpus)
+
+        # Object column mixing None and pd.NA.
+        col = pd.Series(["2024-01-15", None, pd.NA, "2024-02-20"], dtype=object)
+        result = detector.detect(pd.DataFrame({"date": col}), table_id="t1")
+        assert len(result.cells) == 2  # None and pd.NA are skipped
+        assert {c.row_index for c in result.cells} == {0, 3}
+
+        # Nullable StringDtype column: pd.NA must not raise TypeError.
+        col = pd.Series(["2024-01-15", None, "2024-02-20"], dtype="string")
+        result = detector.detect(pd.DataFrame({"date": col}), table_id="t1")
+        assert len(result.cells) == 2
+        assert {c.row_index for c in result.cells} == {0, 2}
