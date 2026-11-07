@@ -192,9 +192,12 @@ class UniDetect:
         result = result.orderBy(F.col("lr_ratio").asc())
         result.persist(StorageLevel.MEMORY_AND_DISK)
         result.count()
-        for detector in (self._detectors[et] for et in error_types):
-            detector.release()
-        return result
+        # Ensure detectors are released even if an exception occurs.
+        try:
+            return result
+        finally:
+            for detector in (self._detectors[et] for et in error_types):
+                detector.release()
 
     def write_detections(self, detections: DataFrame, mode: str = "append") -> None:
         """Append (or overwrite) a detection result set to the configured UC table."""
