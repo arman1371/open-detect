@@ -190,7 +190,7 @@ class UniDetect:
         # it -- the very thing this cache lifecycle exists to prevent.
         # The per-detector caches are released only after the union is cached.
         result = result.orderBy(F.col("lr_ratio").asc())
-        result.persist(StorageLevel.MEMORY_AND_DISK)
+        result = result.persist(StorageLevel.MEMORY_AND_DISK)
         result.count()
         # Ensure detectors are released even if an exception occurs.
         try:
