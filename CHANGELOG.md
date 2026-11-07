@@ -2,6 +2,19 @@
 
 <!-- version list -->
 
+## v0.2.9 (2026-11-06)
+
+### Bug Fixes
+
+- **auto-validate**: Handle StringDtype and list-like nulls in detector (OPE-86)
+  ([#41](https://github.com/arman1371/open-detect/pull/41),
+  [`011b59d`](https://github.com/arman1371/open-detect/commit/011b59dfa543cce85bac0f6cfe2a40056b58f197))
+
+---
+
+**Full Changelog**: [v0.2.8...v0.2.9](https://github.com/arman1371/open-detect/compare/v0.2.8...v0.2.9)
+
+
 ## v0.2.8 (2026-11-05)
 
 ### Performance Improvements
