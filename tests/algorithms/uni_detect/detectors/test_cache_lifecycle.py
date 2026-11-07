@@ -233,9 +233,9 @@ class TestDetectCacheLifecycleSpark:
         sys.path.insert(0, str(Path(__file__).parents[4] / "benchmarks"))
         from common.spark_jobs import SparkJobCounter
         from open_detect.algorithms.uni_detect.config import UniDetectConfig, UnityCatalogLocation
+        from open_detect.algorithms.uni_detect.core.enums import ErrorType
         from open_detect.algorithms.uni_detect.detectors.uniqueness import UniquenessDetector
         from open_detect.algorithms.uni_detect.pipeline import UniDetect
-        from open_detect.algorithms.uni_detect.core.enums import ErrorType
 
         config = UniDetectConfig(
             location=UnityCatalogLocation(
