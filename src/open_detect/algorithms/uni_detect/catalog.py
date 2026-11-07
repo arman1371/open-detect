@@ -28,9 +28,14 @@ def ensure_schema_exists(spark: SparkSession, location: UnityCatalogLocation) ->
     with least-privilege service principals should instead pre-create the
     schema and grant ``USE CATALOG``/``USE SCHEMA``/``CREATE TABLE``, and can
     skip calling this helper.
+
+    Note: ``spark_catalog`` is the built-in default catalog in Spark and
+    cannot be created via DDL. We only create the schema in that case.
     """
     try:
-        spark.sql(f"CREATE CATALOG IF NOT EXISTS `{location.catalog}`")
+        # spark_catalog is built-in and cannot be created via DDL
+        if location.catalog != "spark_catalog":
+            spark.sql(f"CREATE CATALOG IF NOT EXISTS `{location.catalog}`")
         spark.sql(f"CREATE SCHEMA IF NOT EXISTS `{location.catalog}`.`{location.schema}`")
     except Exception as exc:  # noqa: BLE001
         raise UnityCatalogError(

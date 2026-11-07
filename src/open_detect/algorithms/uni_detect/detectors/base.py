@@ -130,9 +130,7 @@ class BaseDetector(ABC):
                     # Return a persisted empty result so downstream actions (count, collect,
                     # write) don't re-execute the scoring stage, and the frame can be
                     # released via release() like any other result.
-                    result = self._track(
-                        self._empty_result().persist(StorageLevel.MEMORY_AND_DISK)
-                    )
+                    result = self._track(self._empty_result().persist(StorageLevel.MEMORY_AND_DISK))
                     result.count()
                     return result
 

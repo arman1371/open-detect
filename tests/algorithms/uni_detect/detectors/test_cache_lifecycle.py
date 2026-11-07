@@ -23,8 +23,8 @@ import pytest
 from pyspark import StorageLevel
 
 from open_detect.algorithms.uni_detect.config import UniDetectConfig, UnityCatalogLocation
+from open_detect.algorithms.uni_detect.core.enums import ErrorType
 from open_detect.algorithms.uni_detect.detectors.base import BaseDetector
-from open_detect.core.enums import ErrorType
 
 _CANDIDATE_STORAGE_LEVEL = StorageLevel.MEMORY_AND_DISK
 
@@ -305,6 +305,7 @@ class TestDetectCacheLifecycleSpark:
         sys.path.insert(0, str(Path(__file__).parents[4] / "benchmarks"))
         from common.spark_jobs import SparkJobCounter
         from open_detect.algorithms.uni_detect.config import UniDetectConfig, UnityCatalogLocation
+        from open_detect.algorithms.uni_detect.core.enums import ErrorType
         from open_detect.algorithms.uni_detect.pipeline import UniDetect
 
         config = UniDetectConfig(
@@ -323,6 +324,12 @@ class TestDetectCacheLifecycleSpark:
         spark.sql(
             "INSERT INTO spark_catalog.open_detect_test_schema.t2 VALUES "
             "(1, 'x'), (2, 'x'), (3, 'y')"
+        )
+
+        # Build corpus statistics so detect() can score candidates
+        ud.build_corpus_statistics(
+            ["spark_catalog.open_detect_test_schema.t2"],
+            error_types=[ErrorType.UNIQUENESS],
         )
 
         counter = SparkJobCounter(spark, enabled=True)
