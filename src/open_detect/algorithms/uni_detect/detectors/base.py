@@ -127,7 +127,14 @@ class BaseDetector(ABC):
                         len(table_names),
                     )
                     logger.debug("Tables scanned: %s", list(table_names))
-                    return self._empty_result()
+                    # Return a persisted empty result so downstream actions (count, collect,
+                    # write) don't re-execute the scoring stage, and the frame can be
+                    # released via release() like any other result.
+                    result = self._track(
+                        self._empty_result().persist(StorageLevel.MEMORY_AND_DISK)
+                    )
+                    result.count()
+                    return result
 
                 scored = self.store.batch_score(candidates, self.error_type, spec.direction)
                 joined = candidates.join(scored, on="candidate_id", how="inner")

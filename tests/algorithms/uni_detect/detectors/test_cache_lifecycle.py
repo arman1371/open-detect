@@ -230,10 +230,12 @@ class TestDetectCacheLifecycleSpark:
         import sys
         from pathlib import Path
 
-        sys.path.insert(0, str(Path(__file__).parents[5] / "benchmarks"))
+        sys.path.insert(0, str(Path(__file__).parents[4] / "benchmarks"))
         from common.spark_jobs import SparkJobCounter
         from open_detect.algorithms.uni_detect.config import UniDetectConfig, UnityCatalogLocation
         from open_detect.algorithms.uni_detect.detectors.uniqueness import UniquenessDetector
+        from open_detect.algorithms.uni_detect.pipeline import UniDetect
+        from open_detect.algorithms.uni_detect.core.enums import ErrorType
 
         config = UniDetectConfig(
             location=UnityCatalogLocation(
@@ -243,14 +245,21 @@ class TestDetectCacheLifecycleSpark:
         )
         detector = UniquenessDetector(spark, config)
 
-        # Seed a tiny Delta table with some duplicate rows
+        # Seed a tiny Delta table with some duplicate rows (6 rows to meet min_rows=5)
         spark.sql(
             "CREATE TABLE IF NOT EXISTS spark_catalog.open_detect_test_schema.t1 "
             "(id LONG, val STRING) USING DELTA"
         )
         spark.sql(
             "INSERT INTO spark_catalog.open_detect_test_schema.t1 VALUES "
-            "(1, 'a'), (2, 'a'), (3, 'b')"
+            "(1, 'a'), (2, 'a'), (3, 'b'), (4, 'c'), (5, 'c'), (6, 'd')"
+        )
+
+        # Build corpus statistics so detect() can score candidates
+        ud = UniDetect(config, spark=spark)
+        ud.build_corpus_statistics(
+            ["spark_catalog.open_detect_test_schema.t1"],
+            error_types=[ErrorType.UNIQUENESS],
         )
 
         counter = SparkJobCounter(spark, enabled=True)
@@ -293,7 +302,7 @@ class TestDetectCacheLifecycleSpark:
         import sys
         from pathlib import Path
 
-        sys.path.insert(0, str(Path(__file__).parents[5] / "benchmarks"))
+        sys.path.insert(0, str(Path(__file__).parents[4] / "benchmarks"))
         from common.spark_jobs import SparkJobCounter
         from open_detect.algorithms.uni_detect.config import UniDetectConfig, UnityCatalogLocation
         from open_detect.algorithms.uni_detect.pipeline import UniDetect
