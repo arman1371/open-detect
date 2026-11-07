@@ -87,23 +87,30 @@ def main(argv: list[str] | None = None) -> None:
         redact_evidence=args.redact_evidence,
     )
     ud = UniDetect(config, spark=spark)
-    detections = ud.detect(target_tables, error_types=error_types)
+    detections = None
+    try:
+        detections = ud.detect(target_tables, error_types=error_types)
 
-    if args.top_k:
-        detections = detections.limit(args.top_k)
+        if args.top_k is not None:
+            detections = detections.limit(args.top_k)
 
-    significant = detections.where("is_significant = true")
-    logger.info(
-        "Scanned %d table(s); %d significant detection(s) at alpha=%.3f",
-        len(target_tables),
-        significant.count(),
-        args.alpha,
-    )
-    detections.show(truncate=80)
+        significant = detections.where("is_significant = true")
+        logger.info(
+            "Scanned %d table(s); %d significant detection(s) at alpha=%.3f",
+            len(target_tables),
+            significant.count(),
+            args.alpha,
+        )
+        detections.show(truncate=80)
 
-    if args.write_results:
-        ud.write_detections(detections, mode="append")
-        logger.info("Wrote results to %s", config.detections_fqn)
+        if args.write_results:
+            ud.write_detections(detections, mode="append")
+            logger.info("Wrote results to %s", config.detections_fqn)
+    finally:
+        # The unioned result is persisted by detect(); release it once we are
+        # done counting, showing and writing so the executor memory is freed.
+        if detections is not None:
+            detections.unpersist()
 
 
 if __name__ == "__main__":  # pragma: no cover
