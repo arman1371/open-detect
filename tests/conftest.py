@@ -125,7 +125,7 @@ def spark() -> Iterator[pyspark.sql.SparkSession]:  # noqa: F821
         # balloon to ~10^9 strings and OOM the executor on the default 1g heap.
         # Mirrors benchmarks/common/spark_session.py, which bumped this for the
         # same reason (corpus/store.py's load_token_stats_map() pre-sizes an
-        # ordering buffer proportional to max_tokens).
+        # ordering buffer proportional to max_tokens; default 500k fits in 4g).
         .config("spark.driver.memory", "3g")
         .config("spark.executor.memory", "4g")
         # Delta replays its transaction log with this many partitions on every
