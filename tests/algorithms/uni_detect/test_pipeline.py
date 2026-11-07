@@ -28,13 +28,33 @@ def _mock_spark() -> MagicMock:
 
 
 def _mock_detector_result(spark: MagicMock) -> MagicMock:
-    """Create a mock result DataFrame that can be chained."""
-    result = MagicMock(spec=DataFrame)
-    result.persist.return_value = result
-    result.count.return_value = 5
-    result.orderBy.return_value = result
-    result.unionByName.return_value = result
-    return result
+    """Create a mock result DataFrame that can be chained.
+
+    Returns the pre-sort frame. When ``unionByName`` is called on it (by reduce),
+    it returns itself. Then when ``orderBy`` is called on the unioned result,
+    it returns a new sorted result that persists and materializes.
+
+    The pattern tests that detect() sorts BEFORE persisting to avoid re-execution
+    of the scoring stage.
+    """
+    pre_sort_frame = MagicMock(spec=DataFrame)
+    pre_sort_frame.persist.return_value = pre_sort_frame
+    pre_sort_frame.count.return_value = 5
+    pre_sort_frame.unionByName.return_value = pre_sort_frame  # union returns same frame
+    pre_sort_frame.orderBy.return_value = (
+        pre_sort_frame  # sort returns same frame (will be reconfigured)
+    )
+
+    # The sorted_result is what orderBy RETURNS - we need the chain:
+    # unioned_frame.orderBy() -> sorted_frame, sorted_frame.persist() -> sorted_frame, sorted_frame.count()
+    sorted_result = MagicMock(spec=DataFrame)
+    sorted_result.persist.return_value = sorted_result
+    sorted_result.count.return_value = 5
+
+    # Configure orderBy on pre_sort_frame to return sorted_result
+    pre_sort_frame.orderBy.return_value = sorted_result
+
+    return pre_sort_frame
 
 
 @contextmanager
@@ -117,14 +137,22 @@ class TestUniDetectDetect:
             error_types = [ErrorType.UNIQUENESS, ErrorType.SPELLING]
             result = ud.detect(table_names=["t1", "t2"], error_types=error_types)
 
+            # Get the pre-sort frame from the detector's first result (after union, result is the
+            # same object as the first frame since unionByName returns the same mock)
+            # We verify that orderBy was called on a unioned result frame, which becomes the
+            # sorted result after orderBy returns a new mock.
+            first_detector_frame = ud._detectors[ErrorType.UNIQUENESS].detect.return_value
+            assert (
+                first_detector_frame.orderBy.call_count == 1
+            ), "orderBy should be called on the unioned result frame"
+
+            # result is the sorted frame that should be persisted
+            result.persist.assert_called_once()
+            result.count.assert_called_once()
+
             # Verify each detector was called
             for et in error_types:
                 ud._detectors[et].detect.assert_called_once_with(["t1", "t2"])
-
-            # Verify union and persist happened
-            result.persist.assert_called()
-            result.count.assert_called()
-            result.orderBy.assert_called()
 
             # Verify release called on all detectors
             for et in error_types:

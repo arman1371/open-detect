@@ -184,15 +184,17 @@ class UniDetect:
         error_types = tuple(error_types) if error_types else tuple(ErrorType)
         frames = [self._detectors[et].detect(table_names) for et in error_types]
         result = reduce(lambda a, b: a.unionByName(b), frames)
-        # ``detect()`` returns a persisted frame; the unioned result is
-        # persisted and materialized once, so the caller's count/show/write
-        # reuses the cached frame instead of re-running ingestion + scoring.
+        # Order first, then persist and materialize the *final* frame.  Sorting
+        # after persist() would return an unpersisted frame, so the caller's
+        # count/show/write would re-execute the scoring stage to re-materialize
+        # it -- the very thing this cache lifecycle exists to prevent.
         # The per-detector caches are released only after the union is cached.
+        result = result.orderBy(F.col("lr_ratio").asc())
         result.persist(StorageLevel.MEMORY_AND_DISK)
         result.count()
         for detector in (self._detectors[et] for et in error_types):
             detector.release()
-        return result.orderBy(F.col("lr_ratio").asc())
+        return result
 
     def write_detections(self, detections: DataFrame, mode: str = "append") -> None:
         """Append (or overwrite) a detection result set to the configured UC table."""

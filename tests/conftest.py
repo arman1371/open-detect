@@ -120,6 +120,13 @@ def spark() -> Iterator[pyspark.sql.SparkSession]:  # noqa: F821
         .config("spark.sql.warehouse.dir", warehouse_dir)
         .config("spark.sql.shuffle.partitions", "2")
         .config("spark.default.parallelism", "2")
+        # Default driver heap is too small: ``mapInPandas`` scoring carries up to
+        # ``max_values_per_column`` strings per row, so a single Arrow batch can
+        # balloon to ~10^9 strings and OOM the executor on the default 1g heap.
+        # Mirrors benchmarks/common/spark_session.py, which bumped this for the
+        # same reason (corpus/store.py's load_token_stats_map() pre-sizes an
+        # ordering buffer proportional to max_tokens).
+        .config("spark.driver.memory", "3g")
         # Delta replays its transaction log with this many partitions on every
         # snapshot load (default 50) -- pure overhead for tiny test tables.
         .config("spark.databricks.delta.snapshotPartitions", "2")

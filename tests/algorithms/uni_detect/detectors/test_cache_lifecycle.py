@@ -340,6 +340,12 @@ class TestDetectCacheLifecycleSpark:
         detect_jobs = counter.results[0].jobs
         assert detect_jobs > 0
 
+        # The returned frame must be the *sorted* one, and it must be the frame
+        # that was persisted+materialized -- otherwise count/collect/write below
+        # would re-execute the scoring stage.
+        lr_ratios = [row["lr_ratio"] for row in detections.select("lr_ratio").collect()]
+        assert lr_ratios == sorted(lr_ratios), "pipeline result must be sorted by lr_ratio"
+
         with counter.scope("count"):
             _ = detections.count()
         assert counter.results[1].jobs == 0
