@@ -127,6 +127,7 @@ def spark() -> Iterator[pyspark.sql.SparkSession]:  # noqa: F821
         # same reason (corpus/store.py's load_token_stats_map() pre-sizes an
         # ordering buffer proportional to max_tokens).
         .config("spark.driver.memory", "3g")
+        .config("spark.executor.memory", "4g")
         # Delta replays its transaction log with this many partitions on every
         # snapshot load (default 50) -- pure overhead for tiny test tables.
         .config("spark.databricks.delta.snapshotPartitions", "2")
