@@ -135,6 +135,10 @@ class BaseDetector(ABC):
                     return result
 
                 scored = self.store.batch_score(candidates, self.error_type, spec.direction)
+                # Persist scored frame so downstream materialization doesn't
+                # re-execute the scoring stage. Track it for later release.
+                scored = self._track(scored.persist(StorageLevel.MEMORY_AND_DISK))
+                scored.count()
                 joined = candidates.join(scored, on="candidate_id", how="inner")
 
                 alpha = float(self.config.alpha)
@@ -156,8 +160,8 @@ class BaseDetector(ABC):
                         "evidence_json",
                     )
                 )
-                # Materialize once while ``candidates`` is still cached, then
-                # release the inputs.  The persisted result survives on its own,
+                # Materialize once while ``candidates`` and ``scored`` are still cached,
+                # then release the inputs.  The persisted result survives on its own,
                 # so downstream actions never re-execute the scoring stage.
                 result = self._track(result.persist(StorageLevel.MEMORY_AND_DISK))
                 result.count()
