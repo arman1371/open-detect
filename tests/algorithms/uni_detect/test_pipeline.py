@@ -154,9 +154,10 @@ class TestUniDetectDetect:
             for et in error_types:
                 ud._detectors[et].detect.assert_called_once_with(["t1", "t2"])
 
-            # Verify release called on all detectors
+            # release() is no longer called automatically - the caller is responsible
+            # for releasing the result frame (which releases detector caches)
             for et in error_types:
-                ud._detectors[et].release.assert_called_once()
+                ud._detectors[et].release.assert_not_called()
 
     def test_detect_uses_all_error_types_when_none_specified(self):
         """When error_types is None, all four detectors should be used."""
