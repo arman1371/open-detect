@@ -171,6 +171,10 @@ class UniDetect:
         output, sorted ascending by ``lr_ratio`` (Definition 3: smaller is
         more surprising, i.e. more likely a real error).
 
+        The returned DataFrame is persisted and materialized once.  After
+        the caller finishes using the result they should call :meth:`release`
+        on the ``UniDetect`` instance to free the cached detector frames.
+
         Raises
         ------
         ValidationError
@@ -182,17 +186,33 @@ class UniDetect:
         from pyspark.sql import functions as F
 
         error_types = tuple(error_types) if error_types else tuple(ErrorType)
-        frames = [self._detectors[et].detect(table_names) for et in error_types]
-        result = reduce(lambda a, b: a.unionByName(b), frames)
-        # Order first, then persist and materialize the *final* frame.  Sorting
-        # after persist() would return an unpersisted frame, so the caller's
-        # count/show/write would re-execute the scoring stage to re-materialize
-        # it -- the very thing this cache lifecycle exists to prevent.
-        # The per-detector caches are released only after the union is cached.
-        result = result.orderBy(F.col("lr_ratio").asc())
-        result = result.persist(StorageLevel.MEMORY_AND_DISK)
-        result.count()
-        return result
+        try:
+            frames = [self._detectors[et].detect(table_names) for et in error_types]
+            result = reduce(lambda a, b: a.unionByName(b), frames)
+            # Order first, then persist and materialize the *final* frame.  Sorting
+            # after persist() would return an unpersisted frame, so the caller's
+            # count/show/write would re-execute the scoring stage to re-materialize
+            # it -- the very thing this cache lifecycle exists to prevent.
+            # The per-detector caches are released only after the union is cached.
+            result = result.orderBy(F.col("lr_ratio").asc())
+            result = result.persist(StorageLevel.MEMORY_AND_DISK)
+            result.count()
+            return result
+        except Exception:
+            # Ensure detector caches are released on error to avoid memory leaks.
+            for detector in self._detectors.values():
+                detector.release()
+            raise
+
+    def release(self) -> None:
+        """Release all cached detector resources.
+
+        After calling :meth:`detect` the underlying detectors keep persisted
+        frames in memory (``_persisted``).  Call this method when the result is
+        no longer needed to avoid memory leaks.
+        """
+        for detector in self._detectors.values():
+            detector.release()
 
     def write_detections(self, detections: DataFrame, mode: str = "append") -> None:
         """Append (or overwrite) a detection result set to the configured UC table."""
