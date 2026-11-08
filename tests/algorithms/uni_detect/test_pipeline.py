@@ -154,10 +154,12 @@ class TestUniDetectDetect:
             for et in error_types:
                 ud._detectors[et].detect.assert_called_once_with(["t1", "t2"])
 
-            # release() is no longer called automatically - the caller is responsible
-            # for releasing the result frame (which releases detector caches)
+            # release() IS called automatically in the finally block to free per-detector
+            # caches (scored, joined, result frames) after the unioned result is
+            # materialized. The caller is responsible for releasing the UNIONED
+            # result frame (which has its own unpersist).
             for et in error_types:
-                ud._detectors[et].release.assert_not_called()
+                ud._detectors[et].release.assert_called_once()
 
     def test_detect_uses_all_error_types_when_none_specified(self):
         """When error_types is None, all four detectors should be used."""
