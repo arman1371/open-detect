@@ -226,3 +226,38 @@ class TestUniDetectBuildCorpusStatistics:
         # Test that invalid error_types raises ValidationError
         with pytest.raises(ValidationError):
             ud.build_corpus_statistics(table_names=["t1"], error_types="not_a_list")
+
+
+class TestUniDetectRelease:
+    """Tests for release() method."""
+
+    def test_release_calls_detector_release(self):
+        """release() should call release() on all detectors."""
+        with _mock_spark_context():
+            spark = _mock_spark()
+            ud = UniDetect(_config(), spark=spark)
+
+            # Mock detectors
+            for et in ErrorType:
+                mock_detector = MagicMock()
+                ud._detectors[et] = mock_detector
+
+            ud.release()
+
+            # Each detector's release should be called once
+            for et in ErrorType:
+                ud._detectors[et].release.assert_called_once()
+
+    def test_release_safe_when_no_frames_tracked(self):
+        """release() should be safe when detectors have no tracked frames."""
+        mock_spark = _mock_spark()
+        ud = UniDetect(_config(), spark=mock_spark)
+
+        # Detectors with empty _persisted lists
+        for et in ErrorType:
+            mock_detector = MagicMock()
+            mock_detector._persisted = []
+            ud._detectors[et] = mock_detector
+
+        # Should not raise
+        ud.release()
