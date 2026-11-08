@@ -1,11 +1,13 @@
 """Tests for UniDetect.build_corpus_statistics covering ingest, token stats, and cleanup."""
 
 from unittest.mock import MagicMock
+
 import pytest
 
-from open_detect.algorithms.uni_detect.pipeline import UniDetect
 from open_detect.algorithms.uni_detect.config import UniDetectConfig, UnityCatalogLocation
 from open_detect.algorithms.uni_detect.core.enums import ErrorType
+from open_detect.algorithms.uni_detect.pipeline import UniDetect
+
 
 def _config() -> UniDetectConfig:
     return UniDetectConfig(location=UnityCatalogLocation(catalog="c", schema="s"))

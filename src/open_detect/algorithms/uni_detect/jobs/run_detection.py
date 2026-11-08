@@ -111,6 +111,11 @@ def main(argv: list[str] | None = None) -> None:
         # done counting, showing and writing so the executor memory is freed.
         if detections is not None:
             detections.unpersist()
+        # Also release any cached detector resources held by the UniDetect instance.
+        try:
+            ud.release()
+        except Exception as e:
+            logger.warning("Failed to release UniDetect resources: %s", e)
 
 
 if __name__ == "__main__":  # pragma: no cover
