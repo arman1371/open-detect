@@ -140,6 +140,10 @@ class BaseDetector(ABC):
                 scored = self._track(scored.persist(StorageLevel.MEMORY_AND_DISK))
                 scored.count()
                 joined = candidates.join(scored, on="candidate_id", how="inner")
+                # Persist the joined frame so the final select reads from cache,
+                # not from the candidate/scored lineage that gets unpersisted.
+                joined = self._track(joined.persist(StorageLevel.MEMORY_AND_DISK))
+                joined.count()
 
                 alpha = float(self.config.alpha)
                 result = (
@@ -160,9 +164,10 @@ class BaseDetector(ABC):
                         "evidence_json",
                     )
                 )
-                # Materialize once while ``candidates`` and ``scored`` are still cached,
-                # then release the inputs.  The persisted result survives on its own,
-                # so downstream actions never re-execute the scoring stage.
+                # Materialize once while ``candidates``, ``scored``, and ``joined``
+                # are still cached, then release the inputs.  The persisted result
+                # survives on its own, so downstream actions never re-execute the
+                # scoring stage.
                 result = self._track(result.persist(StorageLevel.MEMORY_AND_DISK))
                 result.count()
                 return result
