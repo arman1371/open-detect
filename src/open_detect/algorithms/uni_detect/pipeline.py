@@ -198,11 +198,12 @@ class UniDetect:
             result = result.persist(StorageLevel.MEMORY_AND_DISK)
             result.count()
             return result
-        except Exception:
-            # Ensure detector caches are released on error to avoid memory leaks.
+        finally:
+            # Release per-detector caches (scored, joined, result frames) now that
+            # the unioned result is materialized.  Must run on both success and
+            # error to avoid memory leaks from accumulated persisted frames.
             for detector in self._detectors.values():
                 detector.release()
-            raise
 
     def release(self) -> None:
         """Release all cached detector resources.
