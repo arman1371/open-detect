@@ -1,18 +1,18 @@
-# Graph Report - open-detect  (2026-11-06)
+# Graph Report - open-detect  (2026-11-09)
 
 ## Corpus Check
-- 181 files · ~137,244 words
+- 182 files · ~138,812 words
 - Verdict: corpus is large enough that graph structure adds value.
 - Unclassified: 232 file(s) not represented in the graph (top: .csv 227, (none) 2, .properties 1)
-- WARNING: 232 of 439 files seen (53%) have no supported extractor and are missing from this graph entirely. It may look complete while representing only part of the codebase.
+- WARNING: 232 of 440 files seen (53%) have no supported extractor and are missing from this graph entirely. It may look complete while representing only part of the codebase.
 
 ## Summary
-- 2507 nodes · 5629 edges · 128 communities (110 shown, 18 thin omitted)
-- Extraction: 88% EXTRACTED · 12% INFERRED · 0% AMBIGUOUS · INFERRED: 687 edges (avg confidence: 0.91)
+- 2545 nodes · 5716 edges · 139 communities (115 shown, 24 thin omitted)
+- Extraction: 88% EXTRACTED · 12% INFERRED · 0% AMBIGUOUS · INFERRED: 685 edges (avg confidence: 0.91)
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `011b59df`
+- Built from commit: `b031e3dd`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -25,54 +25,54 @@
 - generate_dataset.py
 - .claude/CLAUDE.md — graphify trigger
 - InsufficientDataError
-- auto_validate/detector.py
+- _value_matches
 - algorithms/index.md
 - FailureCounts
 - fd_violation_strategies
-- RahaDetector
+- RahaConfig
 - new_cluster
 - outliers.py
 - AutoValidateConfig
 - InferredPattern
 - KnownIndexLabeler
-- RahaConfig
-- ErrorDetectionAlgorithm
-- patterns.py
+- features.py
+- raha/detector.py
+- hierarchy.py
 - permissions
 - with
 - update-graph
 - check_failure_threshold
 - with
-- pipeline.py
+- list_tables_matching
 - perturb_numeric_outlier
 - ConfigurationError
 - real_world_gov/run_benchmark.py
-- AlgorithmResult
-- .detect
-- list_algorithms
-- gaussian_outlier_strategies
+- pandas
+- sample_tuple
+- Writing your own algorithm
+- raha/strategies.py
 - main
 - pytest
 - wiki_subset/run_benchmark.py
 - AutoValidateAlgorithm
-- numeric_outlier.py
+- log_transform_fits_better
 - numpy
 - Uni-Detect
 - real_world_gov benchmark results
-- spark_session.py
+- conftest.py
 - CellResult
-- featurization.py
-- `auto_validate`
-- open_detect_wheel
+- uni_detect/core/enums.py
+- Benchmark: WIKI subset
+- PatternIndex
 - FailureCountsAccumulatorParam
-- test_algorithms_registry.py
+- registry.py
 - CHANGELOG
 - builder.py
 - fmdv_v
-- .detect
+- dataset_utils.py
 - FeatureBucket
-- confusion_metrics
-- PatternIndex
+- Benchmark: real_world_gov
+- fmdv
 - updates
 - CallableLabeler
 - jobs
@@ -83,10 +83,11 @@
 - uses
 - CorpusStatsBuilder
 - env
-- concepts.md
-- CorpusStatsStore
+- docs/index.md
+- log_duration
 - dry_run
 - _score_single_column
+- gaussian_outlier_strategies
 - CorpusIngestor
 - variables
 - Auto-Validate
@@ -94,13 +95,14 @@
 - dev
 - test_console_scripts.py
 - Commit conventions and releases
-- Raha
-- UnityCatalogLocation
+- algorithms/raha.md
+- ensure_schema_exists
 - Current Status: BLOCKED
-- _reference_build_pattern_index
+- clean_column
 - wiki_subset/generate_report.py
+- warnings
 - test
-- BaseDetector
+- collections_abc
 - release.yml
 - release
 - Running on Databricks
@@ -108,37 +110,46 @@
 - pypi
 - Current Status: BLOCKED
 - infer_column_data_type
-- test_failures.py
+- TestConfigThreshold
 - with
 - on
+- profile.py
 - steps
 - perturb_spelling
-- propagate_labels
-- test_corpus_build_metadata.py
+- labeling.py
+- test_hygiene.py
 - Uni-Detect
-- open_detect/exceptions.py
+- test_exceptions.py
 - sonarqube
-- algorithms/uni-detect.md
+- argparse
+- Benchmarks
 - docs
 - force
 - ErrorType
-- docs/index.md
+- test_package_init.py
+- algorithms/uni-detect.md
 - select_fd_column_pairs
 - open-detect
-- config
-- _default_classifier_factory
-- __getattr__
+- cluster_column
+- .index
+- Comparing algorithms
+- test_corpus_and_detectors.py
+- _date_index
+- `uni_detect`
+- `raha`
+- run_raha
+- TestNullSentinel
 - test_metrics.py
-- _StubDetector
+- test_executor_failures.py
 - SparkJobCounter
-- make_evidence_json
+- redact_evidence
 - metrics/spelling.py
-- pandas
+- auto_validate/detector.py
 - test_bench_snapshot.py
 - perturbation.py
-- snapshot.py
+- json
 - min_pairwise_edit_distance
-- main
+- TestConfigureLogging
 - Auto-Validate
 - Performance Baseline — OPE-87
 - uniqueness_ratio
@@ -149,23 +160,23 @@
 3. `UniDetectConfig` - 84 edges
 4. `FailureCounts` - 56 edges
 5. `build_pattern_index()` - 46 edges
-6. `UnityCatalogLocation` - 39 edges
-7. `AutoValidateAlgorithm` - 38 edges
+6. `AutoValidateAlgorithm` - 39 edges
+7. `UnityCatalogLocation` - 39 edges
 8. `UniDetect` - 38 edges
 9. `ConfigurationError` - 36 edges
-10. `RahaConfig` - 34 edges
+10. `CellResult` - 34 edges
 
 ## Surprising Connections (you probably didn't know these)
-- `Reading results` --references--> `AlgorithmResult`  [INFERRED]
-  docs/getting-started/quickstart.md → src/open_detect/algorithms/base.py
 - `One contract: `detect()`` --references--> `ErrorDetectionAlgorithm`  [INFERRED]
   docs/concepts.md → src/open_detect/algorithms/base.py
 - `Configuration` --references--> `RahaConfig`  [INFERRED]
   docs/algorithms/raha.md → src/open_detect/algorithms/raha/config.py
-- `Writing a class` --references--> `Labeler`  [INFERRED]
+- `The simplest labeler: a function` --references--> `CallableLabeler`  [INFERRED]
   docs/guides/custom-labelers.md → src/open_detect/algorithms/raha/labeling.py
 - `How to read them` --references--> `HeuristicLabeler`  [INFERRED]
   docs/benchmarks.md → src/open_detect/algorithms/raha/labeling.py
+- `As a plugin package (no changes to `open-detect`)` --references--> `list_algorithms()`  [INFERRED]
+  docs/guides/writing-an-algorithm.md → src/open_detect/algorithms/registry.py
 
 ## Import Cycles
 - 2-file cycle: `src/open_detect/algorithms/uni_detect/exceptions.py -> src/open_detect/exceptions.py -> src/open_detect/algorithms/uni_detect/exceptions.py`
@@ -173,19 +184,19 @@
 ## Hyperedges (group relationships)
 - **Uni-Detect paper-to-code mapping table** — architecture, paper_unidetect, unidetect_detectors_base_basedetector, unidetect_corpus_builder_corpusstatsbuilder, unidetect_corpus_store_corpusstatsstore [EXTRACTED 1.00]
 
-## Communities (128 total, 18 thin omitted)
+## Communities (139 total, 24 thin omitted)
 
 ### Community 0 - "verify_build_config"
 Cohesion: 0.11
 Nodes (11): diff_fingerprints(), property_key(), read_build_config(), verify_build_config(), write_build_config(), _config(), FakeSpark, test_diff_fingerprints_reports_missing_fields() (+3 more)
 
 ### Community 1 - "UniDetectConfig"
-Cohesion: 0.15
-Nodes (3): UniDetectConfig, TestUniDetectConfig, config()
+Cohesion: 0.12
+Nodes (8): UniDetectConfig, UnityCatalogLocation, _run(), TestRedactEvidence, TestUniDetectConfig, TestUnityCatalogLocation, config(), config()
 
 ### Community 2 - "test_spelling_detector.py"
-Cohesion: 0.18
-Nodes (10): _drop_nulls(), _positions_of(), _row(), _score(), test_build_row_maps_row_ids_via_original_positions(), test_candidate_id_suffix_uses_first_mapped_row_id(), test_drop_nulls_returns_original_positions(), test_duplicates_map_every_occurrence_in_ascending_order() (+2 more)
+Cohesion: 0.16
+Nodes (11): _drop_nulls(), _positions_of(), _row(), _score(), test_build_row_maps_row_ids_via_original_positions(), test_candidate_id_suffix_uses_first_mapped_row_id(), test_drop_nulls_returns_original_positions(), test_duplicates_map_every_occurrence_in_ascending_order() (+3 more)
 
 ### Community 3 - "deploy"
 Cohesion: 0.06
@@ -200,56 +211,56 @@ Cohesion: 0.20
 Nodes (19): build_corpus(), build_eval_targets(), build_fd_targets(), build_outlier_targets(), build_spelling_targets(), build_uniqueness_targets(), _clear_dir(), _fd_fp_variants() (+11 more)
 
 ### Community 7 - "InsufficientDataError"
-Cohesion: 0.18
-Nodes (5): InsufficientDataError, fd_compliance_ratio(), FDResult, minority_violation_rows(), TestFunctionalDependency
+Cohesion: 0.12
+Nodes (7): InsufficientDataError, require_min_size(), fd_compliance_ratio(), FDResult, minority_violation_rows(), ValidationError, TestFunctionalDependency
 
-### Community 8 - "auto_validate/detector.py"
-Cohesion: 0.17
-Nodes (5): _feasible_evidence(), _infeasible_evidence(), _is_null(), _non_null_cells(), _value_matches()
+### Community 8 - "_value_matches"
+Cohesion: 0.15
+Nodes (6): _feasible_evidence(), _infeasible_evidence(), _non_null_cells(), _value_matches(), _counting_value_matches(), counting()
 
 ### Community 10 - "FailureCounts"
-Cohesion: 0.17
-Nodes (9): compute(), _score_fd_pair(), compute(), compute(), compute(), compute(), FailureCounts, compute() (+1 more)
+Cohesion: 0.18
+Nodes (7): compute(), compute(), _score_fd_pair(), compute(), FailureCounts, compute(), TestPerElementFunctions
 
 ### Community 11 - "fd_violation_strategies"
 Cohesion: 0.18
 Nodes (4): fd_violation_strategies(), TestEmptyFrames, TestFdRepeatedGroupsAndNulls, TestFdViolationStrategies
 
-### Community 12 - "RahaDetector"
-Cohesion: 0.07
-Nodes (20): Auto-Validate: learn patterns from clean columns, Quickstart, Raha: find errors with a few labels, Reading results, Uni-Detect: score tables in Unity Catalog, main(), RahaDetector, ColumnFeatures (+12 more)
+### Community 12 - "RahaConfig"
+Cohesion: 0.14
+Nodes (11): API reference, main(), RahaConfig, RahaDetector, GroundTruthLabeler, _values_equal(), test_empty_dataframe_returns_no_cells(), test_recovers_known_errors_with_ground_truth_labeler() (+3 more)
 
 ### Community 13 - "new_cluster"
 Cohesion: 0.09
 Nodes (31): job_clusters, name, schedule, tags, tasks, job_cluster_key, new_cluster, build_corpus_statistics_job (+23 more)
 
 ### Community 14 - "outliers.py"
-Cohesion: 0.16
-Nodes (8): require_min_size(), mad_scores(), MADResult, max_mad(), MaxMADResult, median_absolute_deviation(), sd_scores(), TestNumericOutliers
+Cohesion: 0.13
+Nodes (9): drop_nulls(), mad_scores(), MADResult, max_mad(), MaxMADResult, median_absolute_deviation(), sd_scores(), TestDropNulls (+1 more)
 
 ### Community 15 - "AutoValidateConfig"
 Cohesion: 0.07
-Nodes (14): AutoValidateConfig, _segment_dp(), segment(), _segment_fmdv_v(), _segment_fmdv_vh(), build_pattern_index(), TestDefaults, TestValidation (+6 more)
+Nodes (11): AutoValidateConfig, build_pattern_index(), TestDefaults, TestValidation, TestSegmentDp, solve(), TestCorpusInputShapes, TestEquivalenceToReferenceBuild (+3 more)
 
 ### Community 16 - "InferredPattern"
-Cohesion: 0.10
-Nodes (8): check_drift(), _clean_series(), DriftResult, _fisher_two_tailed(), InferredPattern, _make_pattern(), TestCheckDrift, TestCheckDriftVerticalCutPatterns
+Cohesion: 0.09
+Nodes (9): check_drift(), _clean_series(), _conforms(), DriftResult, _fisher_two_tailed(), InferredPattern, _make_pattern(), TestCheckDrift (+1 more)
 
 ### Community 17 - "KnownIndexLabeler"
-Cohesion: 0.14
-Nodes (13): A note on methodology (read this before trusting the numbers), Benchmark: WIKI subset, Comparing across versions, Layout, Reading the results without JSON, Running the benchmark, Scoring raha, The corpus (`data/corpus/`) (+5 more)
+Cohesion: 0.16
+Nodes (11): Expected weakness: read Auto-Validate's low recall honestly, Layout, Scoring auto_validate, Scoring raha, The corpus (`data/corpus/`), The evaluation targets (`data/eval/targets.json`), The `m` override, Timing (+3 more)
 
-### Community 18 - "RahaConfig"
-Cohesion: 0.09
-Nodes (14): ColumnPredictions, train_and_predict(), RahaConfig, build_all_features(), build_column_features(), _compact_dtype(), _features(), TestClassifierTrainingPath (+6 more)
-
-### Community 19 - "ErrorDetectionAlgorithm"
-Cohesion: 0.13
-Nodes (13): ErrorDetectionAlgorithm, _load_auto_validate(), _load_raha(), _load_uni_detect(), _constant_factory(), get_algorithm_class(), _load_entry_points(), register_algorithm() (+5 more)
-
-### Community 20 - "patterns.py"
+### Community 18 - "features.py"
 Cohesion: 0.07
-Nodes (14): generality_weight(), generalize(), Token, _alternatives(), any_pattern(), _best_first_patterns(), common_patterns(), iter_patterns() (+6 more)
+Nodes (15): ColumnPredictions, train_and_predict(), _default_classifier_factory(), build_all_features(), build_column_features(), ColumnFeatures, _compact_dtype(), _features() (+7 more)
+
+### Community 19 - "raha/detector.py"
+Cohesion: 0.11
+Nodes (9): ErrorDetectionAlgorithm, _load_auto_validate(), _load_raha(), _load_uni_detect(), UniDetectAlgorithm, __getattr__(), _config(), _row() (+1 more)
+
+### Community 20 - "hierarchy.py"
+Cohesion: 0.05
+Nodes (27): _append_literal(), _char_class(), _class_of_token(), generality_weight(), generalize(), _is_numeric(), _iter_runs(), matches() (+19 more)
 
 ### Community 21 - "permissions"
 Cohesion: 0.07
@@ -267,53 +278,49 @@ Nodes (24): concurrency, cancel-in-progress, group, jobs, update-graph, name, on
 Cohesion: 0.12
 Nodes (16): with, cache, cache-dependency-path, distribution, enable-cache, fetch-depth, if-no-files-found, java-version (+8 more)
 
-### Community 26 - "pipeline.py"
-Cohesion: 0.08
-Nodes (9): list_tables(), list_tables_matching(), table_exists(), _run(), get_spark(), TestListTables, TestListTablesMatching, fake_sql() (+1 more)
+### Community 26 - "list_tables_matching"
+Cohesion: 0.16
+Nodes (7): list_tables(), list_tables_matching(), table_exists(), TestListTables, TestListTablesMatching, fake_sql(), TestTableExists
 
 ### Community 27 - "perturb_numeric_outlier"
 Cohesion: 0.16
 Nodes (5): finite_floats(), perturb_numeric_outlier(), TestFiniteFloats, TestPerturbNumericNonFinite, TestPerturbNumericOutlier
 
 ### Community 28 - "ConfigurationError"
-Cohesion: 0.16
-Nodes (8): Concepts, Configuration objects, One contract: `detect()`, The registry, _validate_edges(), _require_columns(), ConfigurationError, TestRequireColumns
+Cohesion: 0.13
+Nodes (7): _validate_edges(), main(), _require_columns(), ConfigurationError, test_main_installs_logging(), TestMain, TestRequireColumns
 
 ### Community 29 - "real_world_gov/run_benchmark.py"
+Cohesion: 0.10
+Nodes (14): confusion_metrics(), git_commit(), spark_session(), SparkUnavailable, _build_config(), main(), _print_comparison(), _register_table() (+6 more)
+
+### Community 30 - "pandas"
 Cohesion: 0.12
-Nodes (13): canonical_column(), dataset_paths(), load_changes(), load_csv(), Source, _build_config(), _dataset_frames(), _print_comparison() (+5 more)
+Nodes (18): _is_null(), _city_column(), _count_detect_calls(), _detect(), _detector(), _make_tiny_corpus(), _per_cell_reference(), test_empty_dataframe() (+10 more)
 
-### Community 31 - ".detect"
-Cohesion: 0.11
-Nodes (4): cluster_column(), sample_tuple(), TestClusterColumn, TestSampleTuple
+### Community 32 - "Writing your own algorithm"
+Cohesion: 0.33
+Nodes (6): 1. Implement `ErrorDetectionAlgorithm`, 2. Register it, 3. Test it, As a plugin package (no changes to `open-detect`), In your own code, Writing your own algorithm
 
-### Community 32 - "list_algorithms"
-Cohesion: 0.09
-Nodes (14): Check it works, 1. Implement `ErrorDetectionAlgorithm`, 2. Register it, 3. Test it, As a plugin package (no changes to `open-detect`), In your own code, Writing your own algorithm, API reference (+6 more)
-
-### Community 33 - "gaussian_outlier_strategies"
-Cohesion: 0.09
-Nodes (11): _factorize_column(), gaussian_outlier_strategies(), histogram_outlier_strategies(), _is_float_like(), normalize_to_str(), pattern_character_strategies(), TestGaussianOutlierStrategies, TestHistogramOutlierStrategies (+3 more)
+### Community 33 - "raha/strategies.py"
+Cohesion: 0.16
+Nodes (6): _factorize_column(), histogram_outlier_strategies(), normalize_to_str(), pattern_character_strategies(), TestHistogramOutlierStrategies, TestPatternCharacterStrategies
 
 ### Community 34 - "main"
-Cohesion: 0.16
+Cohesion: 0.17
 Nodes (6): main(), parse_args(), TestEpsilonAndMismatchFlags, TestMain, TestMainConfiguresLogging, TestParseArgs
 
 ### Community 35 - "pytest"
-Cohesion: 0.12
-Nodes (11): __getattr__(), config(), _fresh_import(), test_core_missing_attr_raises(), test_core_package_getattr_shim(), test_exceptions_getattr_shim(), test_from_core_import_submodule(), test_internal_imports_use_new_paths_only() (+3 more)
+Cohesion: 0.19
+Nodes (11): test_missing_columns_rejected(), test_require_uni_detect_fails_when_undetected(), _fresh_import(), test_core_missing_attr_raises(), test_core_package_getattr_shim(), test_exceptions_getattr_shim(), test_from_core_import_submodule(), test_internal_imports_use_new_paths_only() (+3 more)
 
 ### Community 36 - "wiki_subset/run_benchmark.py"
-Cohesion: 0.09
-Nodes (14): maybe_scope(), ProfileRunSkippedUniDetect, require_uni_detect(), UniDetectProfile, git_commit(), main(), _build_config(), _load_corpus_tables() (+6 more)
+Cohesion: 0.12
+Nodes (10): maybe_scope(), require_uni_detect(), UniDetectProfile, _build_config(), _load_corpus_tables(), _load_targets(), main(), _print_comparison() (+2 more)
 
 ### Community 37 - "AutoValidateAlgorithm"
-Cohesion: 0.08
-Nodes (10): Expected weakness: read Auto-Validate's low recall honestly, Scoring auto_validate, The `m` override, Timing, Inspecting a pattern, Reading the output, Usage, AutoValidateAlgorithm (+2 more)
-
-### Community 38 - "numeric_outlier.py"
-Cohesion: 0.14
-Nodes (4): _score_column(), build_outlier_bucket(), log_transform_fits_better(), TestLogFit
+Cohesion: 0.10
+Nodes (3): AutoValidateAlgorithm, _make_tiny_corpus(), TestAutoValidateDetector
 
 ### Community 39 - "numpy"
 Cohesion: 0.33
@@ -324,80 +331,80 @@ Cohesion: 0.33
 Nodes (6): A fully local example, Configuration, How it works, Install, Operational notes, Uni-Detect
 
 ### Community 41 - "real_world_gov benchmark results"
-Cohesion: 0.14
+Cohesion: 0.15
 Nodes (13): Algorithm comparison, `auto_validate`, By dataset (cell-level), By dataset (cell-level), By dataset (column-level), By dataset (column-level), By dataset (column-level), Evaluated columns (column-level) (+5 more)
 
-### Community 42 - "spark_session.py"
-Cohesion: 0.10
-Nodes (9): spark_session(), SparkUnavailable, candidates(), main(), select(), _delta_jars(), _download(), spark() (+1 more)
+### Community 42 - "conftest.py"
+Cohesion: 0.21
+Nodes (4): _delta_jars(), _download(), spark(), uc_location()
 
 ### Community 43 - "CellResult"
-Cohesion: 0.15
-Nodes (7): Reading the detections, Through the registry, Usage on Databricks, The shared result schema, CellResult, TestCellResultEvidence, score()
+Cohesion: 0.07
+Nodes (18): Reading the detections, Through the registry, Usage on Databricks, Concepts, Configuration objects, One contract: `detect()`, The shared result schema, Auto-Validate: learn patterns from clean columns (+10 more)
 
-### Community 44 - "featurization.py"
-Cohesion: 0.09
-Nodes (12): _score_column(), _score_column(), bucket_by_edges(), bucket_leftness(), bucket_row_count(), bucket_token_length(), bucket_token_prevalence(), build_functional_dependency_bucket() (+4 more)
+### Community 44 - "uni_detect/core/enums.py"
+Cohesion: 0.10
+Nodes (12): ColumnDataType, bucket_by_edges(), bucket_leftness(), bucket_row_count(), bucket_token_length(), bucket_token_prevalence(), build_functional_dependency_bucket(), build_outlier_bucket() (+4 more)
 
-### Community 45 - "`auto_validate`"
-Cohesion: 0.11
-Nodes (17): Algorithm comparison, `auto_validate`, By corruption severity, By corruption severity, By corruption severity (target-level), By error type, By error type (cell-level), By error type (cell-level) (+9 more)
-
-### Community 46 - "open_detect_wheel"
-Cohesion: 0.40
-Nodes (5): artifacts, open_detect_wheel, build, path, type
-
-### Community 48 - "test_algorithms_registry.py"
+### Community 45 - "Benchmark: WIKI subset"
 Cohesion: 0.13
-Nodes (9): _FakeEntryPoint, fresh_registry(), _good_plugin_class(), detect(), real_plugin_path(), test_unknown_algorithm_raises(), TestPluginDiscovery, worker() (+1 more)
+Nodes (13): A note on methodology (read this before trusting the numbers), Benchmark: WIKI subset, Comparing across versions, Reading the results without JSON, Running the benchmark, Why not download the real WIKI corpus in CI?, Algorithm comparison, `auto_validate` (+5 more)
+
+### Community 46 - "PatternIndex"
+Cohesion: 0.12
+Nodes (6): _fmdv_h_single(), _fmdv_single_segment(), _segment_dp(), _segment_fmdv_v(), _segment_fmdv_vh(), PatternIndex
+
+### Community 48 - "registry.py"
+Cohesion: 0.05
+Nodes (29): The registry, Check it works, Installation, Installing from source, Pick your extra, _constant_factory(), get_algorithm(), get_algorithm_class() (+21 more)
 
 ### Community 49 - "CHANGELOG"
-Cohesion: 0.08
-Nodes (24): Bug Fixes, Bug Fixes, Bug Fixes, Bug Fixes, Bug Fixes, Bug Fixes, Bug Fixes, CHANGELOG (+16 more)
+Cohesion: 0.07
+Nodes (26): Bug Fixes, Bug Fixes, Bug Fixes, Bug Fixes, Bug Fixes, Bug Fixes, Bug Fixes, Bug Fixes (+18 more)
 
 ### Community 50 - "builder.py"
-Cohesion: 0.10
-Nodes (5): FailureTracker, get_logger(), log_duration(), TestGetLogger, TestLogDuration
+Cohesion: 0.06
+Nodes (11): Errors, CorpusNotFoundError, DataQualityError, UnityCatalogError, get_spark(), IndexNotBuiltError, OpenDetectError, configure_logging() (+3 more)
 
 ### Community 51 - "fmdv_v"
-Cohesion: 0.08
-Nodes (13): Variants, _coarse_signature(), fmdv_v(), fmdv_vh(), _infer_cmp(), _build_index(), _date_index(), _date_values() (+5 more)
+Cohesion: 0.09
+Nodes (10): Variants, _coarse_signature(), fmdv_v(), fmdv_vh(), _infer_cmp(), _build_index(), TestCoarseSignature, TestFmdvV (+2 more)
 
-### Community 52 - ".detect"
-Cohesion: 0.29
-Nodes (3): _config(), _row(), TestUniDetectAlgorithm
+### Community 52 - "dataset_utils.py"
+Cohesion: 0.22
+Nodes (6): canonical_column(), dataset_paths(), load_changes(), load_csv(), Source, _dataset_frames()
 
 ### Community 53 - "FeatureBucket"
-Cohesion: 0.08
-Nodes (13): ColumnDataType, Candidate, CorpusColumnRecord, CorpusPairRecord, Detection, FeatureBucket, MetricObservation, __getattr__() (+5 more)
-
-### Community 54 - "confusion_metrics"
 Cohesion: 0.09
-Nodes (16): confusion_metrics(), Benchmark: real_world_gov, Comparing across versions, Duration methodology, Expected weakness: read Auto-Validate's numbers honestly, Layout, Methodology: auto_validate, Methodology: raha (+8 more)
+Nodes (11): Candidate, CorpusColumnRecord, CorpusPairRecord, Detection, FeatureBucket, MetricObservation, TestCandidate, TestCorpusRecords (+3 more)
 
-### Community 55 - "PatternIndex"
-Cohesion: 0.06
-Nodes (13): _clean(), fmdv(), fmdv_h(), min_conforming(), _fmdv_h_single(), _fmdv_single_segment(), PatternIndex, sorted_patterns() (+5 more)
+### Community 54 - "Benchmark: real_world_gov"
+Cohesion: 0.18
+Nodes (11): Benchmark: real_world_gov, Comparing across versions, Duration methodology, Expected weakness: read Auto-Validate's numbers honestly, Layout, Methodology: auto_validate, Methodology: raha, Reading the results (+3 more)
+
+### Community 55 - "fmdv"
+Cohesion: 0.12
+Nodes (7): _clean(), fmdv(), fmdv_h(), _build_index(), TestFmdvBasic, TestFmdvH, _tiny_corpus()
 
 ### Community 56 - "updates"
 Cohesion: 0.13
 Nodes (14): prefix, patterns, github-actions, python-dependencies, patterns, update-types, interval, updates (+6 more)
 
 ### Community 57 - "CallableLabeler"
-Cohesion: 0.13
-Nodes (10): Choosing a budget, Custom labelers (Raha), Labeling with rules you already trust, Reproducibility, The simplest labeler: a function, Writing a class, CallableLabeler, TestCallableLabeler (+2 more)
+Cohesion: 0.19
+Nodes (4): CallableLabeler, TestCallableLabeler, fn(), test_callable_labeler_still_accepts_position_argument()
 
 ### Community 58 - "jobs"
 Cohesion: 0.15
 Nodes (12): if, name, needs, runs-on, concurrency, cancel-in-progress, group, jobs (+4 more)
 
 ### Community 59 - "UniDetect"
-Cohesion: 0.20
-Nodes (7): build_spark(), main(), UniDetect, TestCorpusBuilderAndDetectors, _write_table(), TestDetectReturnsEmptyResultWhenNoCandidates, _write_table()
+Cohesion: 0.16
+Nodes (7): build_spark(), main(), UniDetect, __getattr__(), TestCorpusBuilderAndDetectors, _write_table(), TestDetectReturnsEmptyResultWhenNoCandidates
 
 ### Community 60 - "README.md — Uni-Detect overview"
-Cohesion: 0.20
-Nodes (10): CI workflow: Benchmark (wiki-subset, workflow_dispatch), CI workflow: CI (lint/test/type-check), benchmarks/README.md — WIKI-subset benchmark, bundle, name, Wang & He, "Uni-Detect" (SIGMOD 2019), README.md — Uni-Detect overview, catalog.list_tables_matching (+2 more)
+Cohesion: 0.13
+Nodes (15): CI workflow: Benchmark (wiki-subset, workflow_dispatch), CI workflow: CI (lint/test/type-check), benchmarks/README.md — WIKI-subset benchmark, artifacts, open_detect_wheel, bundle, name, build (+7 more)
 
 ### Community 62 - "build"
 Cohesion: 0.17
@@ -408,39 +415,39 @@ Cohesion: 0.23
 Nodes (12): steps, steps, type-check, steps, name, run, timeout-minutes, uses (+4 more)
 
 ### Community 64 - "CorpusStatsBuilder"
-Cohesion: 0.21
+Cohesion: 0.18
 Nodes (6): CorpusStatsBuilder, _stats_schema_without_error_type(), TestStatsSchemaWithoutErrorType, _config(), _pairs(), TestCorpusBuilderFailureGate
 
 ### Community 65 - "env"
 Cohesion: 0.17
 Nodes (12): GITHUB_TOKEN, NEEDS, SONAR_HOST_URL, SONAR_TOKEN, pr-title, pull-requests, if, name (+4 more)
 
-### Community 66 - "concepts.md"
-Cohesion: 0.15
-Nodes (10): Getting started, At a glance, Choosing an algorithm, Rules of thumb, Combine, Comparing algorithms, Find the cells they agree on, Mixed inputs (+2 more)
-
-### Community 67 - "CorpusStatsStore"
-Cohesion: 0.20
-Nodes (3): CorpusStatsStore, TestCorpusStatsStoreBeforeBuild, TestLoadTokenStatsMapCap
+### Community 66 - "docs/index.md"
+Cohesion: 0.21
+Nodes (5): Getting started, At a glance, Choosing an algorithm, Rules of thumb, Errors
 
 ### Community 68 - "dry_run"
 Cohesion: 0.18
 Nodes (11): default, description, type, dry_run, on, workflow_dispatch, workflow_run, inputs (+3 more)
 
 ### Community 69 - "_score_single_column"
-Cohesion: 0.29
-Nodes (3): compute(), _score_single_column(), TestScoreSingleColumn
+Cohesion: 0.20
+Nodes (4): _score_single_column(), config(), TestScoreSingleColumn, score()
+
+### Community 70 - "gaussian_outlier_strategies"
+Cohesion: 0.23
+Nodes (4): gaussian_outlier_strategies(), _is_float_like(), TestGaussianOutlierStrategies, TestRowWeightedNumericGate
 
 ### Community 71 - "CorpusIngestor"
-Cohesion: 0.17
-Nodes (3): CorpusIngestor, TestCorpusIngestorSkipsBadInputs, TestIngestColumnPairsNullAlignment
+Cohesion: 0.16
+Nodes (4): CorpusIngestor, TestCorpusIngestorSkipsBadInputs, _write_table(), TestIngestColumnPairsNullAlignment
 
 ### Community 72 - "variables"
 Cohesion: 0.20
 Nodes (10): default, description, default, description, default, description, variables, corpus_catalog (+2 more)
 
 ### Community 73 - "Auto-Validate"
-Cohesion: 0.22
+Cohesion: 0.33
 Nodes (6): Auto-Validate, Configuration, Detector, Drift, Pattern index, Pattern inference
 
 ### Community 75 - "dev"
@@ -455,21 +462,17 @@ Nodes (4): _console_scripts(), test_all_four_console_scripts_are_declared(), tes
 Cohesion: 0.18
 Nodes (11): Adding an algorithm, Commit conventions and releases, Contributing, Everyday commands, First release bootstrap, How a release happens, Knowledge graph automation, Publishing to PyPI (optional, off by default) (+3 more)
 
-### Community 78 - "Raha"
-Cohesion: 0.50
+### Community 78 - "algorithms/raha.md"
+Cohesion: 0.29
 Nodes (4): Configuration, Detector, Labelers, Raha
-
-### Community 79 - "UnityCatalogLocation"
-Cohesion: 0.15
-Nodes (7): ensure_schema_exists(), UnityCatalogLocation, UnityCatalogError, test_evidence_honors_redact_mode(), TestEnsureSchemaExists, TestRedactEvidence, TestUnityCatalogLocation
 
 ### Community 81 - "Current Status: BLOCKED"
 Cohesion: 0.11
 Nodes (17): Blocking Issues (Resolved vs Remaining):, CI Workflow (`.github/workflows/ci.yml`):, Completed Tasks:, Current Status: BLOCKED, CURRENTLY BLOCKING ISSUES:, Dependencies:, Next Steps:, Project Structure: (+9 more)
 
-### Community 82 - "_reference_build_pattern_index"
-Cohesion: 0.12
-Nodes (7): clean_column(), _is_null(), _iter_corpus_columns(), _reference_build_pattern_index(), _reference_iter_corpus_columns(), TestCleanColumn, TestEquivalenceToReferenceBuild
+### Community 82 - "clean_column"
+Cohesion: 0.22
+Nodes (4): clean_column(), _is_null(), _iter_corpus_columns(), TestCleanColumn
 
 ### Community 83 - "wiki_subset/generate_report.py"
 Cohesion: 0.11
@@ -479,9 +482,9 @@ Nodes (25): grouped_bar_chart(), _nice_ceiling(), _rounded_top_rect(), compariso
 Cohesion: 0.20
 Nodes (10): TMPDIR, test, python-version, fail-fast, matrix, env, name, runs-on (+2 more)
 
-### Community 86 - "BaseDetector"
-Cohesion: 0.10
-Nodes (6): BaseDetector, FunctionalDependencyDetector, _score_pair(), NumericOutlierDetector, SpellingDetector, UniquenessDetector
+### Community 86 - "collections_abc"
+Cohesion: 0.08
+Nodes (15): BaseDetector, make_evidence_json(), FunctionalDependencyDetector, compute(), _score_pair(), NumericOutlierDetector, compute(), _score_column() (+7 more)
 
 ### Community 87 - "release.yml"
 Cohesion: 0.20
@@ -492,12 +495,12 @@ Cohesion: 0.20
 Nodes (10): GH_TOKEN, release, released, tag, version, env, if, outputs (+2 more)
 
 ### Community 89 - "Running on Databricks"
-Cohesion: 0.40
-Nodes (4): Job arguments, Jobs, Notebooks, Running on Databricks
+Cohesion: 0.33
+Nodes (5): Job arguments, Jobs, Notebooks, Practical advice, Running on Databricks
 
 ### Community 90 - "Raha"
-Cohesion: 0.25
-Nodes (8): Configuration, How it works, Install, Raha, Reading the output, Scope, Usage, Who answers the labeling questions?
+Cohesion: 0.40
+Nodes (5): Configuration, How it works, Install, Raha, Scope
 
 ### Community 91 - "pypi"
 Cohesion: 0.20
@@ -523,25 +526,33 @@ Nodes (8): on, pull_request, push, schedule, workflow_dispatch, types, branches,
 Cohesion: 0.25
 Nodes (8): FORCE, TESTED_SHA, steps, env, id, if, name, run
 
-### Community 101 - "test_corpus_build_metadata.py"
-Cohesion: 0.13
-Nodes (4): TestWiring, _NoCandidatesDetector, test_table_names_logged_as_count_at_info_and_list_at_debug(), TestGetSpark
+### Community 100 - "labeling.py"
+Cohesion: 0.08
+Nodes (16): Reading the output, Usage, Who answers the labeling questions?, Raha: find errors with a few labels, Choosing a budget, Custom labelers (Raha), Labeling with rules you already trust, Reproducibility (+8 more)
+
+### Community 101 - "test_hygiene.py"
+Cohesion: 0.11
+Nodes (5): parse_args(), TestParseArgs, _NoCandidatesDetector, test_table_names_logged_as_count_at_info_and_list_at_debug(), TestGetSpark
 
 ### Community 102 - "Uni-Detect"
 Cohesion: 0.33
 Nodes (6): Configuration, Enumerations, Pipeline, Registry adapter, Uni-Detect, Unity Catalog helpers
 
-### Community 103 - "open_detect/exceptions.py"
-Cohesion: 0.08
-Nodes (17): Errors, Practical advice, Errors, CorpusNotFoundError, DataQualityError, IndexNotBuiltError, OpenDetectError, UnknownAlgorithmError (+9 more)
+### Community 103 - "test_exceptions.py"
+Cohesion: 0.22
+Nodes (6): test_all_errors_derive_from_open_detect_error(), test_error_message_is_preserved(), test_insufficient_data_error_is_not_a_value_error(), test_open_detect_error_is_catchable_broadly(), test_relocated_exceptions_importable_from_every_path(), test_validation_error_is_also_a_value_error()
 
 ### Community 104 - "sonarqube"
 Cohesion: 0.33
 Nodes (6): sonarqube, if, name, needs, runs-on, timeout-minutes
 
-### Community 106 - "algorithms/uni-detect.md"
-Cohesion: 0.22
-Nodes (7): Benchmarks, How to read them, Latest results, Running them, Installation, Installing from source, Pick your extra
+### Community 105 - "argparse"
+Cohesion: 0.42
+Nodes (3): candidates(), main(), select()
+
+### Community 106 - "Benchmarks"
+Cohesion: 0.50
+Nodes (4): Benchmarks, How to read them, Latest results, Running them
 
 ### Community 107 - "docs"
 Cohesion: 0.40
@@ -552,63 +563,83 @@ Cohesion: 0.40
 Nodes (5): default, description, options, type, force
 
 ### Community 109 - "ErrorType"
-Cohesion: 0.12
-Nodes (9): ComparisonDirection, ErrorType, _require_min_rows(), all_specs(), ErrorTypeSpec, get_spec(), TestScoreFdPair, TestAllSpecs (+1 more)
+Cohesion: 0.08
+Nodes (12): ComparisonDirection, ErrorType, _require_min_rows(), CorpusStatsStore, all_specs(), ErrorTypeSpec, get_spec(), TestScoreFdPair (+4 more)
 
-### Community 111 - "docs/index.md"
-Cohesion: 0.20
-Nodes (6): open-detect, What is in the box, Why a common interface, Registry, Registry and results, Result types
+### Community 110 - "test_package_init.py"
+Cohesion: 0.22
+Nodes (3): test_lazy_import_raises_for_unknown_attribute(), test_lazy_import_resolves_open_detect_class(), test_registry_does_not_import_spelling_or_rapidfuzz()
+
+### Community 111 - "algorithms/uni-detect.md"
+Cohesion: 0.24
+Nodes (3): Registry, Registry and results, Result types
 
 ### Community 112 - "select_fd_column_pairs"
 Cohesion: 0.19
 Nodes (4): select_fd_column_pairs(), pair_table(), TestSelectFdColumnPairs, by_name()
 
-### Community 118 - "config"
-Cohesion: 0.40
+### Community 116 - ".index"
+Cohesion: 0.33
+Nodes (4): Inspecting a pattern, Reading the output, Usage, segment()
+
+### Community 117 - "Comparing algorithms"
+Cohesion: 0.33
+Nodes (6): Combine, Comparing algorithms, Find the cells they agree on, Mixed inputs, Ranking caveat, Run two algorithms on the same table
+
+### Community 118 - "test_corpus_and_detectors.py"
+Cohesion: 0.33
 Nodes (3): Methodology: uni_detect -- mapping real dirty data onto its four error types, config(), corpus_tables_by_category()
 
+### Community 119 - "_date_index"
+Cohesion: 0.40
+Nodes (3): _date_index(), _date_values(), TestLargeGroups
+
+### Community 120 - "`uni_detect`"
+Cohesion: 0.40
+Nodes (5): By corruption severity, By error type, Evaluation targets, Ranking correctness, `uni_detect`
+
+### Community 121 - "`raha`"
+Cohesion: 0.40
+Nodes (5): By corruption severity (target-level), By error type (cell-level), By error type (target-level), Evaluation targets, `raha`
+
 ### Community 251 - "test_metrics.py"
-Cohesion: 0.27
+Cohesion: 0.24
 Nodes (4): _brute_force_mpd(), _random_words(), _single_edit(), TestSpellingBlocking
 
 ### Community 297 - "SparkJobCounter"
-Cohesion: 0.16
+Cohesion: 0.15
 Nodes (9): ScopeStats, SparkJobCounter, _FakeContext, _FakeTracker, _spark(), test_counts_jobs_and_distinct_stages_per_scope(), test_disabled_counter_is_a_noop(), test_evicted_jobs_are_reported() (+1 more)
 
-### Community 458 - "make_evidence_json"
-Cohesion: 0.19
-Nodes (6): _hash_value(), make_evidence_json(), redact_evidence(), _build_row(), _original_row_ids(), TestRedactEvidence
+### Community 458 - "redact_evidence"
+Cohesion: 0.24
+Nodes (3): _hash_value(), redact_evidence(), TestRedactEvidence
 
 ### Community 527 - "metrics/spelling.py"
-Cohesion: 0.15
-Nodes (8): drop_nulls(), _blocking_keys(), _closest_pair(), MPDResult, _search_mpd(), _result(), try_min_pairwise_edit_distance(), TestDropNulls
+Cohesion: 0.27
+Nodes (6): _blocking_keys(), _closest_pair(), MPDResult, _search_mpd(), _result(), try_min_pairwise_edit_distance()
 
-### Community 530 - "pandas"
-Cohesion: 0.07
-Nodes (17): _conforms(), _append_literal(), _char_class(), _class_of_token(), _is_numeric(), _iter_runs(), matches(), matches_tokens() (+9 more)
+### Community 530 - "auto_validate/detector.py"
+Cohesion: 0.08
+Nodes (8): min_conforming(), indexable_values(), fpr_column(), impurity(), TestMinConforming, _reference_build_pattern_index(), _reference_iter_corpus_columns(), TestIndexableValues
 
 ### Community 537 - "test_bench_snapshot.py"
-Cohesion: 0.18
-Nodes (14): _frame(), _row(), test_added_and_removed_candidates_are_reported(), test_empty_detections_roundtrip(), test_flag_and_list_changes_are_exact(), test_identical_snapshots_match(), test_lr_ratio_beyond_tolerance_differs(), test_lr_ratio_within_tolerance_matches() (+6 more)
+Cohesion: 0.22
+Nodes (13): _frame(), _row(), test_added_and_removed_candidates_are_reported(), test_empty_detections_roundtrip(), test_flag_and_list_changes_are_exact(), test_identical_snapshots_match(), test_lr_ratio_beyond_tolerance_differs(), test_lr_ratio_within_tolerance_matches() (+5 more)
 
 ### Community 639 - "perturbation.py"
-Cohesion: 0.13
-Nodes (8): duplicate_value_indices(), _max_drop(), perturb_functional_dependency(), perturb_uniqueness(), PerturbationOutcome, TestDuplicateValueIndices, TestPerturbFunctionalDependency, TestPerturbUniqueness
+Cohesion: 0.12
+Nodes (9): _score_column(), duplicate_value_indices(), _max_drop(), perturb_functional_dependency(), perturb_uniqueness(), PerturbationOutcome, TestDuplicateValueIndices, TestPerturbFunctionalDependency (+1 more)
 
-### Community 667 - "snapshot.py"
-Cohesion: 0.21
+### Community 667 - "json"
+Cohesion: 0.16
 Nodes (8): _as_json_list(), diff_snapshots(), _list_keys(), load_snapshot(), _lr_equal(), main(), normalize(), save_snapshot()
 
 ### Community 699 - "min_pairwise_edit_distance"
 Cohesion: 0.18
 Nodes (3): differing_token_lengths(), min_pairwise_edit_distance(), TestSpelling
 
-### Community 711 - "main"
-Cohesion: 0.12
-Nodes (7): main(), parse_args(), configure_logging(), test_main_installs_logging(), TestMain, TestParseArgs, TestConfigureLogging
-
 ### Community 1123 - "Auto-Validate"
-Cohesion: 0.25
+Cohesion: 0.33
 Nodes (6): Auto-Validate, Configuration, Drift checking, How it works, Install, Using the parts directly
 
 ### Community 1252 - "Performance Baseline — OPE-87"
@@ -621,22 +652,22 @@ Nodes (6): Earlier timings (no job counts), Environment (wiki_subset measurement
 
 ## Knowledge Gaps
 - **9 isolated node(s):** `open-detect`, `ErrorType enum (Definition 1)`, `outliers metric (max-MAD, Section 3.1)`, `uniqueness metric (UR, Section 3.3)`, `perturb_* epsilon-perturbation functions (Definition 2)` (+4 more)
-  These have ≤1 connection - possible missing edges or undocumented components. (Counts symbols only; 886 node(s) total have ≤1 connection when file, concept and rationale nodes are included.)
-- **18 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
+  These have ≤1 connection - possible missing edges or undocumented components. (Counts symbols only; 907 node(s) total have ≤1 connection when file, concept and rationale nodes are included.)
+- **24 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
 
 ## Suggested Questions
 _Questions this graph is uniquely positioned to answer:_
 
-- **Why does `AutoValidateConfig` connect `AutoValidateConfig` to `list_algorithms`, `AutoValidateAlgorithm`, `auto_validate/detector.py`, `InferredPattern`, `pandas`, `fmdv_v`, `_reference_build_pattern_index`, `confusion_metrics`, `PatternIndex`, `ConfigurationError`, `real_world_gov/run_benchmark.py`?**
-  _High betweenness centrality (0.076) - this node is a cross-community bridge._
+- **Why does `UniDetectConfig` connect `UniDetectConfig` to `verify_build_config`, `test_spelling_detector.py`, `FailureCounts`, `RahaConfig`, `raha/detector.py`, `ConfigurationError`, `real_world_gov/run_benchmark.py`, `main`, `wiki_subset/run_benchmark.py`, `Uni-Detect`, `CellResult`, `CHANGELOG`, `builder.py`, `UniDetect`, `CorpusStatsBuilder`, `_score_single_column`, `collections_abc`, `TestConfigThreshold`, `test_hygiene.py`, `ErrorType`, `test_corpus_and_detectors.py`, `perturbation.py`?**
+  _High betweenness centrality (0.083) - this node is a cross-community bridge._
 - **Are the 35 inferred relationships involving `AutoValidateConfig` (e.g. with `run_auto_validate()` and `run_auto_validate()`) actually correct?**
   _`AutoValidateConfig` has 35 INFERRED edges - model-reasoned connections that need verification._
 - **What connects `open-detect`, `ErrorType enum (Definition 1)`, `outliers metric (max-MAD, Section 3.1)` to the rest of the system?**
   _9 weakly-connected nodes found - possible documentation gaps or missing edges._
 - **Should `verify_build_config` be split into smaller, more focused modules?**
-  _Cohesion score 0.11411411411411411 - nodes in this community are weakly interconnected._
-- **Why does `ErrorType` connect `ErrorType` to `verify_build_config`, `FailureCounts`, `_StubDetector`, `ErrorDetectionAlgorithm`, `pipeline.py`, `real_world_gov/run_benchmark.py`, `list_algorithms`, `main`, `wiki_subset/run_benchmark.py`, `numeric_outlier.py`, `Uni-Detect`, `featurization.py`, `builder.py`, `.detect`, `FeatureBucket`, `UniDetect`, `CorpusStatsBuilder`, `CorpusStatsStore`, `_score_single_column`, `main`, `BaseDetector`, `test_corpus_build_metadata.py`, `open_detect/exceptions.py`?**
-  _High betweenness centrality (0.073) - this node is a cross-community bridge._
+  _Cohesion score 0.11261261261261261 - nodes in this community are weakly interconnected._
+- **Why does `AutoValidateConfig` connect `AutoValidateConfig` to `AutoValidateAlgorithm`, `_value_matches`, `CellResult`, `RahaConfig`, `PatternIndex`, `InferredPattern`, `auto_validate/detector.py`, `fmdv_v`, `_date_index`, `fmdv`, `ConfigurationError`, `real_world_gov/run_benchmark.py`?**
+  _High betweenness centrality (0.077) - this node is a cross-community bridge._
 - **Are the 54 inferred relationships involving `ErrorType` (e.g. with `run_uni_detect()` and `run_uni_detect()`) actually correct?**
   _`ErrorType` has 54 INFERRED edges - model-reasoned connections that need verification._
 
