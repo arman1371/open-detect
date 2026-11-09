@@ -36,7 +36,9 @@ def _detect_dirty(dirty: pd.DataFrame) -> list:
     return detector.detect(dirty, table_id="t1").cells
 
 
-def _per_cell_reference(series: pd.Series, pattern: str | list[str], table_id: str, col: str, config: AutoValidateConfig):
+def _per_cell_reference(
+    series: pd.Series, pattern: str | list[str], table_id: str, col: str, config: AutoValidateConfig
+):
     """Per-cell reference implementation matching the old detect() loop."""
     n_total = len(series) - sum(1 for v in series if _is_null(v))
     score = 1.0 - 0.0 if n_total > 0 else 0.0  # fpr_t not needed for is_error
@@ -49,13 +51,17 @@ def _per_cell_reference(series: pd.Series, pattern: str | list[str], table_id: s
             continue
         is_error = not _value_matches(pattern, text)
         cells.append(
-            type("Cell", (), {
-                "table_id": table_id,
-                "row_index": idx,
-                "column_name": col,
-                "is_error": is_error,
-                "score": score if is_error else 0.0,
-            })()
+            type(
+                "Cell",
+                (),
+                {
+                    "table_id": table_id,
+                    "row_index": idx,
+                    "column_name": col,
+                    "is_error": is_error,
+                    "score": score if is_error else 0.0,
+                },
+            )()
         )
     return cells
 
@@ -210,7 +216,9 @@ def test_mixed_type_column():
     # Compare (row_index, is_error) tuples
     actual = [(c.row_index, c.is_error) for c in mixed]
     expected = [(c.row_index, c.is_error) for c in ref]
-    assert actual == expected, f"mixed-type column diverges from per-cell oracle: actual={actual}, expected={expected}"
+    assert (
+        actual == expected
+    ), f"mixed-type column diverges from per-cell oracle: actual={actual}, expected={expected}"
 
 
 def test_stringdtype_and_pd_na_column():
