@@ -38,7 +38,6 @@ def _detect_dirty(dirty: pd.DataFrame) -> list:
 
 def _per_cell_reference(series: pd.Series, pattern: str | list[str], table_id: str, col: str, config: AutoValidateConfig):
     """Per-cell reference implementation matching the old detect() loop."""
-    inferred = type("obj", (), {"pattern": pattern})()  # minimal object with .pattern
     n_total = len(series) - sum(1 for v in series if _is_null(v))
     score = 1.0 - 0.0 if n_total > 0 else 0.0  # fpr_t not needed for is_error
     cells = []
