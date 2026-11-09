@@ -39,7 +39,13 @@ def _detect_dirty(dirty: pd.DataFrame) -> list:
 def _per_cell_reference(
     series: pd.Series, pattern: str | list[str], table_id: str, col: str, config: AutoValidateConfig
 ):
-    """Per-cell reference implementation matching the old detect() loop."""
+    """Per-cell reference implementation matching the old detect() loop.
+
+    For feasible columns (pattern inferred), empty strings are NOT skipped —
+    they fail the match and become is_error=True. For infeasible columns
+    (handled by _non_null_cells), empty strings are skipped.
+    This function mirrors the feasible-column path used by the detector.
+    """
     n_total = len(series) - sum(1 for v in series if _is_null(v))
     score = 1.0 - 0.0 if n_total > 0 else 0.0  # fpr_t not needed for is_error
     cells = []
@@ -47,8 +53,7 @@ def _per_cell_reference(
         if _is_null(value):
             continue
         text = value if isinstance(value, str) else str(value)
-        if not text:
-            continue
+        # For feasible columns: empty string is NOT skipped; it fails the match
         is_error = not _value_matches(pattern, text)
         cells.append(
             type(
@@ -139,12 +144,15 @@ def test_empty_dataframe():
     assert detector.detect(pd.DataFrame(), table_id="t1").cells == ()
 
 
-def test_nan_and_empty_string_distinct_verdicts():
-    """NaN is skipped; empty strings are skipped too, matching the per-cell
-    baseline in ``_non_null_cells`` (an empty text value is not a cell)."""
-    dirty = pd.DataFrame({"email": ["", "", None]})
+def test_feasible_column_empty_string_is_error():
+    """Feasible columns flag empty strings as errors (they don't match the pattern)."""
+    dirty = pd.DataFrame({"email": ["valid@test.com", "", "invalid-email"]})
     cells = _detect_dirty(dirty)
-    assert cells == ()
+    email = [c for c in cells if c.column_name == "email"]
+    assert len(email) == 3
+    errors = [c for c in email if c.is_error]
+    # Row 1 (empty string) and row 2 (invalid-email) are errors
+    assert {c.row_index for c in errors} == {1, 2}
 
 
 def test_verdict_cache_invoked_at_most_once_per_distinct():
