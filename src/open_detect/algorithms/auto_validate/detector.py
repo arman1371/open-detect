@@ -173,30 +173,21 @@ class AutoValidateAlgorithm(ErrorDetectionAlgorithm):
             fpr_t, cov_t, theta_c = inferred.fpr_t, inferred.cov_t, inferred.theta_c
             n_total = len(series) - sum(1 for v in series if _is_null(v))
             score = 1.0 - fpr_t if n_total > 0 else 0.0
-            # Compute verdict once per distinct non-null value, then map back.
-            # This avoids a per-cell `_value_matches` call and a per-cell
-            # `pd.isna` call (replaced by the vectorized `is_null`).
-            # Deduplicate on the text representation used by `_value_matches`
-            # rather than on the raw value: values that compare equal as Python
-            # objects (e.g. ``1`` and ``True``) can still differ in their string
-            # form and must not share a verdict.
-            # Convert to object dtype first: StringDtype.map(na_action="ignore")
-            # raises NotImplementedError on pandas >= 1.5.
+            # Compute verdict once per distinct non-null value (including empty strings).
+            # Empty strings are NOT null - they are valid text values that should be
+            # checked against patterns (and will fail to match, getting flagged).
             obj_series = series.astype(object)
             text_values = obj_series.map(
                 lambda v: v if isinstance(v, str) else str(v), na_action="ignore"
             )
-            distinct_texts = text_values.dropna().unique()
-            verdicts = {t: not _value_matches(pattern, t) for t in distinct_texts}
-            verdict_map = text_values.map(verdicts, na_action="ignore").fillna(False)
-            # Use _is_null for the null mask to match the behavior of
-            # pattern inference and n_total (which both use _is_null).
-            # series.isna() differs for list-like nulls (e.g. [None]).
-            # Do NOT use na_action="ignore" here: that leaves None/pd.NA in
-            # the mask, which is falsy (spurious null CellResult) or raises
-            # TypeError when evaluated as a boolean. _is_null handles all
-            # values itself, including the pandas missing sentinels.
+            # Null mask
             is_null_mask = obj_series.map(_is_null)
+            # Non-null mask (includes empty strings)
+            non_null_mask = ~is_null_mask
+            distinct_texts = text_values[non_null_mask].unique()
+            verdicts = {t: not _value_matches(pattern, t) for t in distinct_texts}
+            verdict_series = text_values.map(verdicts, na_action="ignore").fillna(False)
+            verdict_map = verdict_series.where(non_null_mask, False)
             for idx, is_error, is_null in zip(
                 series.index, verdict_map, is_null_mask, strict=False
             ):
