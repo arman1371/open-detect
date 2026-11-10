@@ -75,14 +75,10 @@ def _ensure_sequence_of_str(value: Any, param_name: str) -> None:
         )
     # Check it's a Sequence (not a str, already handled above)
     if not isinstance(value, Sequence):
-        raise ValidationError(
-            f"{param_name} must be a sequence of str, got {type(value).__name__}"
-        )
+        raise ValidationError(f"{param_name} must be a sequence of str, got {type(value).__name__}")
     # Check all elements are strings
     if not all(isinstance(c, str) for c in value):
-        raise ValidationError(
-            f"{param_name} must contain only strings, got non-string elements"
-        )
+        raise ValidationError(f"{param_name} must contain only strings, got non-string elements")
 
 
 def _validate_literal_value(
