@@ -12,6 +12,7 @@ from collections.abc import Sequence
 from dataclasses import dataclass, field
 from typing import Any, Literal
 
+from open_detect._sql import quote_ident
 from open_detect.exceptions import ConfigurationError
 
 #: Row-count buckets shared by every error type's featurization (paper Sec. 3.1-3.4).
@@ -57,11 +58,15 @@ class UnityCatalogLocation:
 
     def __post_init__(self) -> None:
         for part, label in ((self.catalog, "catalog"), (self.schema, "schema")):
-            if not part or not part.replace("_", "").isalnum():
+            # quote_ident validates against the strict ASCII pattern and raises
+            # ValidationError; re-raise as ConfigurationError for config inputs.
+            try:
+                quote_ident(part)
+            except Exception as exc:
                 raise ConfigurationError(
                     f"Invalid Unity Catalog {label} name: {part!r}. "
                     "Use alphanumeric/underscore identifiers only."
-                )
+                ) from exc
 
 
 @dataclass(frozen=True)
@@ -159,6 +164,15 @@ class UniDetectConfig:
             raise ConfigurationError(
                 f"max_failure_ratio must be in [0, 1], got {self.max_failure_ratio}"
             )
+        for field_name in ("corpus_stats_table", "token_stats_table", "detections_table"):
+            value = getattr(self, field_name)
+            try:
+                quote_ident(value)
+            except Exception as exc:
+                raise ConfigurationError(
+                    f"Invalid {field_name} name: {value!r}. "
+                    "Use alphanumeric/underscore identifiers only."
+                ) from exc
 
     def build_fingerprint(self) -> dict[str, Any]:
         """JSON-serializable settings that shape (or score against) the corpus statistics.
