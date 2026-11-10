@@ -36,14 +36,28 @@ def _check_expected_type(value: Any, expected_type: type, param_name: str) -> No
     For Sequence[str] parameters, also rejects bare str (which would be
     iterated character-by-character rather than as a sequence).
     """
-    # Special case: if expected_type is a parameterized Sequence[str],
-    # and value is a bare str, reject with a helpful message.
+    # Handle the case where expected_type is parameterized Sequence[str]
     origin = get_origin(expected_type)
     if origin is not None and origin is Sequence:
         # expected_type is Sequence[Something], check the args
-        args: tuple[Any, ...] = getattr(expected_type, "__args__", ())
-        if len(args) == 1 and args[0] is str and isinstance(value, str):
-            raise ValidationError("expected a sequence of str, got str; wrap in a list")
+        args = getattr(expected_type, "__args__", ())
+        if len(args) == 1 and args[0] is str:
+            # Special case: reject bare str
+            if isinstance(value, str):
+                raise ValidationError("expected a sequence of str, got str; wrap in a list")
+            # Check it's a Sequence (not a str, already handled above)
+            # Use ABCSequence check - this will work for list, tuple, but not str
+            # since we already rejected str above
+            if not isinstance(value, Sequence):
+                raise ValidationError(
+                    f"{param_name} must be a sequence of str, got {type(value).__name__}"
+                )
+            # Check all elements are strings
+            if not all(isinstance(c, str) for c in value):
+                raise ValidationError(
+                    f"{param_name} must contain only strings, got non-string elements"
+                )
+            return  # Valid, no further check needed
     # Default isinstance check
     if expected_type is not None and not isinstance(value, expected_type):
         raise ValidationError(
