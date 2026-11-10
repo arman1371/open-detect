@@ -71,7 +71,7 @@ class RahaDetector(ErrorDetectionAlgorithm):
             (evaluation) or :class:`~open_detect.algorithms.raha.labeling.CallableLabeler`
             (a real human/UI) for results matching the paper.
         """
-        from open_detect.validation import _validate_literal_value, _check_unknown_kwargs
+        from open_detect.validation import _check_unknown_kwargs, _validate_literal_value
 
         _check_unknown_kwargs(kwargs, {"table_id", "conflict_resolution", "labeler"}, "detect")
 
