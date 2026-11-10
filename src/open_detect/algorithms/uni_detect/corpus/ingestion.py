@@ -24,6 +24,7 @@ from collections.abc import Sequence
 from itertools import permutations
 from typing import TYPE_CHECKING
 
+from open_detect._sql import quote_column
 from open_detect.algorithms.uni_detect.corpus.schema import (
     CORPUS_COLUMNS_SCHEMA,
     CORPUS_PAIRS_SCHEMA,
@@ -130,7 +131,7 @@ class CorpusIngestor:
             # from it -- can change between runs on identical input data. Ordering
             # by value makes both the sampled set and the list order deterministic.
             sampled = (
-                df.select(F.col(f"`{col}`").cast("string").alias("v"))
+                df.select(F.col(quote_column(col)).cast("string").alias("v"))
                 .orderBy(F.col("v"))
                 .limit(self.max_values_per_column)
             )
@@ -183,8 +184,8 @@ class CorpusIngestor:
             # positions no longer refer to the same rows.
             sampled = (
                 df.select(
-                    F.col(f"`{lhs_col}`").cast("string").alias("lhs"),
-                    F.col(f"`{rhs_col}`").cast("string").alias("rhs"),
+                    F.col(quote_column(lhs_col)).cast("string").alias("lhs"),
+                    F.col(quote_column(rhs_col)).cast("string").alias("rhs"),
                 )
                 .where(F.col("lhs").isNotNull() & F.col("rhs").isNotNull())
                 .orderBy(F.col("lhs"), F.col("rhs"))
