@@ -21,7 +21,6 @@ from open_detect.algorithms.auto_validate.detector import (
     _non_null_cells,
     _value_matches,
 )
-from open_detect.algorithms.auto_validate.hierarchy import matches
 
 
 def _make_tiny_corpus() -> list[pd.Series]:
