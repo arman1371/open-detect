@@ -173,22 +173,24 @@ class AutoValidateAlgorithm(ErrorDetectionAlgorithm):
             fpr_t, cov_t, theta_c = inferred.fpr_t, inferred.cov_t, inferred.theta_c
             n_total = len(series) - sum(1 for v in series if _is_null(v))
             score = 1.0 - fpr_t if n_total > 0 else 0.0
-            # Verdict cache: compute the pattern verdict once per distinct value and
-            # broadcast it, instead of re-running ``_value_matches`` for every
-            # cell. Unhashable values (lists/dicts) are not in the cache and are
-            # resolved per cell below, since ``series.map(dict)`` would raise
-            # ``TypeError`` on them.
+            # Verdict cache: compute the pattern verdict once per distinct text
+            # representation and broadcast it, instead of re-running
+            # ``_value_matches`` for every cell. Unhashable values (lists,
+            # dicts, numpy arrays) are resolved per cell below.
             verdicts = _distinct_value_verdicts(series, pattern)
-            # ``series.notna()`` is a single vectorized pass over the column,
-            # replacing the per-cell ``_is_null`` call (which ran ``pd.isna``
-            # twice per cell). ``notna`` treats ``None``/NaN as null and
-            # everything else (including "" and lists/dicts) as non-null,
-            # matching :func:`_is_null`.
-            for idx, value in series[series.notna()].items():
-                if isinstance(value, (list, dict, set)):
-                    is_error = not _value_matches(pattern, value)
+            # Use _is_null for the null mask to match the behavior of pattern
+            # inference and n_total (which both use _is_null).
+            is_null_mask = series.map(_is_null)
+            # Get the integer position for iloc access since idx might be any hashable
+            for pos, (idx, value) in enumerate(series.items()):
+                if is_null_mask.iloc[pos]:
+                    continue
+                text = _value_text(value)
+                if text is not None and text in verdicts:
+                    is_error = verdicts[text]
                 else:
-                    is_error = verdicts[value]
+                    # Unhashable value or empty text: resolve per cell
+                    is_error = not _value_matches(pattern, value)
                 cells.append(
                     CellResult(
                         table_id=table_id,
@@ -213,14 +215,29 @@ def _is_null(value: Any) -> bool:
         return False
 
 
+def _value_text(value: Any) -> str | None:
+    """Return the text representation used by ``_value_matches`` for caching.
+
+    Returns ``None`` for null values. This is the canonical key for the verdict
+    cache to ensure values like ``1``, ``1.0``, and ``True`` get distinct
+    verdicts (they have different string representations).
+    """
+    if _is_null(value):
+        return None
+    text = value if isinstance(value, str) else str(value)
+    return text if text else None
+
+
 def _value_matches(pattern: str | Sequence[str], value: Any) -> bool:
     """Whether ``value`` matches ``pattern`` (nulls return False).
 
-    ``pattern`` is the inferred validation pattern: a single string for the
-    single-pattern FMDV variants, a disjunction of one pattern per coarse
-    signature group for ``fmdv_v``/``fmdv_vh``, or a single sequence of all
-    matched patterns for ``fmdv_vh`` (when all values share one signature).
-    A value is valid if it matches **any** of them.
+    ``pattern`` is the inferred validation pattern:
+    - A single string for single-pattern FMDV variants (``fmdv``, ``fmdv_h``)
+    - A list of strings for ``fmdv_v``/``fmdv_vh``: one pattern per coarse
+      signature group. A value is valid if it matches **any** group's pattern.
+    - A list of sequences for ``fmdv_vh`` when all values share one signature:
+      each inner sequence represents ordered vertical segments. A value matches
+      a group if it matches **all** segments in that group's sequence (in order).
     """
     if _is_null(value):
         return False
@@ -229,46 +246,41 @@ def _value_matches(pattern: str | Sequence[str], value: Any) -> bool:
         return False
     if isinstance(pattern, str):
         return matches(pattern, text)
-    # Normalize nested sequences (from multi-segment fmdv_v/fmdv_vh) to a
-    # flat list so ``any()`` above handles both single-segment and multi-
-    # segment results uniformly.
-    flat: list[str] = []
-    for item in pattern:
-        if isinstance(item, str):
-            flat.append(item)
+    # Pattern is a sequence. For fmdv_v/vh, it's one pattern per signature group.
+    # For fmdv_vh (single signature), it's a list of sequences (one per segment).
+    # We treat each top-level element as a group: if the group is a string,
+    # it's a single pattern; if it's a sequence, the value must match ALL
+    # patterns in that sequence (ordered segments within the group).
+    for group in pattern:
+        if isinstance(group, str):
+            if matches(group, text):
+                return True
         else:
-            flat.extend(item)
-    return any(matches(p, text) for p in flat)
+            # Ordered segments: value must match all patterns in the sequence
+            if all(matches(seg, text) for seg in group):
+                return True
+    return False
 
 
-def _distinct_value_verdicts(series: pd.Series, pattern: str | Sequence[str]) -> dict[Any, bool]:
-    """Return a ``{value: is_error}`` map for every non-null value in ``series``.
+def _distinct_value_verdicts(series: pd.Series, pattern: str | Sequence[str]) -> dict[str, bool]:
+    """Return a ``{text: is_error}`` map for every non-null value in ``series``.
 
-    The verdict is computed once per distinct value and broadcast to every
-    cell, instead of re-running ``_value_matches`` for each of the
-    (potentially 100k+) cells. ``series.unique()`` cannot hold unhashable
-    values (lists/dicts), so those are collected separately and resolved per
-    cell in :meth:`AutoValidateAlgorithm.detect`.
+    The verdict is computed once per distinct **text representation** (the
+    canonical key used by ``_value_matches``) and broadcast to every cell,
+    instead of re-running ``_value_matches`` for each of the (potentially
+    100k+) cells. This ensures values like ``1``, ``1.0``, and ``True`` get
+    distinct verdicts since they have different string representations.
+    Unhashable values (lists/dicts/numpy arrays) are not cached and are
+    resolved per cell in :meth:`AutoValidateAlgorithm.detect`.
     """
-    try:
-        # Fast path: ``unique()`` deduplicates without materialising duplicates.
-        values = series.unique().tolist()
-    except TypeError:
-        # Column holds unhashable values (lists/dicts): ``unique()`` raises,
-        # so fall back to the full value list and skip unhashables below.
-        values = series.values.tolist()
-    verdicts: dict[Any, bool] = {}
-    for value in values:
-        if _is_null(value):
+    verdicts: dict[str, bool] = {}
+    for value in series:
+        text = _value_text(value)
+        if text is None:
             continue
-        try:
-            if value in verdicts:
-                continue
-        except TypeError:
-            # Unhashable value (list/dict/set): resolved per cell in
-            # ``detect``; do not put it in the cache.
+        if text in verdicts:
             continue
-        verdicts[value] = not _value_matches(pattern, value)
+        verdicts[text] = not _value_matches(pattern, value)
     return verdicts
 
 

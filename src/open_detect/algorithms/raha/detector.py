@@ -46,7 +46,6 @@ class RahaDetector(ErrorDetectionAlgorithm):
         *,
         table_id: str = "table",
         conflict_resolution: Literal["homogeneity", "majority"] | None = None,
-        variant: Literal["A", "B"] | None = None,
         labeler: Labeler | None = None,
         **kwargs: Any,
     ) -> AlgorithmResult:
@@ -64,9 +63,6 @@ class RahaDetector(ErrorDetectionAlgorithm):
             Rule for resolving contradicting user labels when propagating them
             (Section 4.4): ``"homogeneity"`` or ``"majority"``. If not supplied,
             the config default is used.
-        variant:
-            Variant label for the column being scanned. Must be one of ``"A"``
-            or ``"B"``. If not supplied, the config default is used.
         labeler:
             Answers "is this cell dirty?" for the tuples Raha samples
             (Section 4.3). Defaults to :class:`~open_detect.algorithms.raha.labeling.HeuristicLabeler`,
@@ -81,8 +77,9 @@ class RahaDetector(ErrorDetectionAlgorithm):
             _validate_literal_value(
                 conflict_resolution, {"homogeneity", "majority"}, "conflict_resolution"
             )
-        if variant is not None:
-            _validate_literal_value(variant, {"A", "B"}, "variant")
+
+        # Use per-call conflict_resolution if provided, otherwise fall back to config
+        effective_conflict_resolution = conflict_resolution or self.config.conflict_resolution
 
         df = data
         n = len(df)
@@ -131,7 +128,7 @@ class RahaDetector(ErrorDetectionAlgorithm):
                 propagated = propagate_labels(
                     cluster_ids_by_column[col],
                     per_column_labels[col],
-                    self.config.conflict_resolution,
+                    effective_conflict_resolution,
                 )
                 predictions = train_and_predict(column_features[col], propagated, self.config)
                 feature_names = column_features[col].feature_names

@@ -63,17 +63,25 @@ def _reject_unknown_kwargs(kwargs: dict[str, Any], allowed: set[str], param_name
 
 
 def _ensure_sequence_of_str(value: Any, param_name: str) -> None:
-    """Validate that value is a non-string sequence of strings."""
-    origin = get_origin(value)
-    if origin is not None and origin is Sequence:
-        args: tuple[Any, ...] = getattr(value, "__args__", ())
-        if len(args) == 1 and args[0] is str and isinstance(value, str):
-            raise ValidationError(
-                f"expected a sequence of str for {param_name}, got str; wrap in a list"
-            )
-    if not isinstance(value, (list, tuple)) or not all(isinstance(c, str) for c in value):
+    """Validate that value is a non-string sequence of strings.
+
+    Accepts any ``collections.abc.Sequence`` (list, tuple, UserList, etc.),
+    but rejects bare ``str`` (which would be iterated character-by-character).
+    """
+    # Reject bare strings early - they are sequences but not of strings
+    if isinstance(value, str):
         raise ValidationError(
-            f"{param_name} must be a list/tuple of str, got {type(value).__name__}"
+            f"expected a sequence of str for {param_name}, got str; wrap in a list"
+        )
+    # Check it's a Sequence (not a str, already handled above)
+    if not isinstance(value, Sequence):
+        raise ValidationError(
+            f"{param_name} must be a sequence of str, got {type(value).__name__}"
+        )
+    # Check all elements are strings
+    if not all(isinstance(c, str) for c in value):
+        raise ValidationError(
+            f"{param_name} must contain only strings, got non-string elements"
         )
 
 

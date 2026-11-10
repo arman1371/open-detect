@@ -69,9 +69,9 @@ def _make_classifier(factory: Callable[..., ClassifierMixin], random_state: int)
     """Instantiate ``factory`` with ``random_state`` when it accepts one.
 
     A factory is called with ``random_state`` when it takes a parameter named
-    ``random_state`` (the default factory's signature) and with no arguments
-    otherwise, so user-supplied zero-argument factories keep working (B-M6:
-    additive and backwards-compatible).
+    ``random_state`` that can be passed as a keyword argument (i.e., not
+    positional-only). Zero-argument factories or those with positional-only
+    ``random_state`` are called with no arguments for backwards compatibility.
     """
     from inspect import Parameter, signature
 
@@ -80,6 +80,10 @@ def _make_classifier(factory: Callable[..., ClassifierMixin], random_state: int)
         params = signature(factory).parameters
     except (TypeError, ValueError):
         params = {}
-    if "random_state" in params:
+    param = params.get("random_state")
+    if param is not None and param.kind in (
+        Parameter.POSITIONAL_OR_KEYWORD,
+        Parameter.KEYWORD_ONLY,
+    ):
         return factory(random_state=random_state)
     return factory()
