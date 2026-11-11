@@ -20,7 +20,10 @@ from __future__ import annotations
 import hashlib
 import json
 from abc import ABC, abstractmethod
+from contextlib import suppress
 from typing import TYPE_CHECKING, Any, Literal
+
+from pyspark import StorageLevel
 
 from open_detect.algorithms.uni_detect.config import UniDetectConfig
 from open_detect.algorithms.uni_detect.core.enums import ErrorType
@@ -60,6 +63,7 @@ class BaseDetector(ABC):
         self.config = config
         self.store = CorpusStatsStore(spark, config)
         self._failure_tracker: FailureTracker | None = None
+        self._persisted: list[DataFrame] = []
         self.ingestor = CorpusIngestor(
             spark,
             max_values_per_column=config.max_mpd_block_size * 200,
@@ -82,17 +86,36 @@ class BaseDetector(ABC):
     def detect(self, table_names: Sequence[str]) -> DataFrame:
         """Run the full Definition-4 pipeline for ``table_names`` and rank results.
 
-        Returns a DataFrame sorted ascending by ``lr_ratio`` (most surprising
-        first) with columns: ``candidate_id``, ``error_type``, ``table_id``,
-        ``column_names``, ``row_ids``, ``lr_ratio``, ``surprisal``,
-        ``is_significant``, ``support``, ``evidence_json``.
+        Returns a DataFrame with columns: ``candidate_id``, ``error_type``,
+        ``table_id``, ``column_names``, ``row_ids``, ``lr_ratio``,
+        ``surprisal``, ``is_significant``, ``support``, ``evidence_json``.
+
+        The returned DataFrame is **persisted** (``MEMORY_AND_DISK``) and
+        materialized once, before ``candidates`` is released, so every later
+        action (``.count()``, ``.show()``, ``.write``) reuses the cached frame
+        instead of re-running ingestion + scoring.  Call :meth:`release` (or
+        ``unpersist()`` the frame yourself) when done to free the memory.
+
+        Ordering is **not** guaranteed by this method -- the per-detector
+        ``orderBy`` was removed because it is redundant with the global sort in
+        ``pipeline.UniDetect.detect``.  Direct callers that need a specific
+        order must sort the returned frame themselves.
+
+        .. note::
+
+            The result is persisted, not just collected.  ``collect()`` alone
+            would return a list of rows and force the caller to rebuild a
+            DataFrame from scratch -- re-triggering the schema inference and
+            losing the cache.  Returning the persisted frame keeps the
+            materialized data available for downstream actions without
+            re-executing the scoring stage.
         """
         from pyspark.sql import functions as F
 
         spec = get_spec(self.error_type)
         with log_duration(logger, f"detect[{self.error_type.value}]"):
             candidates = self.extract_candidates(table_names)
-            candidates.cache()
+            candidates.persist(StorageLevel.MEMORY_AND_DISK)
             try:
                 n = candidates.count()
                 if self._failure_tracker is not None:
@@ -104,7 +127,12 @@ class BaseDetector(ABC):
                         len(table_names),
                     )
                     logger.debug("Tables scanned: %s", list(table_names))
-                    return self._empty_result()
+                    # Return a persisted empty result so downstream actions (count, collect,
+                    # write) don't re-execute the scoring stage, and the frame can be
+                    # released via release() like any other result.
+                    result = self._track(self._empty_result().persist(StorageLevel.MEMORY_AND_DISK))
+                    result.count()
+                    return result
 
                 scored = self.store.batch_score(candidates, self.error_type, spec.direction)
                 joined = candidates.join(scored, on="candidate_id", how="inner")
@@ -127,8 +155,12 @@ class BaseDetector(ABC):
                         "support",
                         "evidence_json",
                     )
-                    .orderBy(F.col("lr_ratio").asc())
                 )
+                # Materialize once while ``candidates`` is still cached, then
+                # release the inputs.  The persisted result survives on its own,
+                # so downstream actions never re-execute the scoring stage.
+                result = self._track(result.persist(StorageLevel.MEMORY_AND_DISK))
+                result.count()
                 return result
             finally:
                 candidates.unpersist()
@@ -137,6 +169,24 @@ class BaseDetector(ABC):
         from open_detect.algorithms.uni_detect.detectors.schema import DETECTION_RESULT_SCHEMA
 
         return self.spark.createDataFrame([], schema=DETECTION_RESULT_SCHEMA)
+
+    # ------------------------------------------------------------------
+    # Result lifecycle: persisted frames released by callers (req 2)
+    # ------------------------------------------------------------------
+    def _track(self, frame: DataFrame) -> DataFrame:
+        """Register a persisted result frame for later release."""
+        self._persisted.append(frame)
+        return frame
+
+    def release(self) -> None:
+        """Unpersist every result frame produced by this detector's ``detect()`` calls.
+
+        Safe to call when nothing has been tracked; safe to call repeatedly.
+        """
+        for frame in self._persisted:
+            with suppress(Exception):
+                frame.unpersist()
+        self._persisted.clear()
 
 
 RedactMode = Literal["none", "hash", "drop"]

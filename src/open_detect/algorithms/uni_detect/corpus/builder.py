@@ -30,6 +30,11 @@ from open_detect.algorithms.uni_detect.corpus.build_metadata import write_build_
 from open_detect.algorithms.uni_detect.corpus.schema import CORPUS_STATS_SCHEMA
 from open_detect.algorithms.uni_detect.exceptions import InsufficientDataError
 from open_detect.algorithms.uni_detect.failures import FailureCounts, FailureTracker
+from open_detect.algorithms.uni_detect.spark_utils import (
+    ARROW_MAX_RECORDS_PER_BATCH,
+    ARROW_MAX_RECORDS_PER_BATCH_KEY,
+    scoped_conf,
+)
 from open_detect.algorithms.uni_detect.strategies import get_spec
 from open_detect.exceptions import ValidationError
 from open_detect.logging_utils import get_logger, log_duration
@@ -148,7 +153,13 @@ class CorpusStatsBuilder:
                 )
 
         result_schema = _stats_schema_without_error_type()
-        with log_duration(logger, "build_fd_stats"):
+        with (
+            log_duration(logger, "build_fd_stats"),
+            scoped_conf(
+                self.spark,
+                **{ARROW_MAX_RECORDS_PER_BATCH_KEY: str(ARROW_MAX_RECORDS_PER_BATCH)},
+            ),
+        ):
             from pyspark.sql import functions as F
 
             stats = corpus_pairs.select(
@@ -207,7 +218,13 @@ class CorpusStatsBuilder:
                 )
 
         result_schema = _stats_schema_without_error_type()
-        with log_duration(logger, f"build_{error_type.value}_stats"):
+        with (
+            log_duration(logger, f"build_{error_type.value}_stats"),
+            scoped_conf(
+                self.spark,
+                **{ARROW_MAX_RECORDS_PER_BATCH_KEY: str(ARROW_MAX_RECORDS_PER_BATCH)},
+            ),
+        ):
             stats = corpus_columns.select(
                 "table_id", "column_index", "num_rows", "values"
             ).mapInPandas(compute, schema=result_schema)
@@ -261,6 +278,11 @@ class CorpusStatsBuilder:
         table_already_exists = self.spark.catalog.tableExists(fqn)
 
         if error_types is None:
+            # The error type is a constant of the build call, not something to
+            # discover by running the scoring pipeline again.  ``write`` is
+            # documented as accepting it; callers that omit it get the legacy
+            # behaviour of scanning the frame (one extra execution) so the
+            # public contract stays backwards compatible.
             error_types = [
                 ErrorType(r["error_type"]) for r in stats.select("error_type").distinct().collect()
             ]
