@@ -73,7 +73,7 @@ class RahaDetector(ErrorDetectionAlgorithm):
         """
         from open_detect.validation import _check_unknown_kwargs, _validate_literal_value
 
-        _check_unknown_kwargs(kwargs, {"table_id", "conflict_resolution", "labeler"}, "detect")
+        _check_unknown_kwargs(kwargs, {"table_id", "labeler"}, "detect")
 
         if conflict_resolution is not None:
             _validate_literal_value(

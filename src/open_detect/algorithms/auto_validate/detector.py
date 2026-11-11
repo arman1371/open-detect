@@ -27,6 +27,7 @@ from __future__ import annotations
 from collections.abc import Iterable, Sequence
 from typing import Any
 
+import numpy as np
 import pandas as pd
 
 from open_detect.algorithms.auto_validate.config import AutoValidateConfig
@@ -186,10 +187,11 @@ class AutoValidateAlgorithm(ErrorDetectionAlgorithm):
                 if is_null_mask.iloc[pos]:
                     continue
                 text = _value_text(value)
-                if text is not None and text in verdicts:
+                # Only use cached verdict when value is hashable; unhashable
+                # values are resolved per cell via _value_matches below.
+                if text is not None and _try_hash(value) and text in verdicts:
                     is_error = verdicts[text]
                 else:
-                    # Unhashable value or empty text: resolve per cell
                     is_error = not _value_matches(pattern, value)
                 cells.append(
                     CellResult(
@@ -252,7 +254,7 @@ def _value_matches(pattern: str | Sequence[str], value: Any) -> bool:
       signature group. A value is valid if it matches **any** group's pattern.
     - A list of sequences for ``fmdv_vh`` when all values share one signature:
       each inner sequence represents ordered vertical segments. A value matches
-      a group if it matches **all** segments in that group's sequence (in order).
+      a group if it matches **all** patterns in that group's sequence (in order).
     """
     if _is_null(value):
         return False
@@ -288,14 +290,28 @@ def _distinct_value_verdicts(series: pd.Series, pattern: str | Sequence[str]) ->
     resolved per cell in :meth:`AutoValidateAlgorithm.detect`.
     """
     verdicts: dict[str, bool] = {}
+    seen_texts: set[str] = set()
     for value in series:
         text = _value_text(value)
         if text is None:
             continue
-        if text in verdicts:
+        # Normalize to the matcher's text representation to ensure
+        # values like 1, 1.0, and True get distinct verdicts even
+        # though they compare equal as dictionary keys.
+        if text in seen_texts:
             continue
+        seen_texts.add(text)
         verdicts[text] = not _value_matches(pattern, value)
     return verdicts
+
+
+def _try_hash(value: Any) -> bool:
+    """Try to hash a value; return True if hashable, False otherwise."""
+    try:
+        hash(value)
+        return True
+    except TypeError:
+        return False
 
 
 def _non_null_cells(
