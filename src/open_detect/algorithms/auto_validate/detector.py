@@ -27,7 +27,6 @@ from __future__ import annotations
 from collections.abc import Iterable, Sequence
 from typing import Any
 
-import numpy as np
 import pandas as pd
 
 from open_detect.algorithms.auto_validate.config import AutoValidateConfig
