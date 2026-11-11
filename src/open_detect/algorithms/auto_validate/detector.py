@@ -218,14 +218,29 @@ def _is_null(value: Any) -> bool:
 def _value_text(value: Any) -> str | None:
     """Return the text representation used by ``_value_matches`` for caching.
 
-    Returns ``None`` for null values. This is the canonical key for the verdict
-    cache to ensure values like ``1``, ``1.0``, and ``True`` get distinct
-    verdicts (they have different string representations).
+    Returns ``None`` for null values only. This is the canonical key for the
+    verdict cache to ensure values like ``1``, ``1.0``, and ``True`` get
+    distinct verdicts (they have different string representations).  The empty
+    string is a valid cache key -- a feasible column emits blank strings as
+    error cells, and blank is a distinct value worth caching -- so it is
+    preserved here and only ``None`` is reserved for actual nulls.
     """
     if _is_null(value):
         return None
-    text = value if isinstance(value, str) else str(value)
-    return text if text else None
+    return value if isinstance(value, str) else str(value)
+
+
+def _matches_segments(segments: Sequence[str], text: str) -> bool:
+    """Whether ``text`` matches a composite pattern of ordered segments.
+
+    For nested FMDV-VH groups, each segment pattern is matched against the
+    *entire* value, so valid composite values are incorrectly rejected -- e.g.
+    ``["<letter>+", "<symbol>+"]`` rejects ``abc-123`` because ``matches()``
+    requires a complete token-for-token match.  Match the concatenated ordered
+    segment pattern against the value instead: the segments describe the value
+    token-for-token in order, so joining them reproduces the full pattern.
+    """
+    return matches("".join(segments), text)
 
 
 def _value_matches(pattern: str | Sequence[str], value: Any) -> bool:
@@ -242,8 +257,6 @@ def _value_matches(pattern: str | Sequence[str], value: Any) -> bool:
     if _is_null(value):
         return False
     text = value if isinstance(value, str) else str(value)
-    if not text:
-        return False
     if isinstance(pattern, str):
         return matches(pattern, text)
     # Pattern is a sequence. For fmdv_v/vh, it's one pattern per signature group.
@@ -256,8 +269,9 @@ def _value_matches(pattern: str | Sequence[str], value: Any) -> bool:
             if matches(group, text):
                 return True
         else:
-            # Ordered segments: value must match all patterns in the sequence
-            if all(matches(seg, text) for seg in group):
+            # Ordered segments: match the concatenated segment pattern against
+            # the whole value, not each segment against the whole value.
+            if _matches_segments(group, text):
                 return True
     return False
 
