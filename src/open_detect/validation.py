@@ -51,35 +51,6 @@ def _check_expected_type(value: Any, expected_type: type, param_name: str) -> No
         )
 
 
-def _reject_unknown_kwargs(kwargs: dict[str, Any], allowed: set[str], param_name: str) -> None:
-    """Raise ValidationError if kwargs contains keys not in ``allowed``."""
-    unknown = set(kwargs) - allowed
-    if unknown:
-        raise ValidationError(
-            f"Unknown parameter(s) in {param_name}: {', '.join(sorted(unknown))}. "
-            f"Allowed parameters: {', '.join(sorted(allowed))}"
-        )
-
-
-def _ensure_sequence_of_str(value: Any, param_name: str) -> None:
-    """Validate that value is a non-string sequence of strings.
-
-    Accepts any ``collections.abc.Sequence`` (list, tuple, UserList, etc.),
-    but rejects bare ``str`` (which would be iterated character-by-character).
-    """
-    # Reject bare strings early - they are sequences but not of strings
-    if isinstance(value, str):
-        raise ValidationError(
-            f"expected a sequence of str for {param_name}, got str; wrap in a list"
-        )
-    # Check it's a Sequence (not a str, already handled above)
-    if not isinstance(value, Sequence):
-        raise ValidationError(f"{param_name} must be a sequence of str, got {type(value).__name__}")
-    # Check all elements are strings
-    if not all(isinstance(c, str) for c in value):
-        raise ValidationError(f"{param_name} must contain only strings, got non-string elements")
-
-
 def _validate_literal_value(
     value: Any,
     valid_values: set[str],
