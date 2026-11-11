@@ -28,13 +28,20 @@ class SparkUnavailable(Exception):
     """
 
 
+MIN_DRIVER_MEMORY_BYTES = 1024 * 1024 * 1024  # 1g floor: Spark's default heap is too small
+
+
 def _host_memory_bytes() -> int | None:
     """Best-effort read of the RAM the JVM will actually be allowed to use.
 
     Prefers the cgroup limit (containers) over the host total, since the JVM
     sizes its heap from the host total and gets OOM-killed when the container
-    limit is smaller.
+    limit is smaller.  On cgroup-v1 systems without an enforced limit,
+    ``memory.limit_in_bytes`` commonly holds a huge unlimited sentinel, so the
+    returned value is the **minimum** of the physical RAM and the cgroup limit.
     """
+    physical: int | None = None
+    cgroup: int | None = None
     for path in ("/sys/fs/cgroup/memory.max", "/sys/fs/cgroup/memory/memory.limit_in_bytes"):
         try:
             raw = Path(path).read_text().strip()
@@ -47,11 +54,15 @@ def _host_memory_bytes() -> int | None:
         except ValueError:
             continue
         if value > 0:
-            return value
+            cgroup = value
+            break
     try:
-        return int(Path("/proc/meminfo").read_text().splitlines()[0].split()[1]) * 1024
+        physical = int(Path("/proc/meminfo").read_text().splitlines()[0].split()[1]) * 1024
     except (OSError, IndexError, ValueError):
-        return None
+        physical = None
+    if physical is not None and cgroup is not None:
+        return min(physical, cgroup)
+    return physical if physical is not None else cgroup
 
 
 def _cap_driver_memory(driver_memory: str) -> str:
@@ -61,7 +72,9 @@ def _cap_driver_memory(driver_memory: str) -> str:
     still constrained by the cgroup -- a heap bigger than the cgroup gets the
     process killed mid-run. Cap at 60% of the available memory (leaving room
     for the Python driver, the OS, and the executor thread pools), and never
-    below 1g.
+    below 1g.  Raises :class:`SparkUnavailable` when the available budget
+    cannot support the 1g minimum heap, so callers never start a session that
+    is guaranteed to be OOM-killed.
     """
     try:
         requested = int(driver_memory.rstrip("gGmM")) * (
@@ -72,7 +85,16 @@ def _cap_driver_memory(driver_memory: str) -> str:
     host = _host_memory_bytes()
     if host is None:
         return driver_memory
-    cap = max(1024 * 1024 * 1024, int(host * 0.6))
+    cap = max(MIN_DRIVER_MEMORY_BYTES, int(host * 0.6))
+    if cap > host:
+        # The 1g floor can push the capped heap above the container's entire
+        # memory budget (e.g. a 768 MiB cgroup gets a 1g heap, leaving no room
+        # for the Python driver or the OS and reproducing the OOM-kill this
+        # guard exists to prevent). Report the budget as too small instead.
+        raise SparkUnavailable(
+            f"cannot start Spark: available memory {host} bytes cannot support the "
+            f"minimum {MIN_DRIVER_MEMORY_BYTES // (1024 * 1024 * 1024)}g driver heap"
+        )
     if requested <= cap:
         return driver_memory
     unit = "g" if cap % (1024 * 1024 * 1024) == 0 else "m"

@@ -104,9 +104,13 @@ def _validate_literal_value(
 
     Uses typing.get_origin to check the actual Literal constraint at runtime.
     """
+    if not isinstance(value, str):
+        raise ValidationError(
+            f"{param_name} must be one of {sorted(valid_values)}, got {type(value).__name__}"
+        )
     if value not in valid_values:
         raise ValidationError(
-            f"{param_name} must be one of {sorted(valid_values)}, " f"got {value!r}"
+            f"{param_name} must be one of {sorted(valid_values)}, got {value!r}"
         )
 
 
