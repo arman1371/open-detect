@@ -40,24 +40,26 @@ def _check_expected_type(value: Any, expected_type: type, param_name: str) -> No
     origin = get_origin(expected_type)
     if origin is not None and origin is Sequence:
         # expected_type is Sequence[Something], check the args
-        args = getattr(expected_type, "__args__", ())
-        if len(args) == 1 and args[0] is str:
-            # Special case: reject bare str
-            if isinstance(value, str):
-                raise ValidationError("expected a sequence of str, got str; wrap in a list")
-            # Check it's a Sequence (not a str, already handled above)
-            # Use ABCSequence check - this will work for list, tuple, but not str
-            # since we already rejected str above
-            if not isinstance(value, Sequence):
-                raise ValidationError(
-                    f"{param_name} must be a sequence of str, got {type(value).__name__}"
-                )
-            # Check all elements are strings
-            if not all(isinstance(c, str) for c in value):
-                raise ValidationError(
-                    f"{param_name} must contain only strings, got non-string elements"
-                )
-            return  # Valid, no further check needed
+        args: tuple[Any, ...] = getattr(expected_type, "__args__", ())
+        if len(args) == 1:
+            arg = args[0]
+            if arg is str:
+                # Special case: reject bare str
+                if isinstance(value, str):
+                    raise ValidationError("expected a sequence of str, got str; wrap in a list")
+                # Check it's a Sequence (not a str, already handled above)
+                # Use ABCSequence check - this will work for list, tuple, but not str
+                # since we already rejected str above
+                if not isinstance(value, Sequence):
+                    raise ValidationError(
+                        f"{param_name} must be a sequence of str, got {type(value).__name__}"
+                    )
+                # Check all elements are strings
+                if not all(isinstance(c, str) for c in value):
+                    raise ValidationError(
+                        f"{param_name} must contain only strings, got non-string elements"
+                    )
+                return  # Valid, no further check needed
     # Default isinstance check
     if expected_type is not None and not isinstance(value, expected_type):
         raise ValidationError(
@@ -103,15 +105,15 @@ def _validate_literal_value(
     """Validate that value is one of the allowed Literal values.
 
     Uses typing.get_origin to check the actual Literal constraint at runtime.
+    Checks isinstance(value, str) before set membership to avoid TypeError on
+    unhashable types (e.g. lists, dicts). Raises ValidationError instead.
     """
     if not isinstance(value, str):
         raise ValidationError(
             f"{param_name} must be one of {sorted(valid_values)}, got {type(value).__name__}"
         )
     if value not in valid_values:
-        raise ValidationError(
-            f"{param_name} must be one of {sorted(valid_values)}, got {value!r}"
-        )
+        raise ValidationError(f"{param_name} must be one of {sorted(valid_values)}, got {value!r}")
 
 
 def _check_columns_unique(columns: list[str]) -> None:
