@@ -95,9 +95,7 @@ def _validate_literal_value(
             f"{param_name} must be one of {sorted(valid_values)}, got {type(value).__name__}"
         )
     if value not in valid_values:
-        raise ValidationError(
-            f"{param_name} must be one of {sorted(valid_values)}, got {value!r}"
-        )
+        raise ValidationError(f"{param_name} must be one of {sorted(valid_values)}, got {value!r}")
 
 
 def _check_columns_unique(columns: list[str]) -> None:
