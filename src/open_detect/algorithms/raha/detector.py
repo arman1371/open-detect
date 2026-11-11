@@ -46,6 +46,7 @@ class RahaDetector(ErrorDetectionAlgorithm):
         *,
         table_id: str = "table",
         conflict_resolution: Literal["homogeneity", "majority"] | None = None,
+        variant: Literal["A", "B"] | None = None,
         labeler: Labeler | None = None,
         **kwargs: Any,
     ) -> AlgorithmResult:
@@ -71,8 +72,9 @@ class RahaDetector(ErrorDetectionAlgorithm):
             (evaluation) or :class:`~open_detect.algorithms.raha.labeling.CallableLabeler`
             (a real human/UI) for results matching the paper.
         """
-        from open_detect.validation import _validate_literal_value
+        from open_detect.validation import _ensure_dataframe_is_spark, _validate_literal_value
 
+        _ensure_dataframe_is_spark(data, "data")
         if conflict_resolution is not None:
             _validate_literal_value(
                 conflict_resolution, {"homogeneity", "majority"}, "conflict_resolution"
@@ -123,6 +125,7 @@ class RahaDetector(ErrorDetectionAlgorithm):
             evidence_cache: dict[tuple[str, tuple[str, ...]], dict[str, str | list[str]]] = {}
 
             cells: list[CellResult] = []
+            effective_conflict_resolution = conflict_resolution or self.config.conflict_resolution
             for col in df.columns:
                 propagated = propagate_labels(
                     cluster_ids_by_column[col],
