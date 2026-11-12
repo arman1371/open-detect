@@ -94,6 +94,12 @@ jobs:
       TMPDIR: /tmp
     steps:
       - uses: actions/checkout@v7
+      - name: Debug checkout
+        run: |
+          pwd
+          ls -la
+          ls -la benchmarks/ 2>/dev/null || echo "benchmarks/ not found"
+          ls -la benchmarks/common/ 2>/dev/null || echo "benchmarks/common/ not found"
       - uses: astral-sh/setup-uv@v10.2.0
         with:
           enable-cache: true
