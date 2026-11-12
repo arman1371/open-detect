@@ -97,7 +97,10 @@ def fmdv_v(
             group_patterns.append([pat])
         elif isinstance(pat, Sequence):
             # Multiple ordered segments for this signature group
-            group_patterns.append(pat)  # type: ignore[arg-type]
+            # Narrow: if pat is a Sequence of str (not list[Sequence[str]]), append it
+            first = pat[0] if pat else None
+            if first is None or isinstance(first, str):
+                group_patterns.append(pat)  # type: ignore[arg-type]
 
     # For backward compatibility: when there's a single group with a single
     # segment, return the pattern as a string, not a nested list.
@@ -111,7 +114,7 @@ def fmdv_v(
         # Preserve group/segment structure for fmdv_vh matching:
         # pattern is list[Sequence[str]] where each Sequence[str] is a group
         # of ordered segments that must ALL match (AND logic across segments).
-        pattern = group_patterns  # type: ignore[assignment]
+        pattern = group_patterns
 
     return InferredPattern(
         pattern=pattern,
@@ -177,7 +180,10 @@ def fmdv_vh(
             group_patterns.append([pat])
         elif isinstance(pat, Sequence):
             # Multiple ordered segments for this signature group
-            group_patterns.append(pat)  # type: ignore[arg-type]
+            # Narrow: if pat is a Sequence of str (not list[Sequence[str]]), append it
+            first = pat[0] if pat else None
+            if first is None or isinstance(first, str):
+                group_patterns.append(pat)  # type: ignore[arg-type]
     # For backward compatibility: when there's a single group with a single
     # segment, return the pattern as a string, not a nested list.
     if (
@@ -190,7 +196,7 @@ def fmdv_vh(
         # Preserve group/segment structure for fmdv_vh matching:
         # pattern is list[Sequence[str]] where each Sequence[str] is a group
         # of ordered segments that must ALL match (AND logic across segments).
-        pattern = group_patterns  # type: ignore[assignment]
+        pattern = group_patterns
     return InferredPattern(
         pattern=pattern,
         fpr_t=min(1.0, total_fpr),

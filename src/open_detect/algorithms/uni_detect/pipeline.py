@@ -181,6 +181,7 @@ class UniDetect:
         self._validate_inputs(table_names=table_names, error_types=error_types, **kwargs)
 
         from pyspark.sql import functions as F
+
         from open_detect.algorithms.uni_detect.spark_utils import (
             ARROW_MAX_RECORDS_PER_BATCH,
             ARROW_MAX_RECORDS_PER_BATCH_KEY,

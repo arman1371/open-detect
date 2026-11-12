@@ -49,10 +49,7 @@ def _check_expected_type(value: Any, expected_type: type, param_name: str) -> No
     # Use the origin type (collections.abc.Sequence) for isinstance check.
     # Parameterized generics like Sequence[str] cannot be used with isinstance.
     # If there's no origin (concrete types like str, int, list), use expected_type directly.
-    if origin is not None:
-        check_type = origin
-    else:
-        check_type = expected_type
+    check_type = origin if origin is not None else expected_type
 
     if check_type is not None and not isinstance(value, check_type):
         raise ValidationError(
