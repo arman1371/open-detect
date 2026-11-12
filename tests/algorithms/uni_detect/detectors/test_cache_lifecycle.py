@@ -173,48 +173,11 @@ class TestDetectCacheContract:
 # ----------------------------------------------------------------------
 
 
-def _spark_available() -> bool:
-    """Probe whether a Delta-enabled Spark session can be started."""
-    import os
-    import sys
-
-    os.environ.setdefault("PYSPARK_PYTHON", sys.executable)
-    os.environ.setdefault("PYSPARK_DRIVER_PYTHON", sys.executable)
-    try:
-        from delta import configure_spark_with_delta_pip
-        from pyspark.sql import SparkSession
-
-        with SparkUnavailableContext():
-            builder = (
-                SparkSession.builder.master("local[1]")
-                .appName("cache-test-probe")
-                .config("spark.sql.extensions", "io.delta.sql.DeltaSparkSessionExtension")
-                .config(
-                    "spark.sql.catalog.spark_catalog",
-                    "org.apache.spark.sql.delta.catalog.DeltaCatalog",
-                )
-            )
-            session = configure_spark_with_delta_pip(builder).getOrCreate()
-            session.sparkContext.setLogLevel("ERROR")
-            session.stop()
-        return True
-    except Exception:
-        return False
+# Skip condition: rely on the session fixture from conftest.py which properly
+# configures the Spark session with the correct driver heap settings.
+# The fixture skips tests automatically when no Java is available.
 
 
-class SparkUnavailableContext:
-    """Context manager that catches and silences any exception for the probe."""
-
-    def __enter__(self):
-        return self
-
-    def __exit__(self, exc_type, exc_val, exc_tb):
-        return True  # suppress any exception
-
-
-@pytest.mark.skipif(
-    not _spark_available(), reason="requires a Delta-enabled Spark session with Java"
-)
 class TestDetectCacheLifecycleSpark:
     """End-to-end cache contract on a real Spark session (skipped without Java).
 

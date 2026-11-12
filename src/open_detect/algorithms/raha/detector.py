@@ -46,7 +46,6 @@ class RahaDetector(ErrorDetectionAlgorithm):
         *,
         table_id: str = "table",
         conflict_resolution: Literal["homogeneity", "majority"] | None = None,
-        variant: Literal["A", "B"] | None = None,
         labeler: Labeler | None = None,
         **kwargs: Any,
     ) -> AlgorithmResult:
@@ -72,15 +71,18 @@ class RahaDetector(ErrorDetectionAlgorithm):
             (evaluation) or :class:`~open_detect.algorithms.raha.labeling.CallableLabeler`
             (a real human/UI) for results matching the paper.
         """
-        from open_detect.validation import _ensure_dataframe_is_spark, _validate_literal_value
+        from open_detect.validation import (
+            _check_unknown_kwargs,
+            _ensure_dataframe_is_spark,
+            _validate_literal_value,
+        )
 
+        _check_unknown_kwargs(kwargs, {"table_id", "conflict_resolution", "labeler"}, "detect")
         _ensure_dataframe_is_spark(data, "data")
         if conflict_resolution is not None:
             _validate_literal_value(
                 conflict_resolution, {"homogeneity", "majority"}, "conflict_resolution"
             )
-        if variant is not None:
-            _validate_literal_value(variant, {"A", "B"}, "variant")
 
         df = data
         n = len(df)

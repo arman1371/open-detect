@@ -34,7 +34,7 @@ and an approximation otherwise.  Documented as a fidelity note.
 
 from __future__ import annotations
 
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 
 import pandas as pd
 
@@ -73,6 +73,8 @@ def fmdv_v(
         if best_overall is None or _infer_cmp(seg, best_overall) < 0:
             best_overall = seg
 
+    # Preserve ordered segments: _segment_dp now returns segment_patterns
+    # as the pattern field, so best_overall.pattern is already a Sequence[str]
     return best_overall
 
 
@@ -118,9 +120,12 @@ def fmdv_vh(
     if not all_patterns:
         return None
     theta_c = total_theta_c_num / total_theta_c_den if total_theta_c_den else 0.0
-    patterns = [s.pattern for s in all_patterns]
+    # Preserve per-signature-group segment patterns as nested sequences
+    # Each element of all_patterns is an InferredPattern whose .pattern is
+    # a Sequence[str] of ordered segments for that signature group.
+    group_patterns = [s.pattern for s in all_patterns]  # type: ignore[assignment]
     return InferredPattern(
-        pattern=patterns[0] if len(patterns) == 1 else patterns,  # type: ignore[arg-type]
+        pattern=group_patterns,
         fpr_t=min(1.0, total_fpr),
         cov_t=total_cov,
         theta_c=theta_c,
@@ -201,9 +206,12 @@ def _segment_dp(
     total_fpr = min(1.0, sum(s.fpr_t for s in best_segments))
     total_cov = sum(s.cov_t for s in best_segments)
     theta_c = sum(s.theta_c * s.cov_t for s in best_segments) / total_cov if total_cov else 0.0
-    patterns = [s.pattern for s in best_segments]
+    # Preserve segment groups: each vertical segmentation produces ordered
+    # segments that must ALL match (AND logic). Wrap as a sequence of strings
+    # so _value_matches can distinguish group alternatives from ordered segments.
+    segment_patterns = [s.pattern for s in best_segments]  # type: ignore[assignment]
     return InferredPattern(
-        pattern=patterns[0] if len(patterns) == 1 else patterns,  # type: ignore[arg-type]
+        pattern=segment_patterns,
         fpr_t=total_fpr,
         cov_t=total_cov,
         theta_c=theta_c,

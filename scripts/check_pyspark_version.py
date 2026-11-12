@@ -7,7 +7,10 @@ in the dependency-groups.dev section.
 import re
 import sys
 
-import tomllib
+try:
+    import tomllib
+except ImportError:
+    import tomli as tomllib
 
 
 def main():

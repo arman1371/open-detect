@@ -10,11 +10,6 @@ from open_detect.algorithms.uni_detect.detectors.schema import CANDIDATE_SCHEMA
 from open_detect.algorithms.uni_detect.failures import FailureCounts
 from open_detect.algorithms.uni_detect.featurization import build_uniqueness_bucket
 from open_detect.algorithms.uni_detect.perturbation import perturb_uniqueness
-from open_detect.algorithms.uni_detect.spark_utils import (
-    ARROW_MAX_RECORDS_PER_BATCH,
-    ARROW_MAX_RECORDS_PER_BATCH_KEY,
-    scoped_conf,
-)
 from open_detect.algorithms.uni_detect.strategies import get_spec
 
 if TYPE_CHECKING:
@@ -100,10 +95,8 @@ class UniquenessDetector(BaseDetector):
                 yield pd.DataFrame(rows, columns=[f.name for f in CANDIDATE_SCHEMA.fields])
 
         columns_df = self.ingestor.ingest_columns(table_names)
-        with scoped_conf(
-            self.spark,
-            **{ARROW_MAX_RECORDS_PER_BATCH_KEY: str(ARROW_MAX_RECORDS_PER_BATCH)},
-        ):
-            return columns_df.select(
-                "table_id", "column_name", "column_index", "num_rows", "values"
-            ).mapInPandas(compute, schema=CANDIDATE_SCHEMA)
+        # ARROW_MAX_RECORDS_PER_BATCH is set by BaseDetector.detect() so it stays
+        # active through the lazy execution of mapInPandas and the subsequent count().
+        return columns_df.select(
+            "table_id", "column_name", "column_index", "num_rows", "values"
+        ).mapInPandas(compute, schema=CANDIDATE_SCHEMA)

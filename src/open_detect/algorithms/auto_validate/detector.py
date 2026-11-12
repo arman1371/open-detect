@@ -243,16 +243,15 @@ def _matches_segments(segments: Sequence[str], text: str) -> bool:
     return matches("".join(segments), text)
 
 
-def _value_matches(pattern: str | Sequence[str], value: Any) -> bool:
+def _value_matches(pattern: str | Sequence[str] | list[Sequence[str]], value: Any) -> bool:
     """Whether ``value`` matches ``pattern`` (nulls return False).
 
     ``pattern`` is the inferred validation pattern:
     - A single string for single-pattern FMDV variants (``fmdv``, ``fmdv_h``)
-    - A list of strings for ``fmdv_v``/``fmdv_vh``: one pattern per coarse
-      signature group. A value is valid if it matches **any** group's pattern.
-    - A list of sequences for ``fmdv_vh`` when all values share one signature:
-      each inner sequence represents ordered vertical segments. A value matches
-      a group if it matches **all** segments in that group's sequence (in order).
+    - A list of strings for ``fmdv_v``: ordered segments (AND logic)
+    - A list of sequences for ``fmdv_vh``: one sequence per coarse-signature
+      group, each containing ordered segments. A value matches a group if it
+      matches ALL segments in that group's sequence (in order).
     """
     if _is_null(value):
         return False
@@ -276,7 +275,7 @@ def _value_matches(pattern: str | Sequence[str], value: Any) -> bool:
     return False
 
 
-def _distinct_value_verdicts(series: pd.Series, pattern: str | Sequence[str]) -> dict[str, bool]:
+def _distinct_value_verdicts(series: pd.Series, pattern: str | Sequence[str] | list[Sequence[str]]) -> dict[str, bool]:
     """Return a ``{text: is_error}`` map for every non-null value in ``series``.
 
     The verdict is computed once per distinct **text representation** (the
@@ -347,7 +346,7 @@ def _infeasible_evidence(config: AutoValidateConfig, reason: str | None) -> dict
 
 def _feasible_evidence(
     config: AutoValidateConfig,
-    pattern: str | Sequence[str],
+    pattern: str | Sequence[str] | list[Sequence[str]],
     fpr_t: float,
     cov_t: int,
     theta_c: float,

@@ -43,8 +43,12 @@ def _check_expected_type(value: Any, expected_type: type, param_name: str) -> No
         args = getattr(expected_type, "__args__", ())
         if args and args[0] is str and isinstance(value, str):
             raise ValidationError("expected a sequence of str, got str; wrap in a list")
+        # Use the origin (bare Sequence) for isinstance check
+        expected_type_for_check = origin  # type: ignore[assignment]
+    else:
+        expected_type_for_check = expected_type
     # Default isinstance check
-    if expected_type is not None and not isinstance(value, expected_type):
+    if expected_type_for_check is not None and not isinstance(value, expected_type_for_check):
         raise ValidationError(
             f"{param_name} must be of type {expected_type.__name__}, "
             f"got {type(value).__name__}: {value!r}"
