@@ -77,7 +77,7 @@ class CorpusStatsStore:
         table = self.spark.table(self.config.corpus_stats_fqn)
         return table.where(F.col("error_type") == error_type.value)
 
-    def load_token_stats_map(self, max_tokens: int | None = 5_000_000) -> dict[str, int]:
+    def load_token_stats_map(self, max_tokens: int | None = 500_000) -> dict[str, int]:
         """Collect the token-document-frequency table to the driver as a dict.
 
         Used to build the broadcast variable consumed by featurization's
@@ -85,6 +85,10 @@ class CorpusStatsStore:
         collecting an unbounded vocabulary to driver memory; raise it (or set
         to ``None``) deliberately for very large deployments with enough
         driver memory.
+
+        The default (500k) is chosen to fit in typical executor heaps (e.g. 4g
+        in CI) where Spark's ``takeOrdered`` (used by ``orderBy().limit()``)
+        allocates a bounded priority queue of size ``max_tokens``.
         """
         if not self.spark.catalog.tableExists(self.config.token_stats_fqn):
             return {}

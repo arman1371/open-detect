@@ -142,7 +142,7 @@ class AutoValidateAlgorithm(ErrorDetectionAlgorithm):
             requested column is absent from ``data``. If ``True``, missing
             columns are silently skipped.
         """
-        _check_unknown_kwargs(kwargs, {"table_id", "columns", "skip_missing"}, "detect")
+        _check_unknown_kwargs(kwargs, {"table_id", "columns", "skip_missing"})
         _check_columns_present(columns, list(data.columns), skip_missing=skip_missing)
 
         if len(data) == 0 or data.shape[1] == 0:
@@ -186,12 +186,10 @@ class AutoValidateAlgorithm(ErrorDetectionAlgorithm):
                 if is_null_mask.iloc[pos]:
                     continue
                 text = _value_text(value)
-                # Only use cached verdict when value is hashable; unhashable
-                # values are resolved per cell via _value_matches below.
-                # We use text as the cache key since it's always hashable.
                 if text is not None and text in verdicts:
                     is_error = verdicts[text]
                 else:
+                    # Unhashable value or empty text: resolve per cell
                     is_error = not _value_matches(pattern, value)
                 cells.append(
                     CellResult(
@@ -235,10 +233,12 @@ def _value_text(value: Any) -> str | None:
 def _matches_segments(segments: Sequence[str], text: str) -> bool:
     """Whether ``text`` matches a composite pattern of ordered segments.
 
-    For nested FMDV-VH groups, each inner sequence represents ordered
-    vertical segments within a signature group. The value must match ALL
-    segments in order to match that group. This is achieved by concatenating
-    the segment patterns and matching the combined pattern against the text.
+    For nested FMDV-VH groups, each segment pattern is matched against the
+    *entire* value, so valid composite values are incorrectly rejected -- e.g.
+    ``["<letter>+", "<symbol>+"]`` rejects ``abc-123`` because ``matches()``
+    requires a complete token-for-token match.  Match the concatenated ordered
+    segment pattern against the value instead: the segments describe the value
+    token-for-token in order, so joining them reproduces the full pattern.
     """
     return matches("".join(segments), text)
 
@@ -248,32 +248,29 @@ def _value_matches(pattern: str | Sequence[str], value: Any) -> bool:
 
     ``pattern`` is the inferred validation pattern:
     - A single string for single-pattern FMDV variants (``fmdv``, ``fmdv_h``)
-    - A list of strings for ``fmdv_v``: one pattern per coarse signature group.
-      A value is valid if it matches **any** group's pattern.
+    - A list of strings for ``fmdv_v``/``fmdv_vh``: one pattern per coarse
+      signature group. A value is valid if it matches **any** group's pattern.
     - A list of sequences for ``fmdv_vh`` when all values share one signature:
       each inner sequence represents ordered vertical segments. A value matches
-      a group if it matches **all** patterns in that group's sequence (in order).
-    - A list of sequences for ``fmdv_vh`` (multi-signature): each inner
-      sequence is a group of ordered vertical segments. A value matches if it
-      matches **any** group (disjunction between groups), and within a group
-      it must match **all** segments (conjunction).
+      a group if it matches **all** segments in that group's sequence (in order).
     """
     if _is_null(value):
         return False
     text = value if isinstance(value, str) else str(value)
     if isinstance(pattern, str):
         return matches(pattern, text)
-    # Pattern is a sequence. For fmdv_v, it's one string per signature group.
-    # For fmdv_vh, it's a list of sequences (one sequence per signature group).
-    # In both cases, we treat each top-level element as a group: disjunction
-    # between groups, conjunction within a group (for sequence groups).
+    # Pattern is a sequence. For fmdv_v/vh, it's one pattern per signature group.
+    # For fmdv_vh (single signature), it's a list of sequences (one per segment).
+    # We treat each top-level element as a group: if the group is a string,
+    # it's a single pattern; if it's a sequence, the value must match ALL
+    # patterns in that sequence (ordered segments within the group).
     for group in pattern:
         if isinstance(group, str):
             if matches(group, text):
                 return True
         else:
-            # Ordered segments within a group: value must match ALL segments
-            # (concatenated pattern) to match this group.
+            # Ordered segments: match the concatenated segment pattern against
+            # the whole value, not each segment against the whole value.
             if _matches_segments(group, text):
                 return True
     return False
@@ -291,28 +288,14 @@ def _distinct_value_verdicts(series: pd.Series, pattern: str | Sequence[str]) ->
     resolved per cell in :meth:`AutoValidateAlgorithm.detect`.
     """
     verdicts: dict[str, bool] = {}
-    seen_texts: set[str] = set()
     for value in series:
         text = _value_text(value)
         if text is None:
             continue
-        # Normalize to the matcher's text representation to ensure
-        # values like 1, 1.0, and True get distinct verdicts even
-        # though they compare equal as dictionary keys.
-        if text in seen_texts:
+        if text in verdicts:
             continue
-        seen_texts.add(text)
         verdicts[text] = not _value_matches(pattern, value)
     return verdicts
-
-
-def _try_hash(value: Any) -> bool:
-    """Try to hash a value; return True if hashable, False otherwise."""
-    try:
-        hash(value)
-        return True
-    except TypeError:
-        return False
 
 
 def _non_null_cells(

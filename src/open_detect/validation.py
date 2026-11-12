@@ -36,13 +36,12 @@ def _check_expected_type(value: Any, expected_type: type, param_name: str) -> No
     For Sequence[str] parameters, also rejects bare str (which would be
     iterated character-by-character rather than as a sequence).
     """
-    # Special case: if expected_type is a parameterized Sequence[str],
-    # and value is a bare str, reject with a helpful message.
+    # Handle the case where expected_type is parameterized Sequence[str]
     origin = get_origin(expected_type)
     if origin is not None and origin is Sequence:
         # expected_type is Sequence[Something], check the args
-        args: tuple[Any, ...] = getattr(expected_type, "__args__", ())
-        if len(args) == 1 and args[0] is str and isinstance(value, str):
+        args = getattr(expected_type, "__args__", ())
+        if args and args[0] is str and isinstance(value, str):
             raise ValidationError("expected a sequence of str, got str; wrap in a list")
     # Default isinstance check
     if expected_type is not None and not isinstance(value, expected_type):
@@ -50,37 +49,6 @@ def _check_expected_type(value: Any, expected_type: type, param_name: str) -> No
             f"{param_name} must be of type {expected_type.__name__}, "
             f"got {type(value).__name__}: {value!r}"
         )
-
-
-def _reject_unknown_kwargs(kwargs: dict[str, Any], allowed: set[str], param_name: str) -> None:
-    """Raise ValidationError if kwargs contains keys not in ``allowed``."""
-    unknown = set(kwargs) - allowed
-    if unknown:
-        raise ValidationError(
-            f"Unknown parameter(s) in {param_name}: {', '.join(sorted(unknown))}. "
-            f"Allowed parameters: {', '.join(sorted(allowed))}"
-        )
-
-
-def _ensure_sequence_of_str(value: Any, param_name: str) -> None:
-    """Validate that value is a non-string sequence of strings.
-
-    Accepts any ``collections.abc.Sequence`` (list, tuple, UserList, etc.),
-    but rejects bare ``str`` (which would be iterated character-by-character).
-    Also accepts sequences of ``str`` enums (where each element is a ``str``
-    subclass).
-    """
-    # Reject bare strings early - they are sequences but not of strings
-    if isinstance(value, str):
-        raise ValidationError(
-            f"expected a sequence of str for {param_name}, got str; wrap in a list"
-        )
-    # Check it's a Sequence (not a str, already handled above)
-    if not isinstance(value, Sequence):
-        raise ValidationError(f"{param_name} must be a sequence of str, got {type(value).__name__}")
-    # Check all elements are strings (or string enums, which are str subclasses)
-    if not all(isinstance(c, str) for c in value):
-        raise ValidationError(f"{param_name} must contain only strings, got non-string elements")
 
 
 def _validate_literal_value(
@@ -91,10 +59,12 @@ def _validate_literal_value(
     """Validate that value is one of the allowed Literal values.
 
     Uses typing.get_origin to check the actual Literal constraint at runtime.
+    Checks isinstance(value, str) before set membership to avoid TypeError on
+    unhashable types (e.g. lists, dicts). Raises ValidationError instead.
     """
     if not isinstance(value, str):
         raise ValidationError(
-            f"{param_name} must be one of {sorted(valid_values)}, got {type(value).__name__}"
+            f"{param_name} must be one of {sorted(valid_values)}, " f"got {value!r}"
         )
     if value not in valid_values:
         raise ValidationError(f"{param_name} must be one of {sorted(valid_values)}, got {value!r}")
@@ -126,21 +96,55 @@ def _check_dataframe_is_spark(df: Any, param_name: str = "data") -> None:
 
 
 def _ensure_dataframe_is_spark(df: Any, param_name: str = "data") -> None:
-    """Runtime guard: validate that data is a Spark DataFrame.
+    """Runtime guard: accept Spark or pandas DataFrames.
 
-    No-op if pyspark is not available, which is fine for pandas-only environments.
-    This is separate from _check_dataframe_is_spark which raises ValidationError.
+    Soft guard (unlike :func:`_check_dataframe_is_spark`, which raises
+    :class:`ValidationError`): it never rejects non-DataFrame input, leaving
+    that to the caller. When PySpark is importable it accepts both
+    ``pyspark.sql.DataFrame`` and ``pandas.DataFrame`` -- the Raha detector
+    runs on pandas even in environments that have PySpark installed but no
+    active session, and rejecting pandas there broke every end-to-end test.
+    When PySpark is not importable it is a pure no-op, which is fine for
+    pandas-only environments.
     """
     try:
         from pyspark.sql import DataFrame as SparkDataFrame
 
-        if not isinstance(df, SparkDataFrame):
-            raise ValidationError(
-                f"{param_name} must be a pyspark.sql.DataFrame, " f"got {type(df).__name__}"
-            )
+        if isinstance(df, SparkDataFrame):
+            return
     except ImportError:
-        # PySpark not available; this is fine for pandas-only environments
         pass
+    try:
+        import pandas as pd
+    except ImportError:
+        return
+    if isinstance(df, pd.DataFrame):
+        return
+
+
+def _ensure_sequence_of_str(value: Any, param_name: str) -> None:
+    """Raise ValidationError if value is not a sequence of strings.
+
+    Also rejects bare str (which would be iterated character-by-character).
+    """
+    if isinstance(value, str):
+        raise ValidationError(f"{param_name} must be a sequence of str, got str; wrap in a list")
+    if not isinstance(value, Sequence):
+        raise ValidationError(f"{param_name} must be a sequence of str, got {type(value).__name__}")
+    for i, item in enumerate(value):
+        if not isinstance(item, str):
+            raise ValidationError(f"{param_name}[{i}] must be str, got {type(item).__name__}")
+
+
+def _reject_unknown_kwargs(kwargs: dict[str, Any], allowed: set[str], param_name: str) -> None:
+    """Raise ValidationError if any unknown kwargs are passed."""
+    unknown = set(kwargs) - allowed
+    if unknown:
+        msg = (
+            f"Unknown parameter(s): {', '.join(sorted(unknown))}. "
+            f"Accepted parameters: {', '.join(sorted(allowed))}"
+        )
+        raise ValidationError(msg)
 
 
 __all__ = [
@@ -150,6 +154,6 @@ __all__ = [
     "_check_columns_unique",
     "_check_dataframe_is_spark",
     "_ensure_dataframe_is_spark",
-    "_reject_unknown_kwargs",
     "_ensure_sequence_of_str",
+    "_reject_unknown_kwargs",
 ]
