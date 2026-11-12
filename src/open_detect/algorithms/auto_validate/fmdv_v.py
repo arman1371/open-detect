@@ -126,7 +126,11 @@ def fmdv_vh(
     group_patterns: list[Sequence[str]] = []
     for s in all_patterns:
         pat = s.pattern
-        if isinstance(pat, Sequence) and not isinstance(pat, str):
+        if isinstance(pat, str):
+            # Single segment for this signature group
+            group_patterns.append([pat])
+        elif isinstance(pat, Sequence):
+            # Multiple ordered segments for this signature group
             group_patterns.append(pat)  # type: ignore[arg-type]
     # For backward compatibility: when there's a single group with a single
     # segment, return the pattern as a string, not a nested list.
