@@ -128,8 +128,14 @@ def fmdv_vh(
         pat = s.pattern
         if isinstance(pat, Sequence) and not isinstance(pat, str):
             group_patterns.append(pat)  # type: ignore[arg-type]
+    # For backward compatibility: when there's a single group with a single
+    # segment, return the pattern as a string, not a nested list.
+    if len(group_patterns) == 1 and len(group_patterns[0]) == 1 and isinstance(group_patterns[0][0], str):
+        pattern: str | Sequence[str] | list[Sequence[str]] = group_patterns[0][0]
+    else:
+        pattern = group_patterns  # type: ignore[assignment]
     return InferredPattern(
-        pattern=group_patterns,
+        pattern=pattern,
         fpr_t=min(1.0, total_fpr),
         cov_t=total_cov,
         theta_c=theta_c,
@@ -211,13 +217,15 @@ def _segment_dp(
     total_cov = sum(s.cov_t for s in best_segments)
     theta_c = sum(s.theta_c * s.cov_t for s in best_segments) / total_cov if total_cov else 0.0
     # Preserve segment groups: each vertical segmentation produces ordered
-    # segments that must ALL match (AND logic). Wrap as a sequence of strings
-    # so _value_matches can distinguish group alternatives from ordered segments.
-    segment_patterns: Sequence[str] = [
-        s.pattern for s in best_segments if isinstance(s.pattern, str)
-    ]
+    # segments that must ALL match (AND logic). For backward compatibility,
+    # return a single string when there's only one segment.
+    segment_patterns = [s.pattern for s in best_segments if isinstance(s.pattern, str)]
+    if len(segment_patterns) == 1:
+        pattern: str | Sequence[str] | list[Sequence[str]] = segment_patterns[0]
+    else:
+        pattern = segment_patterns
     return InferredPattern(
-        pattern=segment_patterns,
+        pattern=pattern,
         fpr_t=total_fpr,
         cov_t=total_cov,
         theta_c=theta_c,
