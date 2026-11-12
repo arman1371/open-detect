@@ -191,10 +191,12 @@ class TestDetectCacheLifecycleSpark:
         """Import ScoringJobCounter, adding benchmarks to sys.path if needed."""
         import sys
         from pathlib import Path
+
         benchmarks_dir = Path(__file__).resolve().parents[4] / "benchmarks"
         if str(benchmarks_dir) not in sys.path:
             sys.path.insert(0, str(benchmarks_dir))
         from common.spark_jobs import ScoringJobCounter
+
         return ScoringJobCounter
 
     def test_detect_returns_persisted_frame_no_reexecution_on_count_collect_write(self, spark):
