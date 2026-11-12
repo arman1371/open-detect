@@ -199,6 +199,8 @@ def _counting_value_matches(call_counter: dict[str, int]) -> Callable:
 #: real result, and :func:`test_verdict_cache_matches_per_cell_under_broadcasting`
 #: / :func:`test_identical_to_per_cell_baseline` keep asserting full equivalence
 #: against the oracle with the *real* inference (no stub).
+#: For this test fixture (emails), all values share the same coarse signature,
+#: so fmdv_vh returns a single string pattern (not a nested list).
 STUBBED_INFERRED_PATTERN = InferredPattern(
     pattern="<alphanum>+<symbol>+<alphanum>+<symbol>+<alphanum>+",
     fpr_t=0.0,
