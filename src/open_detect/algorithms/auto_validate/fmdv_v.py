@@ -123,11 +123,11 @@ def fmdv_vh(
     # Preserve per-signature-group segment patterns as nested sequences
     # Each element of all_patterns is an InferredPattern whose .pattern is
     # a Sequence[str] of ordered segments for that signature group.
-    group_patterns: list[Sequence[str]] = [
-        s.pattern
-        for s in all_patterns
-        if isinstance(s.pattern, Sequence) and not isinstance(s.pattern, str)
-    ]
+    group_patterns: list[Sequence[str]] = []
+    for s in all_patterns:
+        pat = s.pattern
+        if isinstance(pat, Sequence) and not isinstance(pat, str):
+            group_patterns.append(pat)  # type: ignore[arg-type]
     return InferredPattern(
         pattern=group_patterns,
         fpr_t=min(1.0, total_fpr),
