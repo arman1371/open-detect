@@ -36,6 +36,31 @@ from open_detect.algorithms.auto_validate.fmdv_v import fmdv_v, fmdv_vh
 from open_detect.algorithms.auto_validate.hierarchy import matches
 from open_detect.algorithms.auto_validate.index import PatternIndex, build_pattern_index
 from open_detect.algorithms.base import AlgorithmResult, CellResult, ErrorDetectionAlgorithm
+from open_detect.exceptions import ValidationError
+from open_detect.validation import _check_unknown_kwargs
+
+
+def _check_columns_present(
+    columns: list[str] | None, df_columns: list[str], skip_missing: bool = False
+) -> None:
+    """Validate that requested columns exist in the DataFrame.
+
+    Parameters
+    ----------
+    columns:
+        The list of columns requested by the caller (may be None for all).
+    df_columns:
+        The list of columns actually present in the DataFrame.
+    skip_missing:
+        If True, silently skip missing columns. If False (default), raise
+        ValidationError listing any missing columns.
+    """
+    if columns is None:
+        return
+    missing = [c for c in columns if c not in df_columns]
+    if missing and not skip_missing:
+        raise ValidationError(f"Requested column(s) not found in DataFrame: {', '.join(missing)}")
+
 
 #: Mapping from config.variant to the pattern-inference function.
 _DISPATCH: dict[str, Any] = {
@@ -98,6 +123,7 @@ class AutoValidateAlgorithm(ErrorDetectionAlgorithm):
         *,
         table_id: str = "table",
         columns: list[str] | None = None,
+        skip_missing: bool = False,
         **kwargs: Any,
     ) -> AlgorithmResult:
         """Run Auto-Validate against a single dirty table.
@@ -111,7 +137,14 @@ class AutoValidateAlgorithm(ErrorDetectionAlgorithm):
         columns:
             If given, only these columns are scanned. ``None`` means all
             columns of ``data``.
+        skip_missing:
+            If ``False`` (default), raise :class:`ValidationError` when any
+            requested column is absent from ``data``. If ``True``, missing
+            columns are silently skipped.
         """
+        _check_unknown_kwargs(kwargs, {"table_id", "columns", "skip_missing"})
+        _check_columns_present(columns, list(data.columns), skip_missing=skip_missing)
+
         if len(data) == 0 or data.shape[1] == 0:
             return AlgorithmResult(algorithm=self.name, cells=())
 
@@ -140,35 +173,24 @@ class AutoValidateAlgorithm(ErrorDetectionAlgorithm):
             fpr_t, cov_t, theta_c = inferred.fpr_t, inferred.cov_t, inferred.theta_c
             n_total = len(series) - sum(1 for v in series if _is_null(v))
             score = 1.0 - fpr_t if n_total > 0 else 0.0
-            # Compute verdict once per distinct non-null value, then map back.
-            # This avoids a per-cell `_value_matches` call and a per-cell
-            # `pd.isna` call (replaced by the vectorized `is_null`).
-            # Deduplicate on the text representation used by `_value_matches`
-            # rather than on the raw value: values that compare equal as Python
-            # objects (e.g. ``1`` and ``True``) can still differ in their string
-            # form and must not share a verdict.
-            # Convert to object dtype first: StringDtype.map(na_action="ignore")
-            # raises NotImplementedError on pandas >= 1.5.
-            obj_series = series.astype(object)
-            text_values = obj_series.map(
-                lambda v: v if isinstance(v, str) else str(v), na_action="ignore"
-            )
-            distinct_texts = text_values.dropna().unique()
-            verdicts = {t: not _value_matches(pattern, t) for t in distinct_texts}
-            verdict_map = text_values.map(verdicts, na_action="ignore").fillna(False)
-            # Use _is_null for the null mask to match the behavior of
-            # pattern inference and n_total (which both use _is_null).
-            # series.isna() differs for list-like nulls (e.g. [None]).
-            # Do NOT use na_action="ignore" here: that leaves None/pd.NA in
-            # the mask, which is falsy (spurious null CellResult) or raises
-            # TypeError when evaluated as a boolean. _is_null handles all
-            # values itself, including the pandas missing sentinels.
-            is_null_mask = obj_series.map(_is_null)
-            for idx, is_error, is_null in zip(
-                series.index, verdict_map, is_null_mask, strict=False
-            ):
-                if is_null:
+            # Verdict cache: compute the pattern verdict once per distinct text
+            # representation and broadcast it, instead of re-running
+            # ``_value_matches`` for every cell. Unhashable values (lists,
+            # dicts, numpy arrays) are resolved per cell below.
+            verdicts = _distinct_value_verdicts(series, pattern)
+            # Use _is_null for the null mask to match the behavior of pattern
+            # inference and n_total (which both use _is_null).
+            is_null_mask = series.map(_is_null)
+            # Get the integer position for iloc access since idx might be any hashable
+            for pos, (idx, value) in enumerate(series.items()):
+                if is_null_mask.iloc[pos]:
                     continue
+                text = _value_text(value)
+                if text is not None and text in verdicts:
+                    is_error = verdicts[text]
+                else:
+                    # Unhashable value or empty text: resolve per cell
+                    is_error = not _value_matches(pattern, value)
                 cells.append(
                     CellResult(
                         table_id=table_id,
@@ -193,23 +215,87 @@ def _is_null(value: Any) -> bool:
         return False
 
 
+def _value_text(value: Any) -> str | None:
+    """Return the text representation used by ``_value_matches`` for caching.
+
+    Returns ``None`` for null values only. This is the canonical key for the
+    verdict cache to ensure values like ``1``, ``1.0``, and ``True`` get
+    distinct verdicts (they have different string representations).  The empty
+    string is a valid cache key -- a feasible column emits blank strings as
+    error cells, and blank is a distinct value worth caching -- so it is
+    preserved here and only ``None`` is reserved for actual nulls.
+    """
+    if _is_null(value):
+        return None
+    return value if isinstance(value, str) else str(value)
+
+
+def _matches_segments(segments: Sequence[str], text: str) -> bool:
+    """Whether ``text`` matches a composite pattern of ordered segments.
+
+    For nested FMDV-VH groups, each segment pattern is matched against the
+    *entire* value, so valid composite values are incorrectly rejected -- e.g.
+    ``["<letter>+", "<symbol>+"]`` rejects ``abc-123`` because ``matches()``
+    requires a complete token-for-token match.  Match the concatenated ordered
+    segment pattern against the value instead: the segments describe the value
+    token-for-token in order, so joining them reproduces the full pattern.
+    """
+    return matches("".join(segments), text)
+
+
 def _value_matches(pattern: str | Sequence[str], value: Any) -> bool:
     """Whether ``value`` matches ``pattern`` (nulls return False).
 
-    ``pattern`` is the inferred validation pattern: a single string for the
-    single-pattern FMDV variants, or a disjunction of one pattern per coarse
-    signature group for ``fmdv_v``/``fmdv_vh``.  A value is valid if it matches
-    **any** of them -- the groups are a partition of the column, so each value
-    belongs to exactly one group and must satisfy that group's pattern.
+    ``pattern`` is the inferred validation pattern:
+    - A single string for single-pattern FMDV variants (``fmdv``, ``fmdv_h``)
+    - A list of strings for ``fmdv_v``/``fmdv_vh``: one pattern per coarse
+      signature group. A value is valid if it matches **any** group's pattern.
+    - A list of sequences for ``fmdv_vh`` when all values share one signature:
+      each inner sequence represents ordered vertical segments. A value matches
+      a group if it matches **all** segments in that group's sequence (in order).
     """
     if _is_null(value):
         return False
     text = value if isinstance(value, str) else str(value)
-    if not text:
-        return False
     if isinstance(pattern, str):
         return matches(pattern, text)
-    return any(matches(p, text) for p in pattern)
+    # Pattern is a sequence. For fmdv_v/vh, it's one pattern per signature group.
+    # For fmdv_vh (single signature), it's a list of sequences (one per segment).
+    # We treat each top-level element as a group: if the group is a string,
+    # it's a single pattern; if it's a sequence, the value must match ALL
+    # patterns in that sequence (ordered segments within the group).
+    for group in pattern:
+        if isinstance(group, str):
+            if matches(group, text):
+                return True
+        else:
+            # Ordered segments: match the concatenated segment pattern against
+            # the whole value, not each segment against the whole value.
+            if _matches_segments(group, text):
+                return True
+    return False
+
+
+def _distinct_value_verdicts(series: pd.Series, pattern: str | Sequence[str]) -> dict[str, bool]:
+    """Return a ``{text: is_error}`` map for every non-null value in ``series``.
+
+    The verdict is computed once per distinct **text representation** (the
+    canonical key used by ``_value_matches``) and broadcast to every cell,
+    instead of re-running ``_value_matches`` for each of the (potentially
+    100k+) cells. This ensures values like ``1``, ``1.0``, and ``True`` get
+    distinct verdicts since they have different string representations.
+    Unhashable values (lists/dicts/numpy arrays) are not cached and are
+    resolved per cell in :meth:`AutoValidateAlgorithm.detect`.
+    """
+    verdicts: dict[str, bool] = {}
+    for value in series:
+        text = _value_text(value)
+        if text is None:
+            continue
+        if text in verdicts:
+            continue
+        verdicts[text] = not _value_matches(pattern, value)
+    return verdicts
 
 
 def _non_null_cells(
