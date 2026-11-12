@@ -70,9 +70,9 @@ def _make_classifier(factory: Callable[..., ClassifierMixin], random_state: int)
 
     A factory is called with ``random_state`` when it takes a parameter named
     ``random_state`` that can be passed as a keyword argument (i.e., not
-    positional-only or VAR_POSITIONAL). Zero-argument factories or those with
-    positional-only/VAR_POSITIONAL ``random_state`` are called with no arguments
-    for backwards compatibility.
+    positional-only, VAR_POSITIONAL, or VAR_KEYWORD). Zero-argument factories
+    or those with positional-only/VAR_POSITIONAL/VAR_KEYWORD ``random_state``
+    are called with no arguments for backwards compatibility.
     """
     from inspect import Parameter, signature
 
@@ -83,9 +83,14 @@ def _make_classifier(factory: Callable[..., ClassifierMixin], random_state: int)
         params = {}
     if "random_state" in params:
         param = params["random_state"]
-        # If positional-only or VAR_POSITIONAL, call with no args for backwards compatibility
-        # VAR_POSITIONAL parameters (like *random_state) cannot receive keyword arguments
-        if param.kind in (Parameter.POSITIONAL_ONLY, Parameter.VAR_POSITIONAL):
+        # If positional-only, VAR_POSITIONAL (*args), or VAR_KEYWORD (**kwargs),
+        # call with no args for backwards compatibility. These kinds cannot
+        # receive keyword arguments.
+        if param.kind in (
+            Parameter.POSITIONAL_ONLY,
+            Parameter.VAR_POSITIONAL,
+            Parameter.VAR_KEYWORD,
+        ):
             return factory()
         # If positional-or-keyword or keyword-only, pass by keyword
         return factory(random_state=random_state)

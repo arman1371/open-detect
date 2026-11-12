@@ -26,10 +26,20 @@ def main():
     with open("pyproject.toml", "rb") as f:
         data = tomllib.load(f)
 
-    deps = data.get("project", {}).get("dependencies", [])
-    pyspark = next((d for d in deps if d.lower().startswith("pyspark")), None)
+    # PySpark is declared in the optional-dependencies.uni_detect extra (the
+    # `spark` extra is just an alias for it), not in the core dependencies.
+    optional = data.get("project", {}).get("optional-dependencies", {})
+    extras = ["uni_detect", "spark"]
+    pyspark = None
+    for extra in extras:
+        for d in optional.get(extra, []):
+            if d.lower().startswith("pyspark"):
+                pyspark = d
+                break
+        if pyspark is not None:
+            break
     if pyspark is None:
-        print("ERROR: pyspark not found in pyproject.toml dependencies")
+        print("ERROR: pyspark not found in pyproject.toml optional-dependencies")
         sys.exit(1)
 
     # crude version parse: "pyspark>=3.5" -> (3, 5)

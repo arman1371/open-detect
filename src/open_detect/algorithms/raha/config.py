@@ -108,6 +108,4 @@ class RahaConfig:
         if self.max_pattern_characters < 1:
             raise ConfigurationError("max_pattern_characters must be >= 1")
         if self.variant not in ("A", "B"):
-            raise ConfigurationError(
-                "variant must be 'A' or 'B', " f"got {self.variant!r}"
-            )
+            raise ConfigurationError(f"variant must be 'A' or 'B', got {self.variant!r}")

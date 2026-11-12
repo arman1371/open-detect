@@ -38,14 +38,19 @@ def _check_expected_type(value: Any, expected_type: type, param_name: str) -> No
     """
     # Handle the case where expected_type is parameterized Sequence[str]
     origin = get_origin(expected_type)
-    if origin is not None and origin is Sequence:
-        # expected_type is Sequence[Something], check the args
+    # get_origin(Sequence[str]) returns collections.abc.Sequence, not typing.Sequence
+    if origin is not None and origin is not None and hasattr(origin, "__origin__"):
+        # typing.Sequence case
         args = getattr(expected_type, "__args__", ())
         if args and args[0] is str and isinstance(value, str):
             raise ValidationError("expected a sequence of str, got str; wrap in a list")
-        # Use the origin (bare Sequence) for isinstance check, not the
-        # parameterized generic (which raises TypeError as second argument to isinstance)
         expected_type_for_check: type = origin
+    elif origin is not None and isinstance(origin, type):
+        # collections.abc.Sequence case
+        args = getattr(expected_type, "__args__", ())
+        if args and args[0] is str and isinstance(value, str):
+            raise ValidationError("expected a sequence of str, got str; wrap in a list")
+        expected_type_for_check = origin
     else:
         expected_type_for_check = expected_type
     # Default isinstance check
@@ -68,9 +73,7 @@ def _validate_literal_value(
     unhashable types (e.g. lists, dicts). Raises ValidationError instead.
     """
     if not isinstance(value, str):
-        raise ValidationError(
-            f"{param_name} must be one of {sorted(valid_values)}, " f"got {value!r}"
-        )
+        raise ValidationError(f"{param_name} must be one of {sorted(valid_values)}, got {value!r}")
     if value not in valid_values:
         raise ValidationError(f"{param_name} must be one of {sorted(valid_values)}, got {value!r}")
 
@@ -93,7 +96,7 @@ def _check_dataframe_is_spark(df: Any, param_name: str = "data") -> None:
 
         if not isinstance(df, SparkDataFrame):
             raise ValidationError(
-                f"{param_name} must be a pyspark.sql.DataFrame, " f"got {type(df).__name__}"
+                f"{param_name} must be a pyspark.sql.DataFrame, got {type(df).__name__}"
             )
     except ImportError:
         # PySpark not available; skip this check

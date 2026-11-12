@@ -277,9 +277,9 @@ def test_stubbed_pattern_matches_real_inference() -> None:
     """
     dirty = _two_distinct_frame(2_000)
     real = _detector().infer_pattern(dirty["email"])
-    assert (
-        real == STUBBED_INFERRED_PATTERN
-    ), f"real inference is {real!r}; update STUBBED_INFERRED_PATTERN to match"
+    assert real == STUBBED_INFERRED_PATTERN, (
+        f"real inference is {real!r}; update STUBBED_INFERRED_PATTERN to match"
+    )
 
 
 def test_verdict_cache_invoked_exactly_once_per_distinct() -> None:
@@ -342,6 +342,6 @@ def test_verdict_cache_matches_per_cell_under_broadcasting() -> None:
     # Same dedup key the detector uses: the text representation, not the raw
     # (possibly unhashable) value.
     distinct_texts = {v if isinstance(v, str) else str(v) for v in values if not _is_null(v)}
-    assert (
-        1 < len(distinct_texts) < len(values) // 2
-    ), "fixture must be high-duplicate, i.e. the case the cache optimizes"
+    assert 1 < len(distinct_texts) < len(values) // 2, (
+        "fixture must be high-duplicate, i.e. the case the cache optimizes"
+    )

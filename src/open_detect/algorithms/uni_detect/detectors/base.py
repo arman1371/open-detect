@@ -129,7 +129,8 @@ class BaseDetector(ABC):
             with (
                 log_duration(logger, f"detect[{self.error_type.value}]"),
                 scoped_conf(
-                    self.spark, **{ARROW_MAX_RECORDS_PER_BATCH_KEY: str(ARROW_MAX_RECORDS_PER_BATCH)}
+                    self.spark,
+                    **{ARROW_MAX_RECORDS_PER_BATCH_KEY: str(ARROW_MAX_RECORDS_PER_BATCH)},
                 ),
             ):
                 candidates = self.extract_candidates(table_names)

@@ -264,20 +264,30 @@ class CorpusStatsBuilder:
         """
         tracker = self._trackers.pop(stats, None)
         if tracker is None:
-            self._write(stats, mode, error_types)
+            # Untracked frames bypass the Arrow-protected write path; keep the
+            # override active around them too so a caller-supplied oversized
+            # frame is not materialized with Spark's default batch size.
+            with scoped_conf(
+                self.spark,
+                **{ARROW_MAX_RECORDS_PER_BATCH_KEY: str(ARROW_MAX_RECORDS_PER_BATCH)},
+            ):
+                self._write(stats, mode, error_types)
             return
 
         already_cached = stats.is_cached
         if not already_cached:
             stats.cache()
         try:
-            stats.count()
-            tracker.check()
-            # Keep Arrow limit active through statistics writing
+            # Keep the Arrow limit active through cache registration, counting,
+            # failure tracking, and writing. The override starts *before*
+            # stats.count() materializes the lazy mapInPandas plan, so the first
+            # materialization (not just the write) is protected.
             with scoped_conf(
                 self.spark,
                 **{ARROW_MAX_RECORDS_PER_BATCH_KEY: str(ARROW_MAX_RECORDS_PER_BATCH)},
             ):
+                stats.count()
+                tracker.check()
                 self._write(stats, mode, error_types)
         finally:
             if not already_cached:

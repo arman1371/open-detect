@@ -107,6 +107,8 @@ class ScoringJobCounter:
         self.enabled = enabled
         self.results: list[ScopeStats] = []
         self._sequence = 0
+        self._acc: Any = None
+        self._original_batch_score: Any = None
 
     @contextmanager
     def scope(self, label: str) -> Iterator[None]:
@@ -116,31 +118,40 @@ class ScoringJobCounter:
 
         from open_detect.algorithms.uni_detect.corpus.store import CorpusStatsStore
 
+        # Reuse one accumulator across scopes. A scoring plan built inside an
+        # earlier scope retains a reference to the accumulator captured when
+        # batch_score was patched, so re-executing that plan later updates the
+        # same accumulator. Creating a fresh accumulator per scope would report
+        # zero for any recomputation that happens outside the scope that built
+        # the plan.
+        if self._acc is None:
+            self._acc = self._spark.sparkContext.accumulator(0)
+            self._original_batch_score = CorpusStatsStore.batch_score
+            acc = self._acc
+
+            def counting_batch_score(self_arg, *args, **kwargs):
+                scored_df = self._original_batch_score(self_arg, *args, **kwargs)
+
+                # Wrap the scoring DataFrame with a mapInPandas that increments
+                # the accumulator for each partition evaluated. This counts actual
+                # scoring executions, not just plan construction.
+                def increment_acc(iterator):
+                    # Increment once per partition evaluation
+                    acc.add(1)
+                    yield from iterator
+
+                # Use mapInPandas to inject the side effect while preserving schema
+                return scored_df.mapInPandas(increment_acc, schema=scored_df.schema)
+
+            CorpusStatsStore.batch_score = counting_batch_score
+
+        acc = self._acc
+        baseline = acc.value
         self._sequence += 1
-        acc = self._spark.sparkContext.accumulator(0)
-        original_batch_score = CorpusStatsStore.batch_score
-
-        def counting_batch_score(self_arg, *args, **kwargs):
-            scored_df = original_batch_score(self_arg, *args, **kwargs)
-
-            # Wrap the scoring DataFrame with a mapInPandas that increments
-            # the accumulator for each partition evaluated. This counts actual
-            # scoring executions, not just plan construction.
-            def increment_acc(iterator):
-                # Increment once per partition evaluation
-                acc.add(1)
-                yield from iterator
-
-            # Use mapInPandas to inject the side effect while preserving schema
-            return scored_df.mapInPandas(increment_acc, schema=scored_df.schema)
-
-        CorpusStatsStore.batch_score = counting_batch_score
         try:
             yield
         finally:
-            CorpusStatsStore.batch_score = original_batch_score
-            # Read the accumulator value (number of partition evaluations)
-            executions = acc.value
+            executions = acc.value - baseline
             self.results.append(
                 ScopeStats(
                     label=label,
