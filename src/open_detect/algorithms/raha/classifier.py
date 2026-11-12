@@ -82,8 +82,8 @@ def _make_classifier(factory: Callable[..., ClassifierMixin], random_state: int)
         params = {}
     if "random_state" in params:
         param = params["random_state"]
-        # If positional-only, call with no args for backwards compatibility
-        if param.kind == Parameter.POSITIONAL_ONLY:
+        # If positional-only or VAR_POSITIONAL, call with no args for backwards compatibility
+        if param.kind in (Parameter.POSITIONAL_ONLY, Parameter.VAR_POSITIONAL):
             return factory()
         # If positional-or-keyword or keyword-only, pass by keyword
         return factory(random_state=random_state)
