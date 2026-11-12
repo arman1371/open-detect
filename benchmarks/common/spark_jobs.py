@@ -114,7 +114,6 @@ class ScoringJobCounter:
             yield
             return
 
-
         from open_detect.algorithms.uni_detect.corpus.store import CorpusStatsStore
 
         self._sequence += 1
@@ -130,8 +129,7 @@ class ScoringJobCounter:
             def increment_acc(iterator):
                 # Increment once per partition evaluation
                 acc.add(1)
-                for row in iterator:
-                    yield row
+                yield from iterator
 
             # Use mapInPandas to inject the side effect while preserving schema
             return scored_df.mapInPandas(increment_acc, schema=scored_df.schema)
