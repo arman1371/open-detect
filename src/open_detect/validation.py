@@ -44,7 +44,7 @@ def _check_expected_type(value: Any, expected_type: type, param_name: str) -> No
         if args and args[0] is str and isinstance(value, str):
             raise ValidationError("expected a sequence of str, got str; wrap in a list")
         # Use the origin (bare Sequence) for isinstance check
-        expected_type_for_check = origin  # type: ignore[assignment]
+        expected_type_for_check: type = origin
     else:
         expected_type_for_check = expected_type
     # Default isinstance check
