@@ -13,6 +13,7 @@ This is the single entry point most users need:
 
 from __future__ import annotations
 
+from contextlib import suppress
 from functools import reduce
 from typing import TYPE_CHECKING, Any
 
@@ -182,19 +183,27 @@ class UniDetect:
         from pyspark.sql import functions as F
 
         error_types = tuple(error_types) if error_types else tuple(ErrorType)
-        frames = [self._detectors[et].detect(table_names) for et in error_types]
-        result = reduce(lambda a, b: a.unionByName(b), frames)
-        # Order first, then persist and materialize the *final* frame.  Sorting
-        # after persist() would return an unpersisted frame, so the caller's
-        # count/show/write would re-execute the scoring stage to re-materialize
-        # it -- the very thing this cache lifecycle exists to prevent.
-        # The per-detector caches are released only after the union is cached.
-        result = result.orderBy(F.col("lr_ratio").asc())
-        result = result.persist(StorageLevel.MEMORY_AND_DISK)
-        result.count()
-        # Ensure detectors are released even if an exception occurs.
+        frames = []
         try:
+            for et in error_types:
+                frame = self._detectors[et].detect(table_names)
+                frames.append(frame)
+            result = reduce(lambda a, b: a.unionByName(b), frames)
+            # Order first, then persist and materialize the *final* frame.  Sorting
+            # after persist() would return an unpersisted frame, so the caller's
+            # count/show/write would re-execute the scoring stage to re-materialize
+            # it -- the very thing this cache lifecycle exists to prevent.
+            # The per-detector caches are released only after the union is cached.
+            result = result.orderBy(F.col("lr_ratio").asc())
+            result = result.persist(StorageLevel.MEMORY_AND_DISK)
+            result.count()
             return result
+        except Exception:
+            # Clean up detector results on failure
+            for frame in frames:
+                with suppress(Exception):
+                    frame.unpersist()
+            raise
         finally:
             for detector in (self._detectors[et] for et in error_types):
                 detector.release()

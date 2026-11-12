@@ -85,7 +85,8 @@ class UniDetectAlgorithm(ErrorDetectionAlgorithm):
         finally:
             # The pipeline returns a persisted frame; unpersist it after
             # conversion so callers don't retain a Spark cache they can't
-            # release (they receive only Python cells).
+            # release (they receive only Python cells). Apply the same ownership
+            # rule to eager benchmark consumers.
             with suppress(Exception):
                 spark_result.unpersist()
         return AlgorithmResult(algorithm=self.name, cells=tuple(cells))

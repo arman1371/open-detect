@@ -29,3 +29,8 @@ echo "Calling: curl -X PATCH ... -H X-Paperclip-Run-Id: $run_id" >&2
 curl -sS -X PATCH -H "Authorization: Bearer $PAPERCLIP_API_KEY" \
   -H "X-Paperclip-Run-Id: $run_id" -H "Content-Type: application/json" \
   -d "$payload" "$api_base/api/issues/$issue_id" -w '\nHTTP:%{http_code}\n' --fail
+# shellcheck disable=SC2181
+if [[ $? -ne 0 ]]; then
+  echo "ERROR: API call failed (non-zero exit or HTTP error)" >&2
+  exit 1
+fi

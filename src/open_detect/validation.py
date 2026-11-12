@@ -43,7 +43,8 @@ def _check_expected_type(value: Any, expected_type: type, param_name: str) -> No
         args = getattr(expected_type, "__args__", ())
         if args and args[0] is str and isinstance(value, str):
             raise ValidationError("expected a sequence of str, got str; wrap in a list")
-        # Use the origin (bare Sequence) for isinstance check
+        # Use the origin (bare Sequence) for isinstance check, not the
+        # parameterized generic (which raises TypeError as second argument to isinstance)
         expected_type_for_check: type = origin
     else:
         expected_type_for_check = expected_type

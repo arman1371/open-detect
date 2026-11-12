@@ -9,9 +9,9 @@ Two tiers, matching the acceptance criteria for OPE-89:
   everywhere.
 * **Spark tests** (``TestDetectCacheLifecycleSpark``): drive a real detector
   end-to-end and assert that ``count()``/``collect()``/``write`` on the returned
-  frame no longer re-executes the scoring stage, via the job counter in
-  :mod:`benchmarks.common.spark_jobs`. These require a Delta-enabled Spark
-  session and are skipped automatically when no Java is available.
+  frame no longer re-executes the scoring stage, via instrumentation of the
+  scoring computation. These require a Delta-enabled Spark session and are
+  skipped automatically when no Java is available.
 """
 
 from __future__ import annotations
@@ -182,23 +182,17 @@ class TestDetectCacheLifecycleSpark:
     """End-to-end cache contract on a real Spark session (skipped without Java).
 
     The test builds a real uniqueness detector, runs ``detect()`` on a tiny
-    Delta table, and asserts via :class:`benchmarks.common.spark_jobs.SparkJobCounter`
-    that subsequent actions (``count()``, ``collect()``, ``write``) on the returned
-    frame do not trigger additional Spark jobs beyond the initial materialization.
+    Delta table, and asserts that subsequent actions (``count()``, ``collect()``, ``write``)
+    on the returned frame do not re-execute the scoring computation.
     """
 
     def test_detect_returns_persisted_frame_no_reexecution_on_count_collect_write(self, spark):
         """After ``detect()`` returns, downstream actions reuse the cached frame."""
-        # Import the job counter from benchmarks
-        import sys
-        from pathlib import Path
-
-        sys.path.insert(0, str(Path(__file__).parents[4] / "benchmarks"))
-        from common.spark_jobs import SparkJobCounter
         from open_detect.algorithms.uni_detect.config import UniDetectConfig, UnityCatalogLocation
         from open_detect.algorithms.uni_detect.core.enums import ErrorType
         from open_detect.algorithms.uni_detect.detectors.uniqueness import UniquenessDetector
         from open_detect.algorithms.uni_detect.pipeline import UniDetect
+        from open_detect.benchmarks.common.spark_jobs import ScoringJobCounter
 
         config = UniDetectConfig(
             location=UnityCatalogLocation(
@@ -225,51 +219,46 @@ class TestDetectCacheLifecycleSpark:
             error_types=[ErrorType.UNIQUENESS],
         )
 
-        counter = SparkJobCounter(spark, enabled=True)
+        counter = ScoringJobCounter(spark, enabled=True)
 
-        # Run detect -- this should launch jobs for ingestion + scoring
+        # Run detect -- this should launch scoring computation
         with counter.scope("detect"):
             result = detector.detect(["spark_catalog.open_detect_test_schema.t1"])
 
         # Materialize once inside detect(); result is persisted
         detect_jobs = counter.results[0].jobs
-        assert detect_jobs > 0, "detect() should have launched at least one job"
+        assert detect_jobs > 0, "detect() should have launched scoring computation"
 
-        # Now call count() -- should NOT launch additional jobs
+        # Now call count() -- should NOT launch additional scoring
         with counter.scope("count"):
             _ = result.count()
         assert (
             counter.results[1].jobs == 0
-        ), f"count() re-executed {counter.results[1].jobs} jobs; frame should be cached"
+        ), f"count() re-executed {counter.results[1].jobs} scoring jobs; frame should be cached"
 
-        # collect() -- should NOT launch additional jobs
+        # collect() -- should NOT launch additional scoring
         with counter.scope("collect"):
             _ = result.limit(10).collect()
         assert (
             counter.results[2].jobs == 0
-        ), f"collect() re-executed {counter.results[2].jobs} jobs; frame should be cached"
+        ), f"collect() re-executed {counter.results[2].jobs} scoring jobs; frame should be cached"
 
-        # write -- should NOT launch additional jobs
+        # write -- should NOT launch additional scoring
         with counter.scope("write"):
             result.write.format("noop").mode("overwrite").save()
         assert (
             counter.results[3].jobs == 0
-        ), f"write() re-executed {counter.results[3].jobs} jobs; frame should be cached"
+        ), f"write() re-executed {counter.results[3].jobs} scoring jobs; frame should be cached"
 
         # Clean up
         result.unpersist()
 
     def test_pipeline_detect_unioned_result_no_reexecution(self, spark):
         """UniDetect.detect() returns a unioned, persisted frame with no re-execution."""
-        # Import the job counter from benchmarks
-        import sys
-        from pathlib import Path
-
-        sys.path.insert(0, str(Path(__file__).parents[4] / "benchmarks"))
-        from common.spark_jobs import SparkJobCounter
         from open_detect.algorithms.uni_detect.config import UniDetectConfig, UnityCatalogLocation
         from open_detect.algorithms.uni_detect.core.enums import ErrorType
         from open_detect.algorithms.uni_detect.pipeline import UniDetect
+        from open_detect.benchmarks.common.spark_jobs import ScoringJobCounter
 
         config = UniDetectConfig(
             location=UnityCatalogLocation(
@@ -295,7 +284,7 @@ class TestDetectCacheLifecycleSpark:
             error_types=[ErrorType.UNIQUENESS],
         )
 
-        counter = SparkJobCounter(spark, enabled=True)
+        counter = ScoringJobCounter(spark, enabled=True)
 
         with counter.scope("pipeline_detect"):
             detections = ud.detect(["spark_catalog.open_detect_test_schema.t2"])

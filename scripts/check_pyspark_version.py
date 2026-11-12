@@ -10,7 +10,11 @@ import sys
 try:
     import tomllib
 except ImportError:
-    import tomli as tomllib
+    try:
+        import tomli as tomllib
+    except ImportError:
+        print("ERROR: tomllib (Python 3.11+) or tomli (Python 3.10) required to parse pyproject.toml")
+        sys.exit(1)
 
 
 def main():

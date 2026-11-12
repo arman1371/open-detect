@@ -86,3 +86,55 @@ class SparkJobCounter:
 
     def to_list(self) -> list[dict[str, Any]]:
         return [r.to_dict() for r in self.results]
+
+
+class ScoringJobCounter:
+    """Counts scoring computation executions per labelled scope.
+
+    Unlike :class:`SparkJobCounter` which counts all Spark jobs, this counter
+    instruments the specific scoring computation (``batch_score`` in
+    :mod:`open_detect.algorithms.uni_detect.corpus.store`) to assert that
+    downstream actions on the returned frame (``count()``, ``collect()``,
+    ``write()``) do not re-execute the scoring stage.
+    """
+
+    def __init__(self, spark: Any, enabled: bool = True) -> None:
+        self._spark = spark
+        self.enabled = enabled
+        self.results: list[ScopeStats] = []
+        self._sequence = 0
+        self._original_batch_score = None
+
+    @contextmanager
+    def scope(self, label: str) -> Iterator[None]:
+        if not self.enabled:
+            yield
+            return
+
+        from open_detect.algorithms.uni_detect.corpus.store import CorpusStatsStore
+
+        self._sequence += 1
+        counter = {"executions": 0}
+        original_batch_score = CorpusStatsStore.batch_score
+
+        def counting_batch_score(self_arg, *args, **kwargs):
+            counter["executions"] += 1
+            return original_batch_score(self_arg, *args, **kwargs)
+
+        CorpusStatsStore.batch_score = counting_batch_score
+        try:
+            yield
+        finally:
+            CorpusStatsStore.batch_score = original_batch_score
+            self.results.append(
+                ScopeStats(
+                    label=label,
+                    jobs=counter["executions"],
+                    stages=0,
+                    wall_seconds=0.0,
+                    evicted_jobs=0,
+                )
+            )
+
+    def to_list(self) -> list[dict[str, Any]]:
+        return [r.to_dict() for r in self.results]

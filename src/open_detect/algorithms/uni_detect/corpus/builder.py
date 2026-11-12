@@ -165,6 +165,7 @@ class CorpusStatsBuilder:
             stats = corpus_pairs.select(
                 "table_id", "lhs_values", "rhs_values", "num_rows", "rhs_column_index"
             ).mapInPandas(compute, schema=result_schema)
+            # Keep Arrow limit active through statistics materialization and writing
             stats = stats.withColumn("error_type", F.lit(ErrorType.FUNCTIONAL_DEPENDENCY.value))
             stats = stats.select(*[f.name for f in CORPUS_STATS_SCHEMA.fields])
         self._trackers[stats] = tracker
@@ -228,6 +229,7 @@ class CorpusStatsBuilder:
             stats = corpus_columns.select(
                 "table_id", "column_index", "num_rows", "values"
             ).mapInPandas(compute, schema=result_schema)
+            # Keep Arrow limit active through statistics materialization and writing
             stats = stats.withColumn("error_type", F.lit(error_type.value))
             stats = stats.select(*[f.name for f in CORPUS_STATS_SCHEMA.fields])
         self._trackers[stats] = tracker

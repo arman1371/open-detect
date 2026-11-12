@@ -37,13 +37,13 @@
     }
 
     @media (prefers-color-scheme: dark) {
-      body:not([data-theme="light"]) {
+      html:not([data-theme="light"]) body {
         background: var(--page-dark);
         color: var(--text-primary-dark);
       }
     }
 
-    [data-theme="dark"] body {
+    html[data-theme="dark"] body {
       background: var(--page-dark);
       color: var(--text-primary-dark);
     }
@@ -67,12 +67,12 @@
     }
 
     @media (prefers-color-scheme: dark) {
-      body:not([data-theme="light"]) .subtitle {
+      html:not([data-theme="light"]) .subtitle {
         color: var(--text-secondary-dark);
       }
     }
 
-    [data-theme="dark"] .subtitle {
+    html[data-theme="dark"] .subtitle {
       color: var(--text-secondary-dark);
     }
 
@@ -93,14 +93,14 @@
     }
 
     @media (prefers-color-scheme: dark) {
-      body:not([data-theme="light"]) .theme-toggle {
+      html:not([data-theme="light"]) .theme-toggle {
         border-color: var(--border-dark);
         background: var(--surface-dark);
         color: var(--text-primary-dark);
       }
     }
 
-    [data-theme="dark"] .theme-toggle {
+    html[data-theme="dark"] .theme-toggle {
       border-color: var(--border-dark);
       background: var(--surface-dark);
       color: var(--text-primary-dark);
@@ -126,13 +126,13 @@
     }
 
     @media (prefers-color-scheme: dark) {
-      body:not([data-theme="light"]) .color-card {
+      html:not([data-theme="light"]) .color-card {
         background: var(--surface-dark);
         border-color: var(--border-dark);
       }
     }
 
-    [data-theme="dark"] .color-card {
+    html[data-theme="dark"] .color-card {
       background: var(--surface-dark);
       border-color: var(--border-dark);
     }
@@ -143,12 +143,12 @@
     }
 
     @media (prefers-color-scheme: dark) {
-      body:not([data-theme="light"]) .color-card:hover {
+      html:not([data-theme="light"]) .color-card:hover {
         box-shadow: 0 8px 24px rgba(0,0,0,0.3);
       }
     }
 
-    [data-theme="dark"] .color-card:hover {
+    html[data-theme="dark"] .color-card:hover {
       box-shadow: 0 8px 24px rgba(0,0,0,0.3);
     }
 
@@ -216,12 +216,12 @@
     }
 
     @media (prefers-color-scheme: dark) {
-      body:not([data-theme="light"]) .value-label {
+      html:not([data-theme="light"]) .value-label {
         color: var(--text-secondary-dark);
       }
     }
 
-    [data-theme="dark"] .value-label {
+    html[data-theme="dark"] .value-label {
       color: var(--text-secondary-dark);
     }
 
@@ -235,14 +235,14 @@
     }
 
     @media (prefers-color-scheme: dark) {
-      body:not([data-theme="light"]) .value-hex {
+      html:not([data-theme="light"]) .value-hex {
         color: var(--text-primary-dark);
         background: var(--page-dark);
         border-color: var(--border-dark);
       }
     }
 
-    [data-theme="dark"] .value-hex {
+    html[data-theme="dark"] .value-hex {
       color: var(--text-primary-dark);
       background: var(--page-dark);
       border-color: var(--border-dark);
@@ -261,13 +261,13 @@
     }
 
     @media (prefers-color-scheme: dark) {
-      body:not([data-theme="light"]) .copy-btn {
+      html:not([data-theme="light"]) .copy-btn {
         border-color: var(--border-dark);
         color: var(--text-secondary-dark);
       }
     }
 
-    [data-theme="dark"] .copy-btn {
+    html[data-theme="dark"] .copy-btn {
       border-color: var(--border-dark);
       color: var(--text-secondary-dark);
     }
@@ -278,13 +278,13 @@
     }
 
     @media (prefers-color-scheme: dark) {
-      body:not([data-theme="light"]) .copy-btn:hover {
+      html:not([data-theme="light"]) .copy-btn:hover {
         background: var(--page-dark);
         color: var(--text-primary-dark);
       }
     }
 
-    [data-theme="dark"] .copy-btn:hover {
+    html[data-theme="dark"] .copy-btn:hover {
       background: var(--page-dark);
       color: var(--text-primary-dark);
     }
@@ -338,14 +338,14 @@
     }
 
     @media (prefers-color-scheme: dark) {
-      body:not([data-theme="light"]) .footer-note {
+      html:not([data-theme="light"]) .footer-note {
         background: var(--surface-dark);
         border-color: var(--border-dark);
         color: var(--text-secondary-dark);
       }
     }
 
-    [data-theme="dark"] .footer-note {
+    html[data-theme="dark"] .footer-note {
       background: var(--surface-dark);
       border-color: var(--border-dark);
       color: var(--text-secondary-dark);
@@ -356,12 +356,12 @@
     }
 
     @media (prefers-color-scheme: dark) {
-      body:not([data-theme="light"]) .footer-note strong {
+      html:not([data-theme="light"]) .footer-note strong {
         color: var(--text-primary-dark);
       }
     }
 
-    [data-theme="dark"] .footer-note strong {
+    html[data-theme="dark"] .footer-note strong {
       color: var(--text-primary-dark);
     }
   </style>

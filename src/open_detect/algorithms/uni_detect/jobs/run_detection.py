@@ -93,6 +93,8 @@ def main(argv: list[str] | None = None) -> None:
     original_detections = None
     try:
         original_detections = ud.detect(target_tables, error_types=error_types)
+        # Keep the original persisted frame for cleanup; limit()/show()/write() create
+        # new logical plans. We must unpersist the original, not the limited one.
         detections = original_detections
 
         if args.top_k is not None:

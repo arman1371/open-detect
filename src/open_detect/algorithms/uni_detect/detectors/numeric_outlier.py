@@ -84,6 +84,7 @@ class NumericOutlierDetector(BaseDetector):
         columns_df = self.ingestor.ingest_columns(table_names)
         # ARROW_MAX_RECORDS_PER_BATCH is set by BaseDetector.detect() so it stays
         # active through the lazy execution of mapInPandas and the subsequent count().
+        # Keep the override active through candidate materialization in the base detector.
         return columns_df.select("table_id", "column_name", "num_rows", "values").mapInPandas(
             compute, schema=CANDIDATE_SCHEMA
         )
