@@ -62,20 +62,61 @@ def fmdv_v(
         sig = _coarse_signature(v)
         sig_to_idx.setdefault(sig, []).append(i)
 
-    best_overall: InferredPattern | None = None
+    # For each signature group, run DP to get its ordered segments.
+    # We preserve one pattern per signature group (like fmdv_vh).
+    all_patterns: list[InferredPattern] = []
+    total_fpr = 0.0
+    total_cov = 0
+    total_theta_c_num = 0.0
+    total_theta_c_den = 0.0
+
     for indices in sig_to_idx.values():
         group = [clean[i] for i in indices]
-        if len(group) == 0:
-            continue
         seg = _segment_fmdv_v(group, index, config)
         if seg is None:
             continue
-        if best_overall is None or _infer_cmp(seg, best_overall) < 0:
-            best_overall = seg
+        all_patterns.append(seg)
+        total_fpr += seg.fpr_t
+        total_cov += seg.cov_t
+        total_theta_c_num += seg.theta_c * seg.cov_t  # proportional contribution
+        total_theta_c_den += seg.cov_t
 
-    # Preserve ordered segments: _segment_dp now returns segment_patterns
-    # as the pattern field, so best_overall.pattern is already a Sequence[str]
-    return best_overall
+    if not all_patterns:
+        return None
+
+    theta_c = total_theta_c_num / total_theta_c_den if total_theta_c_den else 0.0
+
+    # Preserve per-signature-group segment patterns as nested sequences
+    # Each element of all_patterns is an InferredPattern whose .pattern is
+    # a Sequence[str] of ordered segments for that signature group.
+    group_patterns: list[Sequence[str]] = []
+    for s in all_patterns:
+        pat = s.pattern
+        if isinstance(pat, str):
+            # Single segment for this signature group
+            group_patterns.append([pat])
+        elif isinstance(pat, Sequence):
+            # Multiple ordered segments for this signature group
+            group_patterns.append(pat)  # type: ignore[arg-type]
+
+    # For backward compatibility: when there's a single group with a single
+    # segment, return the pattern as a string, not a nested list.
+    if (
+        len(group_patterns) == 1
+        and len(group_patterns[0]) == 1
+        and isinstance(group_patterns[0][0], str)
+    ):
+        pattern: str | Sequence[str] | list[Sequence[str]] = group_patterns[0][0]
+    else:
+        pattern = group_patterns
+
+    return InferredPattern(
+        pattern=pattern,
+        fpr_t=min(1.0, total_fpr),
+        cov_t=total_cov,
+        theta_c=theta_c,
+        variant="fmdv_v",
+    )
 
 
 def fmdv_vh(

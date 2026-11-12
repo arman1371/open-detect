@@ -136,8 +136,11 @@ class TestFmdvVh:
         cfg_tau3 = AutoValidateConfig(m=1, tau=3, r=1.0)
         result3 = fmdv_v(values, build_pattern_index(corpus, cfg_tau3), cfg_tau3)
         assert result3 is not None
+        # For fmdv_v with a single signature group, pattern is [group] where group
+        # is a list of ordered segments.
         assert isinstance(result3.pattern, list)
-        assert len(result3.pattern) == 2
+        assert len(result3.pattern) == 1  # one signature group
+        assert len(result3.pattern[0]) == 2  # two ordered segments
         cfg_tau4 = AutoValidateConfig(m=1, tau=4, r=1.0)
         result4 = fmdv_v(values, build_pattern_index(corpus, cfg_tau4), cfg_tau4)
         assert result4 is not None
