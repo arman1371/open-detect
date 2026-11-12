@@ -123,7 +123,7 @@ def fmdv_vh(
     # Preserve per-signature-group segment patterns as nested sequences
     # Each element of all_patterns is an InferredPattern whose .pattern is
     # a Sequence[str] of ordered segments for that signature group.
-    group_patterns = [s.pattern for s in all_patterns]  # type: ignore[assignment]
+    group_patterns: list[Sequence[str]] = [s.pattern for s in all_patterns if isinstance(s.pattern, Sequence) and not isinstance(s.pattern, str)]
     return InferredPattern(
         pattern=group_patterns,
         fpr_t=min(1.0, total_fpr),
@@ -209,7 +209,7 @@ def _segment_dp(
     # Preserve segment groups: each vertical segmentation produces ordered
     # segments that must ALL match (AND logic). Wrap as a sequence of strings
     # so _value_matches can distinguish group alternatives from ordered segments.
-    segment_patterns = [s.pattern for s in best_segments]  # type: ignore[assignment]
+    segment_patterns: Sequence[str] = [s.pattern for s in best_segments if isinstance(s.pattern, str)]
     return InferredPattern(
         pattern=segment_patterns,
         fpr_t=total_fpr,
