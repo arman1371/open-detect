@@ -131,7 +131,12 @@ def fmdv_vh(
         # We want to keep Sequence[str] which includes list[str] but not list[Sequence[str]].
         # Check: if it's a non-string sequence, and if it's a list, ensure its first element is a string (not a sequence).
         if isinstance(pat, Sequence) and not isinstance(pat, str):
-            if isinstance(pat, list) and pat and isinstance(pat[0], Sequence) and not isinstance(pat[0], str):
+            if (
+                isinstance(pat, list)
+                and pat
+                and isinstance(pat[0], Sequence)
+                and not isinstance(pat[0], str)
+            ):
                 # This is list[Sequence[str]] (nested groups) - skip, we handle at outer level
                 continue
             # This is Sequence[str] (could be list[str] or tuple[str, ...]) - keep
