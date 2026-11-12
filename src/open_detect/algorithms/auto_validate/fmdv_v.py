@@ -126,12 +126,11 @@ def fmdv_vh(
     group_patterns: list[Sequence[str]] = []
     for s in all_patterns:
         pat = s.pattern
-        if isinstance(pat, str):
-            # Single segment for this signature group
-            group_patterns.append([pat])
-        elif isinstance(pat, Sequence):
-            # Multiple ordered segments for this signature group
-            group_patterns.append(pat)  # type: ignore[arg-type]
+        # Filter to only include patterns that are Sequence[str] (not str, not list[Sequence[str]]).
+        # pat could be: str (fmdv/fmdv_h), Sequence[str] (fmdv_v), or list[Sequence[str]] (fmdv_vh nested).
+        # We want to keep only Sequence[str] (which includes list[str] but not list[Sequence[str]]).
+        if isinstance(pat, Sequence) and not isinstance(pat, str) and not isinstance(pat, list):
+            group_patterns.append(pat)
     # For backward compatibility: when there's a single group with a single
     # segment, return the pattern as a string, not a nested list.
     if (
@@ -141,7 +140,7 @@ def fmdv_vh(
     ):
         pattern: str | Sequence[str] | list[Sequence[str]] = group_patterns[0][0]
     else:
-        pattern = group_patterns  # type: ignore[assignment]
+        pattern = group_patterns
     return InferredPattern(
         pattern=pattern,
         fpr_t=min(1.0, total_fpr),
