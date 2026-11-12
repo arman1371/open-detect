@@ -130,7 +130,11 @@ def fmdv_vh(
             group_patterns.append(pat)  # type: ignore[arg-type]
     # For backward compatibility: when there's a single group with a single
     # segment, return the pattern as a string, not a nested list.
-    if len(group_patterns) == 1 and len(group_patterns[0]) == 1 and isinstance(group_patterns[0][0], str):
+    if (
+        len(group_patterns) == 1
+        and len(group_patterns[0]) == 1
+        and isinstance(group_patterns[0][0], str)
+    ):
         pattern: str | Sequence[str] | list[Sequence[str]] = group_patterns[0][0]
     else:
         pattern = group_patterns  # type: ignore[assignment]
