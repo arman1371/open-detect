@@ -127,10 +127,15 @@ def fmdv_vh(
     for s in all_patterns:
         pat = s.pattern
         # Filter to only include patterns that are Sequence[str] (not str, not list[Sequence[str]]).
-        # pat could be: str (fmdv/fmdv_h), Sequence[str] (fmdv_v), or list[Sequence[str]] (fmdv_vh nested).
-        # We want to keep only Sequence[str] (which includes list[str] but not list[Sequence[str]]).
-        if isinstance(pat, Sequence) and not isinstance(pat, str) and not isinstance(pat, list):
-            group_patterns.append(pat)
+        # pat could be: str (fmdv/fmdv_h), Sequence[str] (fmdv_v, fmdv_vh single group), or list[Sequence[str]] (fmdv_vh multiple groups).
+        # We want to keep Sequence[str] which includes list[str] but not list[Sequence[str]].
+        # Check: if it's a non-string sequence, and if it's a list, ensure its first element is a string (not a sequence).
+        if isinstance(pat, Sequence) and not isinstance(pat, str):
+            if isinstance(pat, list) and pat and isinstance(pat[0], Sequence) and not isinstance(pat[0], str):
+                # This is list[Sequence[str]] (nested groups) - skip, we handle at outer level
+                continue
+            # This is Sequence[str] (could be list[str] or tuple[str, ...]) - keep
+            group_patterns.append(pat)  # type: ignore[arg-type]
     # For backward compatibility: when there's a single group with a single
     # segment, return the pattern as a string, not a nested list.
     if (
