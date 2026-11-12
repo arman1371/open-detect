@@ -305,8 +305,23 @@
       border-radius: 0.25rem;
       font-size: 0.7rem;
       font-weight: 700;
-      color: white;
-      background: var(--text-primary-light);
+      color: var(--text-primary-light);
+      background: var(--surface-light);
+      border: 1px solid var(--border-light);
+    }
+
+    @media (prefers-color-scheme: dark) {
+      html:not([data-theme="light"]) .slot-badge {
+        color: var(--text-primary-dark);
+        background: var(--surface-dark);
+        border-color: var(--border-dark);
+      }
+    }
+
+    html[data-theme="dark"] .slot-badge {
+      color: var(--text-primary-dark);
+      background: var(--surface-dark);
+      border-color: var(--border-dark);
     }
 
     /* Responsive */
@@ -490,6 +505,7 @@
 
     function applyTheme(theme) {
       document.documentElement.setAttribute('data-theme', theme);
+      document.body.setAttribute('data-theme', theme);
       if (theme === 'dark') {
         themeLabel.textContent = 'Light Mode';
         sunIcon.style.display = 'block';

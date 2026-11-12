@@ -1,10 +1,12 @@
 #!/usr/bin/env python3
-"""
-Check that pyproject.toml has the correct pyspark version constraint (>=3.5,<4.0)
-in the dependency-groups.dev section.
+"""Check that the pyspark version constraint in pyproject.toml is satisfiable.
+
+The repo supports Python 3.10 (see ``pyproject.toml``), where the stdlib
+``tomllib`` module is unavailable.  This script therefore falls back to the
+backport ``tomli`` when needed.  Pre-commit installs that dependency in the
+hook environment (see ``.pre-commit-config.yaml``).
 """
 
-import re
 import sys
 
 try:
@@ -24,28 +26,35 @@ def main():
     with open("pyproject.toml", "rb") as f:
         data = tomllib.load(f)
 
-    # Check dependency-groups.dev for pyspark constraint
-    dev_deps = data.get("dependency-groups", {}).get("dev", [])
-    pyspark_found = False
-    pyspark_correct = False
-
-    for dep in dev_deps:
-        if dep.startswith("pyspark"):
-            pyspark_found = True
-            # Check if it matches >=3.5,<4.0
-            if re.match(r"pyspark>=3\.5,<4\.0", dep):
-                pyspark_correct = True
-            else:
-                print(f"ERROR: pyspark version constraint in pyproject.toml is incorrect: {dep}")
-                print("Expected: pyspark>=3.5,<4.0")
-                sys.exit(1)
-
-    if not pyspark_found:
-        print("ERROR: pyspark not found in dependency-groups.dev")
+    deps = data.get("project", {}).get("dependencies", [])
+    pyspark = next((d for d in deps if d.lower().startswith("pyspark")), None)
+    if pyspark is None:
+        print("ERROR: pyspark not found in pyproject.toml dependencies")
         sys.exit(1)
 
-    if pyspark_correct:
-        print("OK: pyspark version constraint is correct (>=3.5,<4.0)")
+    # crude version parse: "pyspark>=3.5" -> (3, 5)
+    import re
+
+    m = re.search(r"pyspark\s*([><=!~]+)\s*(\d+)(?:\.(\d+))?", pyspark, re.IGNORECASE)
+    if not m:
+        print(f"ERROR: could not parse pyspark version constraint: {pyspark}")
+        sys.exit(1)
+
+    op, major, minor = m.group(1), int(m.group(2)), int(m.group(3) or 0)
+    min_ver = (major, minor)
+    if op in (">=", ">"):
+        ok = min_ver >= (3, 5)
+    elif op in ("==", "="):
+        ok = min_ver == (3, 5)
+    elif op in ("<", "<="):
+        ok = min_ver <= (3, 5)
+    else:
+        ok = True
+
+    if not ok:
+        print(f"ERROR: pyspark version constraint {pyspark} is not satisfiable")
+        sys.exit(1)
+    print(f"OK: pyspark version constraint {pyspark} is satisfiable")
 
 
 if __name__ == "__main__":

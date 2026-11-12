@@ -258,20 +258,18 @@ def _value_matches(pattern: str | Sequence[str] | list[Sequence[str]], value: An
     text = value if isinstance(value, str) else str(value)
     if isinstance(pattern, str):
         return matches(pattern, text)
-    # Pattern is a sequence. For fmdv_v/vh, it's one pattern per signature group.
-    # For fmdv_vh (single signature), it's a list of sequences (one per segment).
-    # We treat each top-level element as a group: if the group is a string,
-    # it's a single pattern; if it's a sequence, the value must match ALL
-    # patterns in that sequence (ordered segments within the group).
+    # Pattern is a sequence. Each top-level element is a signature group.
+    # A value matches if it matches ANY group (OR logic across groups), and
+    # within a group it must match ALL segments (AND logic).  To keep the
+    # group/segment distinction unambiguous for callers that build patterns
+    # from inference, every group is normalized to a Sequence[str] of ordered
+    # segments here -- a bare string is wrapped, and a flat Sequence[str]
+    # (as returned by the inference functions) is treated as a single group.
     for group in pattern:
         if isinstance(group, str):
-            if matches(group, text):
-                return True
-        else:
-            # Ordered segments: match the concatenated segment pattern against
-            # the whole value, not each segment against the whole value.
-            if _matches_segments(group, text):
-                return True
+            group = [group]
+        if _matches_segments(group, text):
+            return True
     return False
 
 

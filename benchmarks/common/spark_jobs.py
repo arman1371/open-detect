@@ -114,8 +114,8 @@ class ScoringJobCounter:
             yield
             return
 
+
         from open_detect.algorithms.uni_detect.corpus.store import CorpusStatsStore
-        import pandas as pd
 
         self._sequence += 1
         acc = self._spark.sparkContext.accumulator(0)
@@ -134,7 +134,6 @@ class ScoringJobCounter:
                     yield row
 
             # Use mapInPandas to inject the side effect while preserving schema
-            from pyspark.sql import functions as F
             return scored_df.mapInPandas(increment_acc, schema=scored_df.schema)
 
         CorpusStatsStore.batch_score = counting_batch_score
