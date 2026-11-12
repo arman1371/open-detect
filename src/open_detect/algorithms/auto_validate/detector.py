@@ -275,7 +275,9 @@ def _value_matches(pattern: str | Sequence[str] | list[Sequence[str]], value: An
     return False
 
 
-def _distinct_value_verdicts(series: pd.Series, pattern: str | Sequence[str] | list[Sequence[str]]) -> dict[str, bool]:
+def _distinct_value_verdicts(
+    series: pd.Series, pattern: str | Sequence[str] | list[Sequence[str]]
+) -> dict[str, bool]:
     """Return a ``{text: is_error}`` map for every non-null value in ``series``.
 
     The verdict is computed once per distinct **text representation** (the
