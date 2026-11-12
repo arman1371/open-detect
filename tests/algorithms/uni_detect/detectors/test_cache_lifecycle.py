@@ -186,9 +186,20 @@ class TestDetectCacheLifecycleSpark:
     on the returned frame do not re-execute the scoring computation.
     """
 
+    @staticmethod
+    def _import_scoring_job_counter():
+        """Import ScoringJobCounter, adding benchmarks to sys.path if needed."""
+        import sys
+        from pathlib import Path
+        benchmarks_dir = Path(__file__).resolve().parents[4] / "benchmarks"
+        if str(benchmarks_dir) not in sys.path:
+            sys.path.insert(0, str(benchmarks_dir))
+        from common.spark_jobs import ScoringJobCounter
+        return ScoringJobCounter
+
     def test_detect_returns_persisted_frame_no_reexecution_on_count_collect_write(self, spark):
         """After ``detect()`` returns, downstream actions reuse the cached frame."""
-        from benchmarks.common.spark_jobs import ScoringJobCounter
+        ScoringJobCounter = self._import_scoring_job_counter()
 
         from open_detect.algorithms.uni_detect.config import UniDetectConfig, UnityCatalogLocation
         from open_detect.algorithms.uni_detect.core.enums import ErrorType
@@ -256,7 +267,7 @@ class TestDetectCacheLifecycleSpark:
 
     def test_pipeline_detect_unioned_result_no_reexecution(self, spark):
         """UniDetect.detect() returns a unioned, persisted frame with no re-execution."""
-        from benchmarks.common.spark_jobs import ScoringJobCounter
+        ScoringJobCounter = self._import_scoring_job_counter()
 
         from open_detect.algorithms.uni_detect.config import UniDetectConfig, UnityCatalogLocation
         from open_detect.algorithms.uni_detect.core.enums import ErrorType
