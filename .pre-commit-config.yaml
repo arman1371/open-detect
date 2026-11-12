@@ -27,11 +27,9 @@ repos:
         language: python
         files: pyproject.toml
         verbose: true
-        language_version: "3.11"
+        # The repo supports Python 3.10, where the stdlib ``tomllib`` module is
+        # unavailable. The hook falls back to the ``tomli`` backport, which is
+        # installed into the hook's own virtualenv below. Running on 3.10 is
+        # required so the fallback path is actually exercised.
+        language_version: "3.10"
         additional_dependencies: ["tomli>=2.0"]
-      - id: tomli-install
-        name: Ensure tomli is available for Python 3.10
-        entry: pip install tomli
-        language: system
-        pass_filenames: false
-        always_run: true

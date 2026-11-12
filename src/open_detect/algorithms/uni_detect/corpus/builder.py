@@ -282,17 +282,17 @@ class CorpusStatsBuilder:
             return
 
         already_cached = stats.is_cached
-        if not already_cached:
-            stats.cache()
         try:
             # Keep the Arrow limit active through cache registration, counting,
             # failure tracking, and writing. The override starts *before*
-            # stats.count() materializes the lazy mapInPandas plan, so the first
+            # stats.cache() materializes the lazy mapInPandas plan, so the first
             # materialization (not just the write) is protected.
             with scoped_conf(
                 self.spark,
                 **{ARROW_MAX_RECORDS_PER_BATCH_KEY: str(ARROW_MAX_RECORDS_PER_BATCH)},
             ):
+                if not already_cached:
+                    stats.cache()
                 stats.count()
                 tracker.check()
                 self._write(stats, mode, error_types)

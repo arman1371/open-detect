@@ -126,6 +126,11 @@ class BaseDetector(ABC):
         candidates = None
         result = None
         try:
+            # Keep Arrow limit active through the ENTIRE pipeline:
+            # extract_candidates (mapInPandas), candidate materialization (count),
+            # scoring (batch_score join), and result materialization.
+            # This protects against OOM on array-heavy workloads where a single
+            # Arrow batch can balloon to ~10^9 strings.
             with (
                 log_duration(logger, f"detect[{self.error_type.value}]"),
                 scoped_conf(

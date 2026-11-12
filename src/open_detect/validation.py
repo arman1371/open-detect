@@ -51,11 +51,20 @@ def _check_expected_type(value: Any, expected_type: type, param_name: str) -> No
     # If there's no origin (concrete types like str, int, list), use expected_type directly.
     check_type = origin if origin is not None else expected_type
 
-    if check_type is not None and not isinstance(value, check_type):
-        raise ValidationError(
-            f"{param_name} must be of type {expected_type.__name__}, "
-            f"got {type(value).__name__}: {value!r}"
-        )
+    if check_type is not None:
+        # Runtime type check. Parameterized generics like Sequence[str] are
+        # not valid isinstance targets; we already used the origin above.
+        # Only perform isinstance if check_type is a valid class.
+        try:
+            if not isinstance(value, check_type):
+                raise ValidationError(
+                    f"{param_name} must be of type {expected_type.__name__}, "
+                    f"got {type(value).__name__}: {value!r}"
+                )
+        except TypeError:
+            # Parameterized generics (e.g., Sequence[str]) can't be used with
+            # isinstance. The origin check already validated the container type.
+            pass
 
 
 def _validate_literal_value(

@@ -92,9 +92,9 @@ class RahaDetector(ErrorDetectionAlgorithm):
         if variant is not None:
             _validate_literal_value(variant, {"A", "B"}, "variant")
 
-        # Reject unknown kwargs passed after validation (e.g., variant="B" in kwargs)
-        # Now includes "variant" in allowed set since we explicitly check it above
-        _check_unknown_kwargs(kwargs, {"variant"}, "detect")
+        # Reject any remaining unknown kwargs (e.g., variant="B" in kwargs
+        # after explicit check above, or any other unexpected params).
+        _check_unknown_kwargs(kwargs, set(), "detect")
 
         df = data
         n = len(df)
