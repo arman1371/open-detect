@@ -446,6 +446,11 @@
       const darkLabelColor = darkLum > 0.5 ? '#0b0b0b' : '#ffffff';
       const badgeTextColor = lightLum > 0.5 ? '#0b0b0b' : '#ffffff';
 
+      // Slot badge needs readable contrast on both light and dark surfaces
+      // Use dark text on light backgrounds, light text on dark backgrounds
+      const badgeBg = color.light;
+      const badgeFg = lightLum > 0.5 ? '#0b0b0b' : '#ffffff';
+
       card.innerHTML = `
         <div class="color-swatch">
           <div class="swatch-light" style="background: ${color.light};">
@@ -457,7 +462,7 @@
         </div>
         <div class="color-info">
           <div class="color-name">
-            <span class="slot-badge" style="background: ${color.light}; color: ${badgeTextColor};">${color.slot}</span>
+            <span class="slot-badge" style="background: ${badgeBg}; color: ${badgeFg};">${color.slot}</span>
             ${color.hue.charAt(0).toUpperCase() + color.hue.slice(1)}
           </div>
           <div class="color-values">

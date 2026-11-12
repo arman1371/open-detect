@@ -165,7 +165,7 @@ class CorpusStatsBuilder:
             stats = corpus_pairs.select(
                 "table_id", "lhs_values", "rhs_values", "num_rows", "rhs_column_index"
             ).mapInPandas(compute, schema=result_schema)
-            # Keep Arrow limit active through statistics materialization and writing
+            # Keep Arrow limit active through statistics materialization
             stats = stats.withColumn("error_type", F.lit(ErrorType.FUNCTIONAL_DEPENDENCY.value))
             stats = stats.select(*[f.name for f in CORPUS_STATS_SCHEMA.fields])
         self._trackers[stats] = tracker
@@ -258,6 +258,9 @@ class CorpusStatsBuilder:
         logged and ``max_failure_ratio`` enforced *before* anything is
         written; a breach raises :class:`~open_detect.algorithms.uni_detect.exceptions.DataQualityError`
         and leaves the existing table untouched.
+
+        The Arrow batch limit is kept active through statistics materialization
+        and writing to protect against oversized batches during the write.
         """
         tracker = self._trackers.pop(stats, None)
         if tracker is None:
@@ -270,7 +273,12 @@ class CorpusStatsBuilder:
         try:
             stats.count()
             tracker.check()
-            self._write(stats, mode, error_types)
+            # Keep Arrow limit active through statistics writing
+            with scoped_conf(
+                self.spark,
+                **{ARROW_MAX_RECORDS_PER_BATCH_KEY: str(ARROW_MAX_RECORDS_PER_BATCH)},
+            ):
+                self._write(stats, mode, error_types)
         finally:
             if not already_cached:
                 stats.unpersist()

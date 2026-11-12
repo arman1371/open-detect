@@ -258,13 +258,20 @@ def _value_matches(pattern: str | Sequence[str] | list[Sequence[str]], value: An
     text = value if isinstance(value, str) else str(value)
     if isinstance(pattern, str):
         return matches(pattern, text)
-    # Pattern is a sequence. Each top-level element is a signature group.
+
+    # Distinguish between:
+    # - flat list of segments (single group): e.g. ["<letter>+", "<digit>+"] -> one group with 2 segments
+    # - list of groups: e.g. [["<letter>+"], ["<digit>+", "<symbol>+"]] -> two groups
+    # We treat a flat list of strings as a single group (all segments must match).
+    is_flat_segments = all(isinstance(g, str) for g in pattern)
+
+    if is_flat_segments:
+        # Single group with multiple ordered segments (AND logic)
+        return _matches_segments(pattern, text)
+
+    # Pattern is a list of groups. Each group is a Sequence[str] of ordered segments.
     # A value matches if it matches ANY group (OR logic across groups), and
-    # within a group it must match ALL segments (AND logic).  To keep the
-    # group/segment distinction unambiguous for callers that build patterns
-    # from inference, every group is normalized to a Sequence[str] of ordered
-    # segments here -- a bare string is wrapped, and a flat Sequence[str]
-    # (as returned by the inference functions) is treated as a single group.
+    # within a group it must match ALL segments (AND logic).
     for group in pattern:
         if isinstance(group, str):
             group = [group]

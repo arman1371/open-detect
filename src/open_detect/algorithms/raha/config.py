@@ -91,6 +91,7 @@ class RahaConfig:
         default_factory=lambda: _default_classifier_factory
     )
     random_state: int = 0
+    variant: str = "A"
 
     def __post_init__(self) -> None:
         if self.labeling_budget < 1:
@@ -106,3 +107,7 @@ class RahaConfig:
             )
         if self.max_pattern_characters < 1:
             raise ConfigurationError("max_pattern_characters must be >= 1")
+        if self.variant not in ("A", "B"):
+            raise ConfigurationError(
+                "variant must be 'A' or 'B', " f"got {self.variant!r}"
+            )

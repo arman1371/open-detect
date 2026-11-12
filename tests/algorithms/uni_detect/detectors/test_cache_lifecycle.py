@@ -192,6 +192,7 @@ class TestDetectCacheLifecycleSpark:
         import sys
         from pathlib import Path
 
+        # Use the same import strategy as tests/benchmarks/test_bench_spark_jobs.py
         benchmarks_dir = Path(__file__).resolve().parents[4] / "benchmarks"
         if str(benchmarks_dir) not in sys.path:
             sys.path.insert(0, str(benchmarks_dir))
@@ -270,6 +271,9 @@ class TestDetectCacheLifecycleSpark:
     def test_pipeline_detect_unioned_result_no_reexecution(self, spark):
         """UniDetect.detect() returns a unioned, persisted frame with no re-execution."""
         ScoringJobCounter = self._import_scoring_job_counter()
+
+        # This test also needs the import for the assert statement below
+        # Import is already done above via _import_scoring_job_counter
 
         from open_detect.algorithms.uni_detect.config import UniDetectConfig, UnityCatalogLocation
         from open_detect.algorithms.uni_detect.core.enums import ErrorType

@@ -123,15 +123,17 @@ class BaseDetector(ABC):
         # candidate materialization (count), scoring (batch_score join),
         # and result materialization. This protects against OOM on array-heavy
         # workloads where a single Arrow batch can balloon to ~10^9 strings.
-        with (
-            log_duration(logger, f"detect[{self.error_type.value}]"),
-            scoped_conf(
-                self.spark, **{ARROW_MAX_RECORDS_PER_BATCH_KEY: str(ARROW_MAX_RECORDS_PER_BATCH)}
-            ),
-        ):
-            candidates = self.extract_candidates(table_names)
-            candidates.persist(StorageLevel.MEMORY_AND_DISK)
-            try:
+        candidates = None
+        result = None
+        try:
+            with (
+                log_duration(logger, f"detect[{self.error_type.value}]"),
+                scoped_conf(
+                    self.spark, **{ARROW_MAX_RECORDS_PER_BATCH_KEY: str(ARROW_MAX_RECORDS_PER_BATCH)}
+                ),
+            ):
+                candidates = self.extract_candidates(table_names)
+                candidates.persist(StorageLevel.MEMORY_AND_DISK)
                 n = candidates.count()
                 if self._failure_tracker is not None:
                     self._failure_tracker.check()
@@ -177,8 +179,17 @@ class BaseDetector(ABC):
                 result = self._track(result.persist(StorageLevel.MEMORY_AND_DISK))
                 result.count()
                 return result
-            finally:
-                candidates.unpersist()
+        except Exception:
+            # On failure, clean up any frames that were tracked/persisted during this call.
+            if result is not None:
+                with suppress(Exception):
+                    result.unpersist()
+            raise
+        finally:
+            # Always release the candidate frame
+            if candidates is not None:
+                with suppress(Exception):
+                    candidates.unpersist()
 
     def _empty_result(self) -> DataFrame:
         from open_detect.algorithms.uni_detect.detectors.schema import DETECTION_RESULT_SCHEMA

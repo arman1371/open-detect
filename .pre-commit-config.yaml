@@ -28,3 +28,4 @@ repos:
         files: pyproject.toml
         verbose: true
         language_version: "3.11"
+        additional_dependencies: ["tomli>=2.0"]
