@@ -96,6 +96,10 @@ class ScoringJobCounter:
     :mod:`open_detect.algorithms.uni_detect.corpus.store`) to assert that
     downstream actions on the returned frame (``count()``, ``collect()``,
     ``write()``) do not re-execute the scoring stage.
+
+    It uses an executor-side accumulator to count each partition evaluation
+    of the scoring DataFrame, which corresponds to actual scoring executions
+    (not just plan construction).
     """
 
     def __init__(self, spark: Any, enabled: bool = True) -> None:
@@ -103,7 +107,6 @@ class ScoringJobCounter:
         self.enabled = enabled
         self.results: list[ScopeStats] = []
         self._sequence = 0
-        self._original_batch_score = None
 
     @contextmanager
     def scope(self, label: str) -> Iterator[None]:
@@ -112,24 +115,39 @@ class ScoringJobCounter:
             return
 
         from open_detect.algorithms.uni_detect.corpus.store import CorpusStatsStore
+        import pandas as pd
 
         self._sequence += 1
-        counter = {"executions": 0}
+        acc = self._spark.sparkContext.accumulator(0)
         original_batch_score = CorpusStatsStore.batch_score
 
         def counting_batch_score(self_arg, *args, **kwargs):
-            counter["executions"] += 1
-            return original_batch_score(self_arg, *args, **kwargs)
+            scored_df = original_batch_score(self_arg, *args, **kwargs)
+
+            # Wrap the scoring DataFrame with a mapInPandas that increments
+            # the accumulator for each partition evaluated. This counts actual
+            # scoring executions, not just plan construction.
+            def increment_acc(iterator):
+                # Increment once per partition evaluation
+                acc.add(1)
+                for row in iterator:
+                    yield row
+
+            # Use mapInPandas to inject the side effect while preserving schema
+            from pyspark.sql import functions as F
+            return scored_df.mapInPandas(increment_acc, schema=scored_df.schema)
 
         CorpusStatsStore.batch_score = counting_batch_score
         try:
             yield
         finally:
             CorpusStatsStore.batch_score = original_batch_score
+            # Read the accumulator value (number of partition evaluations)
+            executions = acc.value
             self.results.append(
                 ScopeStats(
                     label=label,
-                    jobs=counter["executions"],
+                    jobs=executions,
                     stages=0,
                     wall_seconds=0.0,
                     evicted_jobs=0,

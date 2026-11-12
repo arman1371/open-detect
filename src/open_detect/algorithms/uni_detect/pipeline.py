@@ -199,12 +199,15 @@ class UniDetect:
             result.count()
             return result
         except Exception:
-            # Clean up detector results on failure
+            # Clean up detector results on failure - this includes any frames
+            # already returned by detector.detect() calls.
             for frame in frames:
                 with suppress(Exception):
                     frame.unpersist()
             raise
         finally:
+            # Ensure per-detector results are released even on success
+            # (the unioned result is tracked by the caller, not by detectors)
             for detector in (self._detectors[et] for et in error_types):
                 detector.release()
 

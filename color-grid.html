@@ -429,6 +429,7 @@
       const darkLum = getLuminance(color.dark);
       const lightLabelColor = lightLum > 0.5 ? '#0b0b0b' : '#ffffff';
       const darkLabelColor = darkLum > 0.5 ? '#0b0b0b' : '#ffffff';
+      const badgeTextColor = lightLum > 0.5 ? '#0b0b0b' : '#ffffff';
 
       card.innerHTML = `
         <div class="color-swatch">
@@ -441,7 +442,7 @@
         </div>
         <div class="color-info">
           <div class="color-name">
-            <span class="slot-badge" style="background: ${color.light};">${color.slot}</span>
+            <span class="slot-badge" style="background: ${color.light}; color: ${badgeTextColor};">${color.slot}</span>
             ${color.hue.charAt(0).toUpperCase() + color.hue.slice(1)}
           </div>
           <div class="color-values">

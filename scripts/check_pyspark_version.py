@@ -13,13 +13,11 @@ except ImportError:
     try:
         import tomli as tomllib
     except ImportError:
-        # On Python 3.10, tomli is required but may not be installed.
-        # Try to install it or fall back gracefully.
         print(
-            "WARNING: tomllib (Python 3.11+) or tomli (Python 3.10) required to parse pyproject.toml"
+            "ERROR: tomllib (Python 3.11+) or tomli (Python 3.10) required to parse pyproject.toml"
         )
-        print("This check will be skipped. Install tomli with: pip install tomli")
-        sys.exit(0)
+        print("Install tomli with: pip install tomli")
+        sys.exit(1)
 
 
 def main():

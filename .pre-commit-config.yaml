@@ -27,3 +27,4 @@ repos:
         language: python
         files: pyproject.toml
         verbose: true
+        additional_dependencies: ["tomli>=2.0.1"]
