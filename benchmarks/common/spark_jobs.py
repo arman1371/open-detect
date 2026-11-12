@@ -178,6 +178,14 @@ class ScoringJobCounter:
             yield
         finally:
             executions = acc.value - baseline
+            # Restore the original batch_score after the scope exits so that
+            # subsequent scopes or callers are not affected by this scope's
+            # patching. This also ensures that if batch_score was already patched
+            # by an outer ScoringJobCounter, it gets properly restored here.
+            if self._patched:
+                CorpusStatsStore.batch_score = self._original_batch_score
+                self._patched = False
+                self._original_batch_score = None
             self.results.append(
                 ScopeStats(
                     label=label,
