@@ -151,11 +151,20 @@ class ScoringJobCounter:
         # the plan.
         if self._acc is None:
             self._acc = self._spark.sparkContext.accumulator(0)
-            self._original_batch_score = CorpusStatsStore.batch_score
+
+        # Install the batch_score wrapper only in the outermost scope. Nested
+        # scopes share the accumulator but must not re-wrap an already-wrapped
+        # method, and only the scope that installed the wrapper should restore
+        # it on exit. The original method is captured in a local closure cell so
+        # that nested scopes or later installations cannot change the wrapper's
+        # target mid-flight.
+        if not self._patched:
+            original_batch_score = CorpusStatsStore.batch_score
+            self._original_batch_score = original_batch_score
             acc = self._acc
 
             def counting_batch_score(self_arg, *args, **kwargs):
-                scored_df = self._original_batch_score(self_arg, *args, **kwargs)
+                scored_df = original_batch_score(self_arg, *args, **kwargs)
 
                 # Wrap the scoring DataFrame with a mapInPandas that increments
                 # the accumulator for each partition evaluated. This counts actual
@@ -180,8 +189,9 @@ class ScoringJobCounter:
             executions = acc.value - baseline
             # Restore the original batch_score after the scope exits so that
             # subsequent scopes or callers are not affected by this scope's
-            # patching. This also ensures that if batch_score was already patched
-            # by an outer ScoringJobCounter, it gets properly restored here.
+            # patching. Only the scope that installed the wrapper restores it;
+            # nested scopes leave the wrapper in place so previously constructed
+            # plans keep reporting into the shared accumulator.
             if self._patched:
                 CorpusStatsStore.batch_score = self._original_batch_score
                 self._patched = False
