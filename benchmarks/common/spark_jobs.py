@@ -100,6 +100,15 @@ class ScoringJobCounter:
     It uses an executor-side accumulator to count each partition evaluation
     of the scoring DataFrame, which corresponds to actual scoring executions
     (not just plan construction).
+
+    Use as a context manager to ensure the global ``batch_score`` patch is
+    restored on exit:
+
+        with ScoringJobCounter(spark) as counter:
+            with counter.scope("detect"):
+                result = detector.detect(...)
+            with counter.scope("count"):
+                result.count()
     """
 
     def __init__(self, spark: Any, enabled: bool = True) -> None:
@@ -109,6 +118,22 @@ class ScoringJobCounter:
         self._sequence = 0
         self._acc: Any = None
         self._original_batch_score: Any = None
+        self._patched = False
+
+    def __enter__(self) -> ScoringJobCounter:
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb) -> None:
+        self._restore_batch_score()
+
+    def _restore_batch_score(self) -> None:
+        """Restore the original ``batch_score`` method if it was patched."""
+        if self._patched and self._original_batch_score is not None:
+            from open_detect.algorithms.uni_detect.corpus.store import CorpusStatsStore
+
+            CorpusStatsStore.batch_score = self._original_batch_score
+            self._patched = False
+            self._original_batch_score = None
 
     @contextmanager
     def scope(self, label: str) -> Iterator[None]:
@@ -144,6 +169,7 @@ class ScoringJobCounter:
                 return scored_df.mapInPandas(increment_acc, schema=scored_df.schema)
 
             CorpusStatsStore.batch_score = counting_batch_score
+            self._patched = True
 
         acc = self._acc
         baseline = acc.value
