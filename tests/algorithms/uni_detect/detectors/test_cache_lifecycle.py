@@ -196,7 +196,7 @@ class TestDetectCacheLifecycleSpark:
         benchmarks_dir = Path(__file__).resolve().parents[4] / "benchmarks"
         if str(benchmarks_dir) not in sys.path:
             sys.path.insert(0, str(benchmarks_dir))
-        from common.spark_jobs import ScoringJobCounter
+        from benchmarks.common.spark_jobs import ScoringJobCounter
 
         return ScoringJobCounter
 

@@ -113,14 +113,18 @@ def _conforms(pattern: str | Sequence[str] | list[Sequence[str]], value: str) ->
         return matches(pattern, value)
 
     # Check if it's a list of sequences (fmdv_vh: one sequence per signature group)
-    if pattern and isinstance(pattern[0], Sequence) and not isinstance(pattern[0], str):
-        # fmdv_vh: value matches if it matches ANY group's segments
-        return any(_conforms_segments(list(group), value) for group in pattern)
+    # We distinguish by checking if the first element is a sequence but not a string.
+    # Flat list of strings (single group, fmdv_v): all elements are strings
+    # List of groups (fmdv_vh): elements are sequences of strings
+    is_flat_segments = all(isinstance(g, str) for g in pattern)
 
-    # fmdv_v: ordered segments that must ALL match
-    # At this point, pattern is guaranteed to be Sequence[str] (not str, not list[Sequence[str]])
-    segments: Sequence[str] = pattern  # type: ignore[assignment]
-    return _conforms_segments(segments, value)
+    if is_flat_segments:
+        # fmdv_v: ordered segments that must ALL match
+        segments: Sequence[str] = pattern  # type: ignore[assignment]
+        return _conforms_segments(segments, value)
+
+    # fmdv_vh: value matches if it matches ANY group's segments
+    return any(_conforms_segments(list(group), value) for group in pattern)
 
 
 def _conforms_segments(segments: Sequence[str], value: str) -> bool:

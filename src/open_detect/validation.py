@@ -36,25 +36,22 @@ def _check_expected_type(value: Any, expected_type: type, param_name: str) -> No
     For Sequence[str] parameters, also rejects bare str (which would be
     iterated character-by-character rather than as a sequence).
     """
-    # Handle the case where expected_type is parameterized Sequence[str]
+    from typing import get_origin, get_args
+
     origin = get_origin(expected_type)
-    # get_origin(Sequence[str]) returns collections.abc.Sequence, not typing.Sequence
-    if origin is not None and origin is not None and hasattr(origin, "__origin__"):
-        # typing.Sequence case
-        args = getattr(expected_type, "__args__", ())
+
+    # Check for bare str rejection first (works for typing.Sequence[str], collections.abc.Sequence, etc.)
+    if origin is not None:
+        args = get_args(expected_type)
         if args and args[0] is str and isinstance(value, str):
             raise ValidationError("expected a sequence of str, got str; wrap in a list")
-        expected_type_for_check: type = origin
-    elif origin is not None and isinstance(origin, type):
-        # collections.abc.Sequence case
-        args = getattr(expected_type, "__args__", ())
-        if args and args[0] is str and isinstance(value, str):
-            raise ValidationError("expected a sequence of str, got str; wrap in a list")
-        expected_type_for_check = origin
-    else:
-        expected_type_for_check = expected_type
-    # Default isinstance check
-    if expected_type_for_check is not None and not isinstance(value, expected_type_for_check):
+
+    # Use the origin type (collections.abc.Sequence) for isinstance check,
+    # or the expected_type itself if no origin (e.g., concrete types).
+    # Parameterized generics like Sequence[str] cannot be used with isinstance.
+    check_type = origin if origin is not None else expected_type
+
+    if check_type is not None and not isinstance(value, check_type):
         raise ValidationError(
             f"{param_name} must be of type {expected_type.__name__}, "
             f"got {type(value).__name__}: {value!r}"
