@@ -33,6 +33,7 @@ from open_detect.algorithms.uni_detect.failures import FailureTracker
 from open_detect.algorithms.uni_detect.spark_utils import (
     ARROW_MAX_RECORDS_PER_BATCH,
     ARROW_MAX_RECORDS_PER_BATCH_KEY,
+    scoped_conf,
 )
 from open_detect.algorithms.uni_detect.strategies import get_spec
 from open_detect.logging_utils import get_logger, log_duration
@@ -117,69 +118,67 @@ class BaseDetector(ABC):
         from pyspark.sql import functions as F
 
         spec = get_spec(self.error_type)
-        with log_duration(logger, f"detect[{self.error_type.value}]"):
-            # Set ARROW_MAX_RECORDS_PER_BATCH before extract_candidates so it
-            # stays active through the lazy mapInPandas execution and the
-            # subsequent count() call (the Arrow limit protects both ingestion
-            # and candidate materialization).
-            self.spark.conf.set(ARROW_MAX_RECORDS_PER_BATCH_KEY, str(ARROW_MAX_RECORDS_PER_BATCH))
+        # Use scoped_conf to ensure ARROW_MAX_RECORDS_PER_BATCH stays active
+        # through the entire pipeline: extract_candidates (mapInPandas),
+        # candidate materialization (count), scoring (batch_score join),
+        # and result materialization. This protects against OOM on array-heavy
+        # workloads where a single Arrow batch can balloon to ~10^9 strings.
+        with (
+            log_duration(logger, f"detect[{self.error_type.value}]"),
+            scoped_conf(
+                self.spark, **{ARROW_MAX_RECORDS_PER_BATCH_KEY: str(ARROW_MAX_RECORDS_PER_BATCH)}
+            ),
+        ):
+            candidates = self.extract_candidates(table_names)
+            candidates.persist(StorageLevel.MEMORY_AND_DISK)
             try:
-                candidates = self.extract_candidates(table_names)
-                candidates.persist(StorageLevel.MEMORY_AND_DISK)
-                try:
-                    n = candidates.count()
-                    if self._failure_tracker is not None:
-                        self._failure_tracker.check()
-                    if n == 0:
-                        logger.info(
-                            "No candidates extracted for %s over %d table(s)",
-                            self.error_type.value,
-                            len(table_names),
-                        )
-                        logger.debug("Tables scanned: %s", list(table_names))
-                        # Return a persisted empty result so downstream actions (count, collect,
-                        # write) don't re-execute the scoring stage, and the frame can be
-                        # released via release() like any other result.
-                        result = self._track(
-                            self._empty_result().persist(StorageLevel.MEMORY_AND_DISK)
-                        )
-                        result.count()
-                        return result
-
-                    scored = self.store.batch_score(candidates, self.error_type, spec.direction)
-                    joined = candidates.join(scored, on="candidate_id", how="inner")
-
-                    alpha = float(self.config.alpha)
-                    result = (
-                        joined.withColumn("error_type", F.lit(self.error_type.value))
-                        .withColumn("surprisal", -F.log(F.col("lr_ratio")))
-                        .withColumn("is_significant", F.col("lr_ratio") <= F.lit(alpha))
-                        .withColumnRenamed("bucket_support", "support")
-                        .select(
-                            "candidate_id",
-                            "error_type",
-                            "table_id",
-                            "column_names",
-                            "row_ids",
-                            "lr_ratio",
-                            "surprisal",
-                            "is_significant",
-                            "support",
-                            "evidence_json",
-                        )
+                n = candidates.count()
+                if self._failure_tracker is not None:
+                    self._failure_tracker.check()
+                if n == 0:
+                    logger.info(
+                        "No candidates extracted for %s over %d table(s)",
+                        self.error_type.value,
+                        len(table_names),
                     )
-                    # Materialize once while ``candidates`` is still cached, then
-                    # release the inputs.  The persisted result survives on its own,
-                    # so downstream actions never re-execute the scoring stage.
-                    result = self._track(result.persist(StorageLevel.MEMORY_AND_DISK))
+                    logger.debug("Tables scanned: %s", list(table_names))
+                    # Return a persisted empty result so downstream actions (count, collect,
+                    # write) don't re-execute the scoring stage, and the frame can be
+                    # released via release() like any other result.
+                    result = self._track(self._empty_result().persist(StorageLevel.MEMORY_AND_DISK))
                     result.count()
                     return result
-                finally:
-                    candidates.unpersist()
+
+                scored = self.store.batch_score(candidates, self.error_type, spec.direction)
+                joined = candidates.join(scored, on="candidate_id", how="inner")
+
+                alpha = float(self.config.alpha)
+                result = (
+                    joined.withColumn("error_type", F.lit(self.error_type.value))
+                    .withColumn("surprisal", -F.log(F.col("lr_ratio")))
+                    .withColumn("is_significant", F.col("lr_ratio") <= F.lit(alpha))
+                    .withColumnRenamed("bucket_support", "support")
+                    .select(
+                        "candidate_id",
+                        "error_type",
+                        "table_id",
+                        "column_names",
+                        "row_ids",
+                        "lr_ratio",
+                        "surprisal",
+                        "is_significant",
+                        "support",
+                        "evidence_json",
+                    )
+                )
+                # Materialize once while ``candidates`` is still cached, then
+                # release the inputs.  The persisted result survives on its own,
+                # so downstream actions never re-execute the scoring stage.
+                result = self._track(result.persist(StorageLevel.MEMORY_AND_DISK))
+                result.count()
+                return result
             finally:
-                # Restore original value
-                with suppress(Exception):
-                    self.spark.conf.unset(ARROW_MAX_RECORDS_PER_BATCH_KEY)
+                candidates.unpersist()
 
     def _empty_result(self) -> DataFrame:
         from open_detect.algorithms.uni_detect.detectors.schema import DETECTION_RESULT_SCHEMA

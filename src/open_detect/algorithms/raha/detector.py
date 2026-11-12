@@ -83,9 +83,6 @@ class RahaDetector(ErrorDetectionAlgorithm):
             _validate_literal_value(
                 conflict_resolution, {"homogeneity", "majority"}, "conflict_resolution"
             )
-        # Remove the unsupported `variant` argument if present (it was only validated but unused)
-        if "variant" in kwargs:
-            del kwargs["variant"]
 
         df = data
         n = len(df)

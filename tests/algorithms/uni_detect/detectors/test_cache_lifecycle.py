@@ -188,7 +188,7 @@ class TestDetectCacheLifecycleSpark:
 
     def test_detect_returns_persisted_frame_no_reexecution_on_count_collect_write(self, spark):
         """After ``detect()`` returns, downstream actions reuse the cached frame."""
-        from open_detect.benchmarks.common.spark_jobs import ScoringJobCounter
+        from benchmarks.common.spark_jobs import ScoringJobCounter
 
         from open_detect.algorithms.uni_detect.config import UniDetectConfig, UnityCatalogLocation
         from open_detect.algorithms.uni_detect.core.enums import ErrorType
@@ -256,7 +256,7 @@ class TestDetectCacheLifecycleSpark:
 
     def test_pipeline_detect_unioned_result_no_reexecution(self, spark):
         """UniDetect.detect() returns a unioned, persisted frame with no re-execution."""
-        from open_detect.benchmarks.common.spark_jobs import ScoringJobCounter
+        from benchmarks.common.spark_jobs import ScoringJobCounter
 
         from open_detect.algorithms.uni_detect.config import UniDetectConfig, UnityCatalogLocation
         from open_detect.algorithms.uni_detect.core.enums import ErrorType

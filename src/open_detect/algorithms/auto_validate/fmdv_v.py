@@ -174,15 +174,6 @@ def fmdv_vh(
             group_patterns.append([pat])
         elif isinstance(pat, Sequence):
             # Multiple ordered segments for this signature group
-            # (Check it's not list[Sequence[str]] - nested groups)
-            if (
-                isinstance(pat, list)
-                and pat
-                and isinstance(pat[0], Sequence)
-                and not isinstance(pat[0], str)
-            ):
-                # This is list[Sequence[str]] (nested groups) - skip
-                continue
             group_patterns.append(pat)  # type: ignore[arg-type]
     # For backward compatibility: when there's a single group with a single
     # segment, return the pattern as a string, not a nested list.
