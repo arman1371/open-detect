@@ -34,7 +34,7 @@ and an approximation otherwise.  Documented as a fidelity note.
 
 from __future__ import annotations
 
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 
 import pandas as pd
 
@@ -123,9 +123,15 @@ def fmdv_vh(
     # Preserve per-signature-group segment patterns as nested sequences
     # Each element of all_patterns is an InferredPattern whose .pattern is
     # a Sequence[str] of ordered segments for that signature group.
-    group_patterns = [s.pattern for s in all_patterns]  # type: ignore[assignment]
+    # For backward compatibility: when there's a single group with a single
+    # segment, return the pattern as a string, not a nested list.
+    group_patterns = [s.pattern for s in all_patterns]
+    if len(group_patterns) == 1 and isinstance(group_patterns[0], str):
+        pattern: str | Sequence[str] | list[Sequence[str]] = group_patterns[0]
+    else:
+        pattern = group_patterns  # type: ignore[assignment]
     return InferredPattern(
-        pattern=group_patterns,
+        pattern=pattern,
         fpr_t=min(1.0, total_fpr),
         cov_t=total_cov,
         theta_c=theta_c,
@@ -209,9 +215,15 @@ def _segment_dp(
     # Preserve segment groups: each vertical segmentation produces ordered
     # segments that must ALL match (AND logic). Wrap as a sequence of strings
     # so _value_matches can distinguish group alternatives from ordered segments.
-    segment_patterns = [s.pattern for s in best_segments]  # type: ignore[assignment]
+    # For backward compatibility: when there's a single segment, return the
+    # pattern as a string, not a single-element list.
+    segment_patterns = [s.pattern for s in best_segments]
+    if len(segment_patterns) == 1 and isinstance(segment_patterns[0], str):
+        pattern: str | Sequence[str] | list[Sequence[str]] = segment_patterns[0]
+    else:
+        pattern = segment_patterns  # type: ignore[assignment]
     return InferredPattern(
-        pattern=segment_patterns,
+        pattern=pattern,
         fpr_t=total_fpr,
         cov_t=total_cov,
         theta_c=theta_c,
