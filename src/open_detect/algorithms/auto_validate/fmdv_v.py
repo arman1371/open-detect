@@ -34,7 +34,7 @@ and an approximation otherwise.  Documented as a fidelity note.
 
 from __future__ import annotations
 
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 
 import pandas as pd
 
