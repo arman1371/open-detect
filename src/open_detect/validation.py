@@ -67,6 +67,8 @@ def _ensure_sequence_of_str(value: Any, param_name: str) -> None:
 
     Accepts any ``collections.abc.Sequence`` (list, tuple, UserList, etc.),
     but rejects bare ``str`` (which would be iterated character-by-character).
+    Also accepts sequences of ``str`` enums (where each element is a ``str``
+    subclass).
     """
     # Reject bare strings early - they are sequences but not of strings
     if isinstance(value, str):
@@ -76,7 +78,7 @@ def _ensure_sequence_of_str(value: Any, param_name: str) -> None:
     # Check it's a Sequence (not a str, already handled above)
     if not isinstance(value, Sequence):
         raise ValidationError(f"{param_name} must be a sequence of str, got {type(value).__name__}")
-    # Check all elements are strings
+    # Check all elements are strings (or string enums, which are str subclasses)
     if not all(isinstance(c, str) for c in value):
         raise ValidationError(f"{param_name} must contain only strings, got non-string elements")
 
