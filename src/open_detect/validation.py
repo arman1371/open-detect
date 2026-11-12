@@ -46,10 +46,13 @@ def _check_expected_type(value: Any, expected_type: type, param_name: str) -> No
         if args and args[0] is str and isinstance(value, str):
             raise ValidationError("expected a sequence of str, got str; wrap in a list")
 
-    # Use the origin type (collections.abc.Sequence) for isinstance check,
-    # or the expected_type itself if no origin (e.g., concrete types).
+    # Use the origin type (collections.abc.Sequence) for isinstance check.
     # Parameterized generics like Sequence[str] cannot be used with isinstance.
-    check_type = origin if origin is not None else expected_type
+    # If there's no origin (concrete types like str, int, list), use expected_type directly.
+    if origin is not None:
+        check_type = origin
+    else:
+        check_type = expected_type
 
     if check_type is not None and not isinstance(value, check_type):
         raise ValidationError(

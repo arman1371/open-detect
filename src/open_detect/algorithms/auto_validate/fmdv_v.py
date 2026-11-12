@@ -108,7 +108,10 @@ def fmdv_v(
     ):
         pattern: str | Sequence[str] | list[Sequence[str]] = group_patterns[0][0]
     else:
-        pattern = group_patterns
+        # Preserve group/segment structure for fmdv_vh matching:
+        # pattern is list[Sequence[str]] where each Sequence[str] is a group
+        # of ordered segments that must ALL match (AND logic across segments).
+        pattern = group_patterns  # type: ignore[assignment]
 
     return InferredPattern(
         pattern=pattern,
@@ -184,7 +187,10 @@ def fmdv_vh(
     ):
         pattern: str | Sequence[str] | list[Sequence[str]] = group_patterns[0][0]
     else:
-        pattern = group_patterns
+        # Preserve group/segment structure for fmdv_vh matching:
+        # pattern is list[Sequence[str]] where each Sequence[str] is a group
+        # of ordered segments that must ALL match (AND logic across segments).
+        pattern = group_patterns  # type: ignore[assignment]
     return InferredPattern(
         pattern=pattern,
         fpr_t=min(1.0, total_fpr),
@@ -274,6 +280,8 @@ def _segment_dp(
     if len(segment_patterns) == 1:
         pattern: str | Sequence[str] | list[Sequence[str]] = segment_patterns[0]
     else:
+        # Preserve group/segment structure for matching:
+        # pattern is a list of ordered segments (AND logic across segments)
         pattern = segment_patterns
     return InferredPattern(
         pattern=pattern,

@@ -29,3 +29,9 @@ repos:
         verbose: true
         language_version: "3.11"
         additional_dependencies: ["tomli>=2.0"]
+      - id: tomli-install
+        name: Ensure tomli is available for Python 3.10
+        entry: pip install tomli
+        language: system
+        pass_filenames: false
+        always_run: true

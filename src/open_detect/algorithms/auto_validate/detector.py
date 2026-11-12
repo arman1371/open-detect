@@ -290,6 +290,16 @@ def _value_matches_groups(groups: list[Sequence[str]], text: str) -> bool:
     return False
 
 
+def _value_matches_groups(groups: list[Sequence[str]], text: str) -> bool:
+    """Match ``text`` against a list of signature groups (OR logic across groups, AND within)."""
+    for group in groups:
+        if isinstance(group, str):
+            group = [group]
+        if _matches_segments(group, text):
+            return True
+    return False
+
+
 def _distinct_value_verdicts(
     series: pd.Series, pattern: str | Sequence[str] | list[Sequence[str]]
 ) -> dict[str, bool]:

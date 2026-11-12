@@ -447,9 +447,11 @@
       const badgeTextColor = lightLum > 0.5 ? '#0b0b0b' : '#ffffff';
 
       // Slot badge needs readable contrast on both light and dark surfaces
-      // Use dark text on light backgrounds, light text on dark backgrounds
+      // Compute contrast ratio against black and white, pick the better one
       const badgeBg = color.light;
-      const badgeFg = lightLum > 0.5 ? '#0b0b0b' : '#ffffff';
+      const contrastWithBlack = (lightLum + 0.05) / 0.05;  // (L1 + 0.05) / (L2 + 0.05) where L2=0 (black)
+      const contrastWithWhite = 1.05 / (lightLum + 0.05);  // (L1 + 0.05) / (L2 + 0.05) where L1=1 (white)
+      const badgeFg = contrastWithBlack >= contrastWithWhite ? '#0b0b0b' : '#ffffff';
 
       card.innerHTML = `
         <div class="color-swatch">

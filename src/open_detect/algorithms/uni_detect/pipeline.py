@@ -181,23 +181,35 @@ class UniDetect:
         self._validate_inputs(table_names=table_names, error_types=error_types, **kwargs)
 
         from pyspark.sql import functions as F
+        from open_detect.algorithms.uni_detect.spark_utils import (
+            ARROW_MAX_RECORDS_PER_BATCH,
+            ARROW_MAX_RECORDS_PER_BATCH_KEY,
+            scoped_conf,
+        )
 
         error_types = tuple(error_types) if error_types else tuple(ErrorType)
         frames = []
         try:
-            for et in error_types:
-                frame = self._detectors[et].detect(table_names)
-                frames.append(frame)
-            result = reduce(lambda a, b: a.unionByName(b), frames)
-            # Order first, then persist and materialize the *final* frame.  Sorting
-            # after persist() would return an unpersisted frame, so the caller's
-            # count/show/write would re-execute the scoring stage to re-materialize
-            # it -- the very thing this cache lifecycle exists to prevent.
-            # The per-detector caches are released only after the union is cached.
-            result = result.orderBy(F.col("lr_ratio").asc())
-            result = result.persist(StorageLevel.MEMORY_AND_DISK)
-            result.count()
-            return result
+            # Keep Arrow limit active through ALL detector operations:
+            # extract_candidates (mapInPandas), candidate materialization (count),
+            # scoring (batch_score join), and result materialization.
+            with scoped_conf(
+                self.spark,
+                **{ARROW_MAX_RECORDS_PER_BATCH_KEY: str(ARROW_MAX_RECORDS_PER_BATCH)},
+            ):
+                for et in error_types:
+                    frame = self._detectors[et].detect(table_names)
+                    frames.append(frame)
+                result = reduce(lambda a, b: a.unionByName(b), frames)
+                # Order first, then persist and materialize the *final* frame.  Sorting
+                # after persist() would return an unpersisted frame, so the caller's
+                # count/show/write would re-execute the scoring stage to re-materialize
+                # it -- the very thing this cache lifecycle exists to prevent.
+                # The per-detector caches are released only after the union is cached.
+                result = result.orderBy(F.col("lr_ratio").asc())
+                result = result.persist(StorageLevel.MEMORY_AND_DISK)
+                result.count()
+                return result
         except Exception:
             # Clean up detector results on failure - this includes any frames
             # already returned by detector.detect() calls.

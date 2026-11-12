@@ -219,6 +219,9 @@ class CorpusStatsBuilder:
                 )
 
         result_schema = _stats_schema_without_error_type()
+        # Keep Arrow limit active through the ENTIRE pipeline: mapInPandas, cache
+        # registration, counting, and writing. This protects against oversized
+        # batches during the first materialization (count()) and the write.
         with (
             log_duration(logger, f"build_{error_type.value}_stats"),
             scoped_conf(
@@ -232,6 +235,10 @@ class CorpusStatsBuilder:
             # Keep Arrow limit active through statistics materialization and writing
             stats = stats.withColumn("error_type", F.lit(error_type.value))
             stats = stats.select(*[f.name for f in CORPUS_STATS_SCHEMA.fields])
+        # Note: The tracker is stored on the returned frame for write() to pick up.
+        # The scoped_conf above keeps the override active through the return,
+        # but the caller (write()) must also use scoped_conf when materializing
+        # and writing the frame. See write() implementation.
         self._trackers[stats] = tracker
         return stats
 
