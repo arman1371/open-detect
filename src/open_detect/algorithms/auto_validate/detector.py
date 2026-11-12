@@ -267,7 +267,7 @@ def _value_matches(pattern: str | Sequence[str] | list[Sequence[str]], value: An
 
     if is_flat_segments:
         # Single group with multiple ordered segments (AND logic)
-        return _matches_segments(pattern, text)
+        return _matches_segments(pattern, text)  # type: ignore[arg-type]
 
     # Pattern is a list of groups. Each group is a Sequence[str] of ordered segments.
     # A value matches if it matches ANY group (OR logic across groups), and

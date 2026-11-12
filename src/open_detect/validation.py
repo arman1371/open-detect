@@ -36,7 +36,7 @@ def _check_expected_type(value: Any, expected_type: type, param_name: str) -> No
     For Sequence[str] parameters, also rejects bare str (which would be
     iterated character-by-character rather than as a sequence).
     """
-    from typing import get_origin, get_args
+    from typing import get_args
 
     origin = get_origin(expected_type)
 
