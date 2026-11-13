@@ -192,10 +192,13 @@ class TestDetectCacheLifecycleSpark:
         import sys
         from pathlib import Path
 
-        # Use the same import strategy as tests/benchmarks/test_bench_spark_jobs.py
-        benchmarks_dir = Path(__file__).resolve().parents[4] / "benchmarks"
-        if str(benchmarks_dir) not in sys.path:
-            sys.path.insert(0, str(benchmarks_dir))
+        # Add the repository root so the ``benchmarks`` package is importable.
+        # ``tests/benchmarks/test_bench_spark_jobs.py`` instead inserts the
+        # ``benchmarks/`` directory itself and imports ``common.spark_jobs``;
+        # either path works, but the path must match the dotted module name.
+        repo_root = Path(__file__).resolve().parents[4]
+        if str(repo_root) not in sys.path:
+            sys.path.insert(0, str(repo_root))
         from benchmarks.common.spark_jobs import ScoringJobCounter
 
         return ScoringJobCounter
