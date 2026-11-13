@@ -360,7 +360,9 @@ def _distinct_value_verdicts(
     return verdicts
 
 
-def _distinct_value_verdicts_groups(series: pd.Series, groups: Sequence[Sequence[str]]) -> dict[str, bool]:
+def _distinct_value_verdicts_groups(
+    series: pd.Series, groups: Sequence[Sequence[str]]
+) -> dict[str, bool]:
     """Return a ``{text: is_error}`` map for every non-null value in ``series``.
 
     Works with the groups representation (list of groups, each a list of ordered

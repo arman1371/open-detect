@@ -77,9 +77,7 @@ class RahaDetector(ErrorDetectionAlgorithm):
             _validate_literal_value,
         )
 
-        _check_unknown_kwargs(
-            kwargs, {"table_id", "conflict_resolution", "labeler"}, "detect"
-        )
+        _check_unknown_kwargs(kwargs, {"table_id", "conflict_resolution", "labeler"}, "detect")
         _ensure_dataframe_is_spark(data, "data")
         if conflict_resolution is not None:
             _validate_literal_value(
