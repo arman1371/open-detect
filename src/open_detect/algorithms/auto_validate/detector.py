@@ -202,7 +202,9 @@ class AutoValidateAlgorithm(ErrorDetectionAlgorithm):
                         algorithm=self.name,
                         is_error=is_error,
                         score=score if is_error else 0.0,
-                        evidence=_feasible_evidence(self.config, inferred.pattern, fpr_t, cov_t, theta_c),
+                        evidence=_feasible_evidence(
+                            self.config, inferred.pattern, fpr_t, cov_t, theta_c
+                        ),
                     )
                 )
         return AlgorithmResult(algorithm=self.name, cells=tuple(cells))
@@ -239,11 +241,15 @@ def _matches_segments(segments: Sequence[str], text: str) -> bool:
     For nested FMDV-VH groups, each segment pattern is matched against the
     *entire* value, so valid composite values are incorrectly rejected -- e.g.
     ``["<letter>+", "<symbol>+"]`` rejects ``abc-123`` because ``matches()``
-    requires a complete token-for-token match.  Match the concatenated ordered
-    segment pattern against the value instead: the segments describe the value
-    token-for-token in order, so joining them reproduces the full pattern.
+    requires a complete token-for-token match.  Use :func:`_conforms_segments`
+    to match consecutive token slices, as drift testing does, so detection
+    and drift testing preserve the same segment semantics. This avoids the bug
+    where joining segments like ``["<letter>", "+"]`` produces ``"<letter>+"``
+    which interprets the literal plus as a quantifier.
     """
-    return matches("".join(segments), text)
+    from open_detect.algorithms.auto_validate.drift import _conforms_segments
+
+    return _conforms_segments(segments, text)
 
 
 def _value_matches(pattern: str | Sequence[str] | list[Sequence[str]], value: Any) -> bool:
@@ -297,13 +303,24 @@ def _infer_pattern_to_groups(pattern: InferredPattern) -> list[list[str]]:
     """Convert an InferredPattern to a list of groups, each being a list of ordered segments.
 
     For fmdv/fmdv_h: returns [[pattern]] (single group with single segment)
-    For fmdv_v: returns [pattern] where pattern is already a flat list of segments (single group)
+    For fmdv_v:
+      - string pattern -> single group with single segment -> [[pattern]]
+      - flat list of segments (all strings) -> single group with multiple segments -> [pattern]
+      - list of groups (first element is a list) -> already list of groups -> pattern directly
     For fmdv_vh: returns pattern directly (list of groups, each a list of segments)
     """
     if pattern.variant in ("fmdv", "fmdv_h"):
         return [[pattern.pattern]] if isinstance(pattern.pattern, str) else [pattern.pattern]
     elif pattern.variant == "fmdv_v":
-        return [pattern.pattern] if isinstance(pattern.pattern, list) else [[pattern.pattern]]
+        if isinstance(pattern.pattern, str):
+            # Single segment
+            return [[pattern.pattern]]
+        elif pattern.pattern and isinstance(pattern.pattern[0], str):
+            # Flat list of segments (single group with multiple segments)
+            return [pattern.pattern]
+        else:
+            # List of groups (multiple signature groups)
+            return pattern.pattern
     else:  # fmdv_vh
         return pattern.pattern if isinstance(pattern.pattern, list) else [[pattern.pattern]]
 
@@ -332,9 +349,7 @@ def _distinct_value_verdicts(
     return verdicts
 
 
-def _distinct_value_verdicts_groups(
-    series: pd.Series, groups: list[list[str]]
-) -> dict[str, bool]:
+def _distinct_value_verdicts_groups(series: pd.Series, groups: list[list[str]]) -> dict[str, bool]:
     """Return a ``{text: is_error}`` map for every non-null value in ``series``.
 
     Works with the groups representation (list of groups, each a list of ordered
