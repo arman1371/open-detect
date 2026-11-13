@@ -92,14 +92,15 @@ def fmdv_v(
     # So pattern becomes list of segment groups (each group is a list of segments)
     # For backward compatibility: when there's a single group with a single
     # segment, return the pattern as a string, not a nested list.
-    pattern = (
-        all_groups[0][0]
-        if (len(all_groups) == 1 and len(all_groups[0]) == 1 and isinstance(all_groups[0][0], str))
-        else all_groups  # type: list[SequenceType[str]]
-    )
+    if (
+        len(all_groups) == 1 and len(all_groups[0]) == 1 and isinstance(all_groups[0][0], str)
+    ):
+        pattern: str | SequenceType[str] | list[SequenceType[str]] = all_groups[0][0]
+    else:
+        pattern = all_groups  # type: ignore[assignment]
 
     return InferredPattern(
-        pattern=pattern,  # type: ignore[arg-type]
+        pattern=pattern,
         fpr_t=min(1.0, total_fpr),
         cov_t=total_cov,
         theta_c=theta_c,
@@ -154,13 +155,14 @@ def fmdv_vh(
     # For fmdv_vh, each signature group produces its segment groups
     # For backward compatibility: when there's a single group with a single
     # segment, return the pattern as a string, not a nested list.
-    pattern = (
-        all_groups[0][0]
-        if (len(all_groups) == 1 and len(all_groups[0]) == 1 and isinstance(all_groups[0][0], str))
-        else all_groups  # type: list[SequenceType[str]]
-    )
+    if (
+        len(all_groups) == 1 and len(all_groups[0]) == 1 and isinstance(all_groups[0][0], str)
+    ):
+        pattern: str | SequenceType[str] | list[SequenceType[str]] = all_groups[0][0]
+    else:
+        pattern = all_groups  # type: ignore[assignment]
     return InferredPattern(
-        pattern=pattern,  # type: ignore[arg-type]
+        pattern=pattern,
         fpr_t=min(1.0, total_fpr),
         cov_t=total_cov,
         theta_c=theta_c,
