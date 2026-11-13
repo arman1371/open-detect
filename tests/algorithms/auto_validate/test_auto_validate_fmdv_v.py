@@ -15,7 +15,6 @@ if TYPE_CHECKING:
 
 from open_detect.algorithms.auto_validate.config import AutoValidateConfig
 from open_detect.algorithms.auto_validate.fmdv import InferredPattern, min_conforming
-from open_detect.algorithms.auto_validate.index import build_pattern_index
 from open_detect.algorithms.auto_validate.fmdv_v import (
     _coarse_signature,
     _fmdv_single_segment,
@@ -23,6 +22,7 @@ from open_detect.algorithms.auto_validate.fmdv_v import (
     fmdv_v,
     fmdv_vh,
 )
+from open_detect.algorithms.auto_validate.index import build_pattern_index
 
 
 def _time_corpus(m_val: int = 1) -> tuple[list[list[str]], AutoValidateConfig]:
