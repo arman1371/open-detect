@@ -250,23 +250,23 @@ class TestDetectCacheLifecycleSpark:
         # Now call count() -- should NOT launch additional scoring
         with counter.scope("count"):
             _ = result.count()
-        assert (
-            counter.results[1].jobs == 0
-        ), f"count() re-executed {counter.results[1].jobs} scoring jobs; frame should be cached"
+        assert counter.results[1].jobs == 0, (
+            f"count() re-executed {counter.results[1].jobs} scoring jobs; frame should be cached"
+        )
 
         # collect() -- should NOT launch additional scoring
         with counter.scope("collect"):
             _ = result.limit(10).collect()
-        assert (
-            counter.results[2].jobs == 0
-        ), f"collect() re-executed {counter.results[2].jobs} scoring jobs; frame should be cached"
+        assert counter.results[2].jobs == 0, (
+            f"collect() re-executed {counter.results[2].jobs} scoring jobs; frame should be cached"
+        )
 
         # write -- should NOT launch additional scoring
         with counter.scope("write"):
             result.write.format("noop").mode("overwrite").save()
-        assert (
-            counter.results[3].jobs == 0
-        ), f"write() re-executed {counter.results[3].jobs} scoring jobs; frame should be cached"
+        assert counter.results[3].jobs == 0, (
+            f"write() re-executed {counter.results[3].jobs} scoring jobs; frame should be cached"
+        )
 
         # Clean up
         result.unpersist()
