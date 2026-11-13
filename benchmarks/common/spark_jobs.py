@@ -119,6 +119,7 @@ class ScoringJobCounter:
         self._acc: Any = None
         self._original_batch_score: Any = None
         self._patched = False
+        self._scope_depth = 0
 
     def __enter__(self) -> ScoringJobCounter:
         return self
@@ -151,6 +152,10 @@ class ScoringJobCounter:
         # the plan.
         if self._acc is None:
             self._acc = self._spark.sparkContext.accumulator(0)
+
+        # Track nesting depth to only restore on the outermost scope exit
+        self._scope_depth += 1
+        is_outermost = self._scope_depth == 1
 
         # Install the batch_score wrapper only in the outermost scope. Nested
         # scopes share the accumulator but must not re-wrap an already-wrapped
@@ -187,15 +192,14 @@ class ScoringJobCounter:
             yield
         finally:
             executions = acc.value - baseline
-            # Restore the original batch_score after the scope exits so that
-            # subsequent scopes or callers are not affected by this scope's
-            # patching. Only the scope that installed the wrapper restores it;
-            # nested scopes leave the wrapper in place so previously constructed
+            # Only restore the original batch_score when the outermost scope exits.
+            # Nested scopes leave the wrapper in place so previously constructed
             # plans keep reporting into the shared accumulator.
-            if self._patched:
+            if is_outermost and self._patched:
                 CorpusStatsStore.batch_score = self._original_batch_score
                 self._patched = False
                 self._original_batch_score = None
+            self._scope_depth -= 1
             self.results.append(
                 ScopeStats(
                     label=label,

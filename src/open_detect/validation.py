@@ -36,7 +36,7 @@ def _check_expected_type(value: Any, expected_type: type, param_name: str) -> No
     For Sequence[str] parameters, also rejects bare str (which would be
     iterated character-by-character rather than as a sequence).
     """
-    from typing import get_args
+    from typing import get_args, get_origin
 
     origin = get_origin(expected_type)
 
@@ -44,7 +44,7 @@ def _check_expected_type(value: Any, expected_type: type, param_name: str) -> No
     if origin is not None:
         args = get_args(expected_type)
         if args and args[0] is str and isinstance(value, str):
-            raise ValidationError("expected a sequence of str, got str; wrap in a list")
+            raise ValidationError(f"expected a sequence of str, got str; wrap in a list")
 
     # Use the origin type (collections.abc.Sequence) for isinstance check.
     # Parameterized generics like Sequence[str] cannot be used with isinstance.
@@ -58,7 +58,7 @@ def _check_expected_type(value: Any, expected_type: type, param_name: str) -> No
         try:
             if not isinstance(value, check_type):
                 raise ValidationError(
-                    f"{param_name} must be of type {expected_type.__name__}, "
+                    f"{param_name} must be of type {getattr(expected_type, '__name__', str(expected_type))}, "
                     f"got {type(value).__name__}: {value!r}"
                 )
         except TypeError:

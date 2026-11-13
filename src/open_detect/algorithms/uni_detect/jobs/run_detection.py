@@ -87,14 +87,12 @@ def main(argv: list[str] | None = None) -> None:
         redact_evidence=args.redact_evidence,
     )
     ud = UniDetect(config, spark=spark)
-    detections = None
-    # Keep the original persisted frame for cleanup; limit()/show()/write() create
-    # new logical plans.  We must unpersist the original, not the limited one.
     original_detections = None
+    detections = None
     try:
-        original_detections = ud.detect(target_tables, error_types=error_types)
         # Keep the original persisted frame for cleanup; limit()/show()/write() create
-        # new logical plans. We must unpersist the original, not the limited one.
+        # new logical plans.  We must unpersist the original, not the limited one.
+        original_detections = ud.detect(target_tables, error_types=error_types)
         detections = original_detections
 
         if args.top_k is not None:

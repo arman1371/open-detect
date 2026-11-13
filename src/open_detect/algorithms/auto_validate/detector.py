@@ -169,7 +169,10 @@ class AutoValidateAlgorithm(ErrorDetectionAlgorithm):
                     )
                 )
                 continue
-            pattern = inferred.pattern
+            # Convert the inferred pattern to groups of ordered segments to preserve
+            # the FMDV-VH structure (groups of segments). This prevents flattening
+            # valid composite patterns like "a-b" with segments ["a-", "b"].
+            groups = _infer_pattern_to_groups(inferred)
             fpr_t, cov_t, theta_c = inferred.fpr_t, inferred.cov_t, inferred.theta_c
             n_total = len(series) - sum(1 for v in series if _is_null(v))
             score = 1.0 - fpr_t if n_total > 0 else 0.0
@@ -177,7 +180,7 @@ class AutoValidateAlgorithm(ErrorDetectionAlgorithm):
             # representation and broadcast it, instead of re-running
             # ``_value_matches`` for every cell. Unhashable values (lists,
             # dicts, numpy arrays) are resolved per cell below.
-            verdicts = _distinct_value_verdicts(series, pattern)
+            verdicts = _distinct_value_verdicts_groups(series, groups)
             # Use _is_null for the null mask to match the behavior of pattern
             # inference and n_total (which both use _is_null).
             is_null_mask = series.map(_is_null)
@@ -190,7 +193,7 @@ class AutoValidateAlgorithm(ErrorDetectionAlgorithm):
                     is_error = verdicts[text]
                 else:
                     # Unhashable value or empty text: resolve per cell
-                    is_error = not _value_matches(pattern, value)
+                    is_error = not _value_matches_groups(groups, text)
                 cells.append(
                     CellResult(
                         table_id=table_id,
@@ -199,7 +202,7 @@ class AutoValidateAlgorithm(ErrorDetectionAlgorithm):
                         algorithm=self.name,
                         is_error=is_error,
                         score=score if is_error else 0.0,
-                        evidence=_feasible_evidence(self.config, pattern, fpr_t, cov_t, theta_c),
+                        evidence=_feasible_evidence(self.config, inferred.pattern, fpr_t, cov_t, theta_c),
                     )
                 )
         return AlgorithmResult(algorithm=self.name, cells=tuple(cells))
@@ -290,6 +293,21 @@ def _value_matches_groups(groups: list[Sequence[str]], text: str) -> bool:
     return False
 
 
+def _infer_pattern_to_groups(pattern: InferredPattern) -> list[list[str]]:
+    """Convert an InferredPattern to a list of groups, each being a list of ordered segments.
+
+    For fmdv/fmdv_h: returns [[pattern]] (single group with single segment)
+    For fmdv_v: returns [pattern] where pattern is already a flat list of segments (single group)
+    For fmdv_vh: returns pattern directly (list of groups, each a list of segments)
+    """
+    if pattern.variant in ("fmdv", "fmdv_h"):
+        return [[pattern.pattern]] if isinstance(pattern.pattern, str) else [pattern.pattern]
+    elif pattern.variant == "fmdv_v":
+        return [pattern.pattern] if isinstance(pattern.pattern, list) else [[pattern.pattern]]
+    else:  # fmdv_vh
+        return pattern.pattern if isinstance(pattern.pattern, list) else [[pattern.pattern]]
+
+
 def _distinct_value_verdicts(
     series: pd.Series, pattern: str | Sequence[str] | list[Sequence[str]]
 ) -> dict[str, bool]:
@@ -311,6 +329,26 @@ def _distinct_value_verdicts(
         if text in verdicts:
             continue
         verdicts[text] = not _value_matches(pattern, value)
+    return verdicts
+
+
+def _distinct_value_verdicts_groups(
+    series: pd.Series, groups: list[list[str]]
+) -> dict[str, bool]:
+    """Return a ``{text: is_error}`` map for every non-null value in ``series``.
+
+    Works with the groups representation (list of groups, each a list of ordered
+    segments) produced by ``_infer_pattern_to_groups``. The verdict is computed
+    once per distinct text representation and broadcast to every cell.
+    """
+    verdicts: dict[str, bool] = {}
+    for value in series:
+        text = _value_text(value)
+        if text is None:
+            continue
+        if text in verdicts:
+            continue
+        verdicts[text] = not _value_matches_groups(groups, text)
     return verdicts
 
 

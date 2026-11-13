@@ -190,6 +190,7 @@ class UniDetect:
 
         error_types = tuple(error_types) if error_types else tuple(ErrorType)
         frames = []
+        result = None
         try:
             # Keep Arrow limit active through ALL detector operations:
             # extract_candidates (mapInPandas), candidate materialization (count),
@@ -217,6 +218,10 @@ class UniDetect:
             for frame in frames:
                 with suppress(Exception):
                     frame.unpersist()
+            # Clean up the unioned result frame if it was created but failed
+            if result is not None:
+                with suppress(Exception):
+                    result.unpersist()
             raise
         finally:
             # Ensure per-detector results are released even on success
