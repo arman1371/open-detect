@@ -64,7 +64,7 @@ def fmdv_v(
 
     # For each signature group, run DP to get its ordered segments.
     # We preserve one pattern per signature group (like fmdv_vh).
-    all_patterns: list[InferredPattern] = []
+    all_groups: list[list[list[str]]] = []  # list of signature groups, each a list of segment groups
     total_fpr = 0.0
     total_cov = 0
     total_theta_c_num = 0.0
@@ -72,49 +72,37 @@ def fmdv_v(
 
     for indices in sig_to_idx.values():
         group = [clean[i] for i in indices]
-        seg = _segment_fmdv_v(group, index, config)
-        if seg is None:
+        seg_groups = _segment_dp_returning_groups(group, index, config, "fmdv_v", _fmdv_single_segment)
+        if seg_groups is None:
             continue
-        all_patterns.append(seg)
-        total_fpr += seg.fpr_t
-        total_cov += seg.cov_t
-        total_theta_c_num += seg.theta_c * seg.cov_t  # proportional contribution
-        total_theta_c_den += seg.cov_t
+        all_groups.extend(seg_groups)
+        # The segment function doesn't return fpr_t etc directly, so we need to compute
+        # We'll use the original _segment_dp for the aggregates
+        seg = _segment_fmdv_v(group, index, config)
+        if seg is not None:
+            total_fpr += seg.fpr_t
+            total_cov += seg.cov_t
+            total_theta_c_num += seg.theta_c * seg.cov_t  # proportional contribution
+            total_theta_c_den += seg.cov_t
 
-    if not all_patterns:
+    if not all_groups:
         return None
 
     theta_c = total_theta_c_num / total_theta_c_den if total_theta_c_den else 0.0
 
-    # Preserve per-signature-group segment patterns as nested sequences
-    # Each element of all_patterns is an InferredPattern whose .pattern is
-    # a Sequence[str] of ordered segments for that signature group.
-    group_patterns: list[Sequence[str]] = []
-    for s in all_patterns:
-        pat = s.pattern
-        if isinstance(pat, str):
-            # Single segment for this signature group
-            group_patterns.append([pat])
-        elif isinstance(pat, Sequence):
-            # Multiple ordered segments for this signature group
-            # Narrow: if pat is a Sequence of str (not list[Sequence[str]]), append it
-            first = pat[0] if pat else None
-            if first is None or isinstance(first, str):
-                group_patterns.append(pat)  # type: ignore[arg-type]
-
+    # Flatten groups: each signature group contributes its segment groups
+    # For fmdv_v, each signature group produces one segment group (list of segments)
+    # So pattern becomes list of segment groups (each group is a list of segments)
     # For backward compatibility: when there's a single group with a single
     # segment, return the pattern as a string, not a nested list.
     if (
-        len(group_patterns) == 1
-        and len(group_patterns[0]) == 1
-        and isinstance(group_patterns[0][0], str)
+        len(all_groups) == 1
+        and len(all_groups[0]) == 1
+        and isinstance(all_groups[0][0], str)
     ):
-        pattern: str | Sequence[str] | list[Sequence[str]] = group_patterns[0][0]
+        pattern: str | Sequence[str] | list[Sequence[str]] = all_groups[0][0]
     else:
-        # Preserve group/segment structure for fmdv_vh matching:
-        # pattern is list[Sequence[str]] where each Sequence[str] is a group
-        # of ordered segments that must ALL match (AND logic across segments).
-        pattern = group_patterns
+        pattern = all_groups
 
     return InferredPattern(
         pattern=pattern,
@@ -147,7 +135,7 @@ def fmdv_vh(
         sig = _coarse_signature(v)
         sig_to_idx.setdefault(sig, []).append(i)
 
-    all_patterns: list[InferredPattern] = []
+    all_groups: list[list[list[str]]] = []
     total_fpr = 0.0
     total_cov = 0
     total_theta_c_num = 0.0
@@ -155,48 +143,33 @@ def fmdv_vh(
 
     for indices in sig_to_idx.values():
         group = [clean[i] for i in indices]
-        seg = _segment_fmdv_vh(group, index, config)
-        if seg is None:
+        seg_groups = _segment_dp_returning_groups(group, index, config, "fmdv_vh", _fmdv_h_single)
+        if seg_groups is None:
             continue
-        all_patterns.append(seg)
-        total_fpr += seg.fpr_t
-        total_cov += seg.cov_t
-        total_theta_c_num += seg.theta_c * seg.cov_t  # proportional contribution
-        total_theta_c_den += seg.cov_t
+        all_groups.extend(seg_groups)
+        # Use the original segment function for aggregates
+        seg = _segment_fmdv_vh(group, index, config)
+        if seg is not None:
+            total_fpr += seg.fpr_t
+            total_cov += seg.cov_t
+            total_theta_c_num += seg.theta_c * seg.cov_t  # proportional contribution
+            total_theta_c_den += seg.cov_t
 
-    if not all_patterns:
+    if not all_groups:
         return None
     theta_c = total_theta_c_num / total_theta_c_den if total_theta_c_den else 0.0
-    # Preserve per-signature-group segment patterns as nested sequences
-    # Each element of all_patterns is an InferredPattern whose .pattern is
-    # a Sequence[str] of ordered segments for that signature group.
-    group_patterns: list[Sequence[str]] = []
-    for s in all_patterns:
-        pat = s.pattern
-        # pat could be: str (single segment), Sequence[str] (multiple ordered segments),
-        # or list[Sequence[str]] (nested groups, shouldn't happen here)
-        if isinstance(pat, str):
-            # Single segment for this signature group
-            group_patterns.append([pat])
-        elif isinstance(pat, Sequence):
-            # Multiple ordered segments for this signature group
-            # Narrow: if pat is a Sequence of str (not list[Sequence[str]]), append it
-            first = pat[0] if pat else None
-            if first is None or isinstance(first, str):
-                group_patterns.append(pat)  # type: ignore[arg-type]
+
+    # For fmdv_vh, each signature group produces its segment groups
     # For backward compatibility: when there's a single group with a single
     # segment, return the pattern as a string, not a nested list.
     if (
-        len(group_patterns) == 1
-        and len(group_patterns[0]) == 1
-        and isinstance(group_patterns[0][0], str)
+        len(all_groups) == 1
+        and len(all_groups[0]) == 1
+        and isinstance(all_groups[0][0], str)
     ):
-        pattern: str | Sequence[str] | list[Sequence[str]] = group_patterns[0][0]
+        pattern: str | Sequence[str] | list[Sequence[str]] = all_groups[0][0]
     else:
-        # Preserve group/segment structure for fmdv_vh matching:
-        # pattern is list[Sequence[str]] where each Sequence[str] is a group
-        # of ordered segments that must ALL match (AND logic across segments).
-        pattern = group_patterns
+        pattern = all_groups
     return InferredPattern(
         pattern=pattern,
         fpr_t=min(1.0, total_fpr),
@@ -296,6 +269,77 @@ def _segment_dp(
         theta_c=theta_c,
         variant=variant,
     )
+
+
+def _segment_dp_returning_groups(
+    values: list[str],
+    index: PatternIndex,
+    config: AutoValidateConfig,
+    variant: str,
+    solve_segment: Callable[[list[str], PatternIndex, AutoValidateConfig], InferredPattern | None],
+) -> list[list[str]] | None:
+    """Run the shared vertical-cut DP over token positions and return ordered segment groups.
+
+    Unlike `_segment_dp`, this returns a list of groups where each group is a list of
+    ordered segments that must ALL match (AND logic). This preserves the group structure
+    that the detector expects for fmdv_vh matching.
+
+    Returns ``None`` when no feasible segmentation exists.
+    """
+    if not values:
+        return None
+    token_rows = [[token.text for token in tokenize(v)] for v in values]
+    n_tokens = len(token_rows[0])
+    if any(len(row) != n_tokens for row in token_rows):
+        raise ValueError("values must share a token-class signature")
+
+    # Paper Def. 2 enforces e_i - s_i < tau (strict), so the widest admissible
+    # segment is tau-1 tokens.  Only that band of start positions is ever
+    # looked at, so dp/parent are 1-D arrays indexed by segment end.
+    max_width = config.tau - 1
+
+    memo: dict[tuple[int, int], InferredPattern | None] = {}
+
+    def segment(i: int, j: int) -> InferredPattern | None:
+        key = (i, j)
+        if key not in memo:
+            memo[key] = solve_segment(["".join(row[i:j]) for row in token_rows], index, config)
+        return memo[key]
+
+    inf = float("inf")
+    # dp[j]: minimal summed FPR of a segmentation of tokens 0..j-1.
+    dp = [inf] * (n_tokens + 1)
+    parent = [-1] * (n_tokens + 1)
+    dp[0] = 0.0
+    for j in range(1, n_tokens + 1):
+        for i in range(max(0, j - max_width), j):
+            if dp[i] == inf:
+                continue
+            seg = segment(i, j)
+            if seg is None:
+                continue
+            cost = dp[i] + seg.fpr_t
+            if cost < dp[j]:
+                dp[j] = cost
+                parent[j] = i
+
+    if dp[n_tokens] == inf:
+        return None
+
+    best_segments: list[InferredPattern] = []
+    j = n_tokens
+    while j > 0:
+        i = parent[j]
+        seg = segment(i, j)
+        assert seg is not None
+        best_segments.append(seg)
+        j = i
+    best_segments.reverse()
+
+    # Return a list of segment groups (each group is a list of segments)
+    # Each segment pattern is a string, so we build a list of lists
+    group = [s.pattern for s in best_segments if isinstance(s.pattern, str)]
+    return [group] if group else None
 
 
 def _segment_fmdv_v(

@@ -201,7 +201,7 @@ def _counting_value_matches_groups(call_counter: dict[str, int]) -> Callable:
 #: / :func:`test_identical_to_per_cell_baseline` keep asserting full equivalence
 #: against the oracle with the *real* inference (no stub).
 #: For this test fixture (emails), all values share the same coarse signature,
-#: so fmdv_vh returns a single string pattern (not a nested list).
+#: so fmdv_vh returns a single string pattern (backward compat: one group, one segment).
 STUBBED_INFERRED_PATTERN = InferredPattern(
     pattern="<alphanum>+<symbol>+<alphanum>+<symbol>+<alphanum>+",
     fpr_t=0.0,
