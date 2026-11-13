@@ -193,10 +193,7 @@ class AutoValidateAlgorithm(ErrorDetectionAlgorithm):
                     is_error = verdicts[text]
                 else:
                     # Unhashable value or empty text: resolve per cell
-                    if text is None:
-                        is_error = False
-                    else:
-                        is_error = not _value_matches_groups(groups, text)
+                    is_error = False if text is None else not _value_matches_groups(groups, text)
                 cells.append(
                     CellResult(
                         table_id=table_id,
