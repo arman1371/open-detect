@@ -193,7 +193,10 @@ class AutoValidateAlgorithm(ErrorDetectionAlgorithm):
                     is_error = verdicts[text]
                 else:
                     # Unhashable value or empty text: resolve per cell
-                    is_error = not _value_matches_groups(groups, text)
+                    if text is None:
+                        is_error = False
+                    else:
+                        is_error = not _value_matches_groups(groups, text)
                 cells.append(
                     CellResult(
                         table_id=table_id,
@@ -289,7 +292,7 @@ def _value_matches(pattern: str | Sequence[str] | list[Sequence[str]], value: An
     return False
 
 
-def _value_matches_groups(groups: list[Sequence[str]], text: str) -> bool:
+def _value_matches_groups(groups: Sequence[Sequence[str]], text: str) -> bool:
     """Match ``text`` against a list of signature groups (OR logic across groups, AND within)."""
     for group in groups:
         if isinstance(group, str):
@@ -309,20 +312,31 @@ def _infer_pattern_to_groups(pattern: InferredPattern) -> list[list[str]]:
       - list of groups (first element is a list) -> already list of groups -> pattern directly
     For fmdv_vh: returns pattern directly (list of groups, each a list of segments)
     """
+    from typing import cast
+
     if pattern.variant in ("fmdv", "fmdv_h"):
-        return [[pattern.pattern]] if isinstance(pattern.pattern, str) else [pattern.pattern]
+        if isinstance(pattern.pattern, str):
+            return [[pattern.pattern]]
+        # pattern.pattern is a Sequence[str] here
+        return [list(pattern.pattern)]  # type: ignore[arg-type]
     elif pattern.variant == "fmdv_v":
         if isinstance(pattern.pattern, str):
             # Single segment
             return [[pattern.pattern]]
         elif pattern.pattern and isinstance(pattern.pattern[0], str):
             # Flat list of segments (single group with multiple segments)
-            return [pattern.pattern]
+            return [list(pattern.pattern)]  # type: ignore[arg-type]
         else:
             # List of groups (multiple signature groups)
-            return pattern.pattern
+            groups = cast(list[Sequence[str]], pattern.pattern)
+            return [list(g) for g in groups]
     else:  # fmdv_vh
-        return pattern.pattern if isinstance(pattern.pattern, list) else [[pattern.pattern]]
+        if isinstance(pattern.pattern, list):
+            # pattern.pattern is list[Sequence[str]], so each g is Sequence[str]
+            groups = cast(list[Sequence[str]], pattern.pattern)
+            return [list(g) for g in groups]
+        # pattern.pattern is a single string segment
+        return [[str(pattern.pattern)]]
 
 
 def _distinct_value_verdicts(
@@ -349,7 +363,7 @@ def _distinct_value_verdicts(
     return verdicts
 
 
-def _distinct_value_verdicts_groups(series: pd.Series, groups: list[list[str]]) -> dict[str, bool]:
+def _distinct_value_verdicts_groups(series: pd.Series, groups: Sequence[Sequence[str]]) -> dict[str, bool]:
     """Return a ``{text: is_error}`` map for every non-null value in ``series``.
 
     Works with the groups representation (list of groups, each a list of ordered
