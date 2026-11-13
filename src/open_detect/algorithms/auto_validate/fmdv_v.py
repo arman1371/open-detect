@@ -34,7 +34,8 @@ and an approximation otherwise.  Documented as a fidelity note.
 
 from __future__ import annotations
 
-from collections.abc import Callable, Sequence
+from collections.abc import Callable
+from collections.abc import Sequence as SequenceType
 
 import pandas as pd
 
@@ -64,7 +65,7 @@ def fmdv_v(
 
     # For each signature group, run DP to get its ordered segments.
     # We preserve one pattern per signature group (like fmdv_vh).
-    all_groups: list[list[list[str]]] = []  # list of signature groups, each a list of segment groups
+    all_groups: list[list[str]] = []  # list of segment groups (each group is a list of segments)
     total_fpr = 0.0
     total_cov = 0
     total_theta_c_num = 0.0
@@ -95,17 +96,18 @@ def fmdv_v(
     # So pattern becomes list of segment groups (each group is a list of segments)
     # For backward compatibility: when there's a single group with a single
     # segment, return the pattern as a string, not a nested list.
-    if (
-        len(all_groups) == 1
-        and len(all_groups[0]) == 1
-        and isinstance(all_groups[0][0], str)
-    ):
-        pattern: str | Sequence[str] | list[Sequence[str]] = all_groups[0][0]
-    else:
-        pattern = all_groups
+    pattern = (
+        all_groups[0][0]
+        if (
+            len(all_groups) == 1
+            and len(all_groups[0]) == 1
+            and isinstance(all_groups[0][0], str)
+        )
+        else all_groups  # type: list[SequenceType[str]]
+    )
 
     return InferredPattern(
-        pattern=pattern,
+        pattern=pattern,  # type: ignore[arg-type]
         fpr_t=min(1.0, total_fpr),
         cov_t=total_cov,
         theta_c=theta_c,
@@ -135,7 +137,7 @@ def fmdv_vh(
         sig = _coarse_signature(v)
         sig_to_idx.setdefault(sig, []).append(i)
 
-    all_groups: list[list[list[str]]] = []
+    all_groups: list[list[str]] = []
     total_fpr = 0.0
     total_cov = 0
     total_theta_c_num = 0.0
@@ -162,16 +164,17 @@ def fmdv_vh(
     # For fmdv_vh, each signature group produces its segment groups
     # For backward compatibility: when there's a single group with a single
     # segment, return the pattern as a string, not a nested list.
-    if (
-        len(all_groups) == 1
-        and len(all_groups[0]) == 1
-        and isinstance(all_groups[0][0], str)
-    ):
-        pattern: str | Sequence[str] | list[Sequence[str]] = all_groups[0][0]
-    else:
-        pattern = all_groups
+    pattern = (
+        all_groups[0][0]
+        if (
+            len(all_groups) == 1
+            and len(all_groups[0]) == 1
+            and isinstance(all_groups[0][0], str)
+        )
+        else all_groups  # type: list[SequenceType[str]]
+    )
     return InferredPattern(
-        pattern=pattern,
+        pattern=pattern,  # type: ignore[arg-type]
         fpr_t=min(1.0, total_fpr),
         cov_t=total_cov,
         theta_c=theta_c,
@@ -257,7 +260,7 @@ def _segment_dp(
     # return a single string when there's only one segment.
     segment_patterns = [s.pattern for s in best_segments if isinstance(s.pattern, str)]
     if len(segment_patterns) == 1:
-        pattern: str | Sequence[str] | list[Sequence[str]] = segment_patterns[0]
+        pattern: str | SequenceType[str] | list[SequenceType[str]] = segment_patterns[0]
     else:
         # Preserve group/segment structure for matching:
         # pattern is a list of ordered segments (AND logic across segments)
