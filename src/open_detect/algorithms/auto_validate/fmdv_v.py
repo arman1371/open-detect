@@ -72,7 +72,7 @@ def fmdv_v(
 
     for indices in sig_to_idx.values():
         group = [clean[i] for i in indices]
-        result = _segment_dp_returning_groups(group, index, config, "fmdv_v", _fmdv_single_segment)
+        result = _segment_fmdv_v(group, index, config)
         if result is None:
             continue
         seg_groups, fpr_t, cov_t, theta_c = result
@@ -136,7 +136,7 @@ def fmdv_vh(
 
     for indices in sig_to_idx.values():
         group = [clean[i] for i in indices]
-        result = _segment_dp_returning_groups(group, index, config, "fmdv_vh", _fmdv_h_single)
+        result = _segment_fmdv_vh(group, index, config)
         if result is None:
             continue
         seg_groups, fpr_t, cov_t, theta_c = result
@@ -177,7 +177,7 @@ def _segment_dp(
     config: AutoValidateConfig,
     variant: str,
     solve_segment: Callable[[list[str], PatternIndex, AutoValidateConfig], InferredPattern | None],
-) -> InferredPattern | None:
+) -> tuple[list[list[str]], float, int, float] | None:
     """Run the shared vertical-cut DP over token positions and aggregate the segments.
 
     ``values`` must share one token-class signature, so token position ``p``
@@ -185,6 +185,12 @@ def _segment_dp(
     tokens ``i..j-1`` of every value, rejoined into a string.  ``solve_segment``
     is the per-segment FMDV variant (single-segment FMDV for ``fmdv_v``; FMDV-H
     for ``fmdv_vh``).  Returns ``None`` when no feasible segmentation exists.
+
+    The return value is ``(groups, total_fpr, total_cov, theta_c)`` where
+    ``groups`` is a single group: a list of ordered segment strings that must
+    ALL match (AND logic).  This single DP result is reused by both
+    ``fmdv_v`` and ``fmdv_vh`` callers, so the segmentation search runs once
+    per coarse-signature group instead of twice.
     """
     if not values:
         return None
@@ -240,109 +246,23 @@ def _segment_dp(
     total_cov = sum(s.cov_t for s in best_segments)
     theta_c = sum(s.theta_c * s.cov_t for s in best_segments) / total_cov if total_cov else 0.0
     # Preserve segment groups: each vertical segmentation produces ordered
-    # segments that must ALL match (AND logic). For backward compatibility,
-    # return a single string when there's only one segment.
-    segment_patterns = [s.pattern for s in best_segments if isinstance(s.pattern, str)]
-    if len(segment_patterns) == 1:
-        pattern: str | SequenceType[str] | list[SequenceType[str]] = segment_patterns[0]
-    else:
-        # Preserve group/segment structure for matching:
-        # pattern is a list of ordered segments (AND logic across segments)
-        pattern = segment_patterns
-    return InferredPattern(
-        pattern=pattern,
-        fpr_t=total_fpr,
-        cov_t=total_cov,
-        theta_c=theta_c,
-        variant=variant,
-    )
-
-
-def _segment_dp_returning_groups(
-    values: list[str],
-    index: PatternIndex,
-    config: AutoValidateConfig,
-    variant: str,
-    solve_segment: Callable[[list[str], PatternIndex, AutoValidateConfig], InferredPattern | None],
-) -> tuple[list[list[str]], float, int, float] | None:
-    """Run the shared vertical-cut DP over token positions and return ordered segment groups
-    along with aggregate statistics.
-
-    Unlike `_segment_dp`, this returns a list of groups where each group is a list of
-    ordered segments that must ALL match (AND logic). This preserves the group structure
-    that the detector expects for fmdv_vh matching.
-
-    Returns ``None`` when no feasible segmentation exists.
-    Otherwise returns a tuple of (groups, total_fpr, total_cov, theta_c).
-    """
-    if not values:
-        return None
-    token_rows = [[token.text for token in tokenize(v)] for v in values]
-    n_tokens = len(token_rows[0])
-    if any(len(row) != n_tokens for row in token_rows):
-        raise ValueError("values must share a token-class signature")
-
-    # Paper Def. 2 enforces e_i - s_i < tau (strict), so the widest admissible
-    # segment is tau-1 tokens.  Only that band of start positions is ever
-    # looked at, so dp/parent are 1-D arrays indexed by segment end.
-    max_width = config.tau - 1
-
-    memo: dict[tuple[int, int], InferredPattern | None] = {}
-
-    def segment(i: int, j: int) -> InferredPattern | None:
-        key = (i, j)
-        if key not in memo:
-            memo[key] = solve_segment(["".join(row[i:j]) for row in token_rows], index, config)
-        return memo[key]
-
-    inf = float("inf")
-    # dp[j]: minimal summed FPR of a segmentation of tokens 0..j-1.
-    dp = [inf] * (n_tokens + 1)
-    parent = [-1] * (n_tokens + 1)
-    dp[0] = 0.0
-    for j in range(1, n_tokens + 1):
-        for i in range(max(0, j - max_width), j):
-            if dp[i] == inf:
-                continue
-            seg = segment(i, j)
-            if seg is None:
-                continue
-            cost = dp[i] + seg.fpr_t
-            if cost < dp[j]:
-                dp[j] = cost
-                parent[j] = i
-
-    if dp[n_tokens] == inf:
-        return None
-
-    best_segments: list[InferredPattern] = []
-    j = n_tokens
-    while j > 0:
-        i = parent[j]
-        seg = segment(i, j)
-        assert seg is not None
-        best_segments.append(seg)
-        j = i
-    best_segments.reverse()
-
-    # Compute aggregate statistics from the best segments
-    total_fpr = min(1.0, sum(s.fpr_t for s in best_segments))
-    total_cov = sum(s.cov_t for s in best_segments)
-    theta_c = sum(s.theta_c * s.cov_t for s in best_segments) / total_cov if total_cov else 0.0
-
-    # Return a list of segment groups (each group is a list of segments)
-    # Each segment pattern is a string, so we build a list of lists
+    # segments that must ALL match (AND logic). Return a single group (a list
+    # of ordered segment strings) so callers can aggregate across signature
+    # groups without re-deriving the DP.
     group = [s.pattern for s in best_segments if isinstance(s.pattern, str)]
-    groups = [group] if group else []
-    return groups, total_fpr, total_cov, theta_c
+    return [group], total_fpr, total_cov, theta_c
 
 
 def _segment_fmdv_v(
     values: list[str],
     index: PatternIndex,
     config: AutoValidateConfig,
-) -> InferredPattern | None:
-    """Run FMDV-V on a single coarse-signature group via DP."""
+) -> tuple[list[list[str]], float, int, float] | None:
+    """Run FMDV-V on a single coarse-signature group via DP.
+
+    Returns ``(groups, total_fpr, total_cov, theta_c)`` where ``groups`` is a
+    single group (a list of ordered segment strings that must all match).
+    """
     return _segment_dp(values, index, config, "fmdv_v", _fmdv_single_segment)
 
 
@@ -350,8 +270,12 @@ def _segment_fmdv_vh(
     values: list[str],
     index: PatternIndex,
     config: AutoValidateConfig,
-) -> InferredPattern | None:
-    """FMDV-VH within a single coarse-signature group: horizontal first, then DP."""
+) -> tuple[list[list[str]], float, int, float] | None:
+    """FMDV-VH within a single coarse-signature group: horizontal first, then DP.
+
+    Returns ``(groups, total_fpr, total_cov, theta_c)`` where ``groups`` is a
+    single group (a list of ordered segment strings that must all match).
+    """
     return _segment_dp(values, index, config, "fmdv_vh", _fmdv_h_single)
 
 
@@ -441,18 +365,3 @@ def _fmdv_h_single(
         theta_c=theta_c,
         variant="fmdv_h",
     )
-
-
-def _infer_cmp(a: InferredPattern, b: InferredPattern) -> int:
-    """Compare two InferredPatterns by (fpr_t, theta_c, cov_t desc, variant)."""
-    if a.fpr_t < b.fpr_t:
-        return -1
-    if a.fpr_t > b.fpr_t:
-        return 1
-    if a.theta_c < b.theta_c:
-        return -1
-    if a.theta_c > b.theta_c:
-        return 1
-    if a.cov_t != b.cov_t:
-        return -1 if a.cov_t > b.cov_t else 1
-    return -1 if a.variant < b.variant else (1 if a.variant > b.variant else 0)

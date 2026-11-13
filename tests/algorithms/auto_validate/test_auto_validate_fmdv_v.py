@@ -15,6 +15,7 @@ if TYPE_CHECKING:
 
 from open_detect.algorithms.auto_validate.config import AutoValidateConfig
 from open_detect.algorithms.auto_validate.fmdv import InferredPattern, min_conforming
+from open_detect.algorithms.auto_validate.index import build_pattern_index
 from open_detect.algorithms.auto_validate.fmdv_v import (
     _coarse_signature,
     _fmdv_single_segment,
@@ -22,7 +23,6 @@ from open_detect.algorithms.auto_validate.fmdv_v import (
     fmdv_v,
     fmdv_vh,
 )
-from open_detect.algorithms.auto_validate.index import build_pattern_index
 
 
 def _time_corpus(m_val: int = 1) -> tuple[list[list[str]], AutoValidateConfig]:
@@ -177,8 +177,12 @@ class TestSegmentDp:
         index = build_pattern_index(corpus, cfg)
         result = _segment_dp(values, index, cfg, "fmdv_v", _fmdv_single_segment)
         assert result is not None
-        assert isinstance(result.pattern, list)
-        assert len(result.pattern) >= 2
+        groups, _fpr, _cov, _theta = result
+        assert isinstance(groups, list)
+        assert len(groups) == 1  # one coarse-signature group
+        segments = groups[0]
+        assert isinstance(segments, list)
+        assert len(segments) >= 2
 
     def test_segments_solved_independently(self):
         """Each segment is solved: total FPR is the sum of the per-segment FPRs."""
@@ -194,10 +198,12 @@ class TestSegmentDp:
         index = build_pattern_index([["a"]], cfg)
         result = _segment_dp(["a+b/c", "d+e/f"], index, cfg, "fmdv_v", solve)
         assert result is not None
+        groups, fpr, _cov, _theta = result
         # 5 tokens, max width 2 => exactly 3 segments, hence fpr_t == 0.03.
-        assert isinstance(result.pattern, list)
-        assert len(result.pattern) == 3
-        assert result.fpr_t == pytest.approx(0.03)
+        assert isinstance(groups, list)
+        assert len(groups) == 1
+        assert len(groups[0]) == 3
+        assert fpr == pytest.approx(0.03)
         # solve_segment results are memoized per (start, end) span.
         assert len(calls) == len(set(calls))
 
