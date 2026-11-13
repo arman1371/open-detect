@@ -63,8 +63,7 @@ def fmdv_v(
         sig = _coarse_signature(v)
         sig_to_idx.setdefault(sig, []).append(i)
 
-    # For each signature group, run DP to get its ordered segments.
-    # We preserve one pattern per signature group (like fmdv_vh).
+    # For each signature group, run DP to get its ordered segments and statistics.
     all_groups: list[list[str]] = []  # list of segment groups (each group is a list of segments)
     total_fpr = 0.0
     total_cov = 0
@@ -73,18 +72,15 @@ def fmdv_v(
 
     for indices in sig_to_idx.values():
         group = [clean[i] for i in indices]
-        seg_groups = _segment_dp_returning_groups(group, index, config, "fmdv_v", _fmdv_single_segment)
-        if seg_groups is None:
+        result = _segment_dp_returning_groups(group, index, config, "fmdv_v", _fmdv_single_segment)
+        if result is None:
             continue
+        seg_groups, fpr_t, cov_t, theta_c = result
         all_groups.extend(seg_groups)
-        # The segment function doesn't return fpr_t etc directly, so we need to compute
-        # We'll use the original _segment_dp for the aggregates
-        seg = _segment_fmdv_v(group, index, config)
-        if seg is not None:
-            total_fpr += seg.fpr_t
-            total_cov += seg.cov_t
-            total_theta_c_num += seg.theta_c * seg.cov_t  # proportional contribution
-            total_theta_c_den += seg.cov_t
+        total_fpr += fpr_t
+        total_cov += cov_t
+        total_theta_c_num += theta_c * cov_t  # proportional contribution
+        total_theta_c_den += cov_t
 
     if not all_groups:
         return None
@@ -98,11 +94,7 @@ def fmdv_v(
     # segment, return the pattern as a string, not a nested list.
     pattern = (
         all_groups[0][0]
-        if (
-            len(all_groups) == 1
-            and len(all_groups[0]) == 1
-            and isinstance(all_groups[0][0], str)
-        )
+        if (len(all_groups) == 1 and len(all_groups[0]) == 1 and isinstance(all_groups[0][0], str))
         else all_groups  # type: list[SequenceType[str]]
     )
 
@@ -145,17 +137,15 @@ def fmdv_vh(
 
     for indices in sig_to_idx.values():
         group = [clean[i] for i in indices]
-        seg_groups = _segment_dp_returning_groups(group, index, config, "fmdv_vh", _fmdv_h_single)
-        if seg_groups is None:
+        result = _segment_dp_returning_groups(group, index, config, "fmdv_vh", _fmdv_h_single)
+        if result is None:
             continue
+        seg_groups, fpr_t, cov_t, theta_c = result
         all_groups.extend(seg_groups)
-        # Use the original segment function for aggregates
-        seg = _segment_fmdv_vh(group, index, config)
-        if seg is not None:
-            total_fpr += seg.fpr_t
-            total_cov += seg.cov_t
-            total_theta_c_num += seg.theta_c * seg.cov_t  # proportional contribution
-            total_theta_c_den += seg.cov_t
+        total_fpr += fpr_t
+        total_cov += cov_t
+        total_theta_c_num += theta_c * cov_t  # proportional contribution
+        total_theta_c_den += cov_t
 
     if not all_groups:
         return None
@@ -166,11 +156,7 @@ def fmdv_vh(
     # segment, return the pattern as a string, not a nested list.
     pattern = (
         all_groups[0][0]
-        if (
-            len(all_groups) == 1
-            and len(all_groups[0]) == 1
-            and isinstance(all_groups[0][0], str)
-        )
+        if (len(all_groups) == 1 and len(all_groups[0]) == 1 and isinstance(all_groups[0][0], str))
         else all_groups  # type: list[SequenceType[str]]
     )
     return InferredPattern(
@@ -280,14 +266,16 @@ def _segment_dp_returning_groups(
     config: AutoValidateConfig,
     variant: str,
     solve_segment: Callable[[list[str], PatternIndex, AutoValidateConfig], InferredPattern | None],
-) -> list[list[str]] | None:
-    """Run the shared vertical-cut DP over token positions and return ordered segment groups.
+) -> tuple[list[list[str]], float, int, float] | None:
+    """Run the shared vertical-cut DP over token positions and return ordered segment groups
+    along with aggregate statistics.
 
     Unlike `_segment_dp`, this returns a list of groups where each group is a list of
     ordered segments that must ALL match (AND logic). This preserves the group structure
     that the detector expects for fmdv_vh matching.
 
     Returns ``None`` when no feasible segmentation exists.
+    Otherwise returns a tuple of (groups, total_fpr, total_cov, theta_c).
     """
     if not values:
         return None
@@ -339,10 +327,16 @@ def _segment_dp_returning_groups(
         j = i
     best_segments.reverse()
 
+    # Compute aggregate statistics from the best segments
+    total_fpr = min(1.0, sum(s.fpr_t for s in best_segments))
+    total_cov = sum(s.cov_t for s in best_segments)
+    theta_c = sum(s.theta_c * s.cov_t for s in best_segments) / total_cov if total_cov else 0.0
+
     # Return a list of segment groups (each group is a list of segments)
     # Each segment pattern is a string, so we build a list of lists
     group = [s.pattern for s in best_segments if isinstance(s.pattern, str)]
-    return [group] if group else None
+    groups = [group] if group else []
+    return groups, total_fpr, total_cov, theta_c
 
 
 def _segment_fmdv_v(
