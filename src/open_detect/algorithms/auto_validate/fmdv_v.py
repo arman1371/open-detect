@@ -92,9 +92,7 @@ def fmdv_v(
     # So pattern becomes list of segment groups (each group is a list of segments)
     # For backward compatibility: when there's a single group with a single
     # segment, return the pattern as a string, not a nested list.
-    if (
-        len(all_groups) == 1 and len(all_groups[0]) == 1 and isinstance(all_groups[0][0], str)
-    ):
+    if len(all_groups) == 1 and len(all_groups[0]) == 1 and isinstance(all_groups[0][0], str):
         pattern: str | SequenceType[str] | list[SequenceType[str]] = all_groups[0][0]
     else:
         pattern = all_groups  # type: ignore[assignment]
@@ -155,9 +153,7 @@ def fmdv_vh(
     # For fmdv_vh, each signature group produces its segment groups
     # For backward compatibility: when there's a single group with a single
     # segment, return the pattern as a string, not a nested list.
-    if (
-        len(all_groups) == 1 and len(all_groups[0]) == 1 and isinstance(all_groups[0][0], str)
-    ):
+    if len(all_groups) == 1 and len(all_groups[0]) == 1 and isinstance(all_groups[0][0], str):
         pattern: str | SequenceType[str] | list[SequenceType[str]] = all_groups[0][0]
     else:
         pattern = all_groups  # type: ignore[assignment]
