@@ -259,5 +259,5 @@ def redact_evidence(evidence: dict[str, Any], mode: RedactMode) -> dict[str, Any
     return {k: _hash_value(v) if k in RAW_VALUE_EVIDENCE_KEYS else v for k, v in evidence.items()}
 
 
-def make_evidence_json(evidence: dict, redact: RedactMode = "none") -> str:
+def make_evidence_json(evidence: dict[str, Any], redact: RedactMode = "none") -> str:
     return json.dumps(redact_evidence(evidence, redact), default=str)
