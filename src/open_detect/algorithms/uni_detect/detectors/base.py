@@ -153,6 +153,10 @@ class BaseDetector(ABC):
                     # Return a persisted empty result so downstream actions (count, collect,
                     # write) don't re-execute the scoring stage, and the frame can be
                     # released via release() like any other result.
+                    # candidates must be explicitly unpersisted since we're returning early
+                    # without going through the normal finally path.
+                    with suppress(Exception):
+                        candidates.unpersist()
                     result = self._track(self._empty_result().persist(StorageLevel.MEMORY_AND_DISK))
                     result.count()
                     return result
@@ -200,12 +204,17 @@ class BaseDetector(ABC):
             if result is not None:
                 with suppress(Exception):
                     result.unpersist()
-            raise
-        finally:
-            # Always release the candidate frame
+            # Always release candidates on failure too
             if candidates is not None:
                 with suppress(Exception):
                     candidates.unpersist()
+            raise
+        # NOTE: No 'finally' block that unpersists candidates.  The result DataFrame
+        # is persisted (MEMORY_AND_DISK) and must survive until the caller consumes
+        # it via count()/collect()/write().  The caller is responsible for calling
+        # ``detector.release()`` or ``result.unpersist()`` when the result is no
+        # longer needed.  This ensures downstream actions reuse the cached frame
+        # instead of re-executing the scoring stage.
 
     def _empty_result(self) -> DataFrame:
         from open_detect.algorithms.uni_detect.detectors.schema import DETECTION_RESULT_SCHEMA
