@@ -219,9 +219,9 @@ class TestDetectCacheLifecycleSpark:
     """End-to-end cache contract on a real Spark session (skipped without Java).
 
     The test builds a real uniqueness detector, runs ``detect()`` on a tiny
-    Delta table, and asserts via :class:`benchmarks.common.spark_jobs.SparkJobCounter`
+    Delta table, and asserts via :class:`benchmarks.common.spark_jobs.ScoringJobCounter`
     that subsequent actions (``count()``, ``collect()``, ``write``) on the returned
-    frame do not trigger additional Spark jobs beyond the initial materialization.
+    frame do not re-execute the scoring stage (tracked via an executor-side accumulator).
     """
 
     def test_detect_returns_persisted_frame_no_reexecution_on_count_collect_write(self, spark):
@@ -231,7 +231,7 @@ class TestDetectCacheLifecycleSpark:
         from pathlib import Path
 
         sys.path.insert(0, str(Path(__file__).parents[4] / "benchmarks"))
-        from common.spark_jobs import SparkJobCounter
+        from common.spark_jobs import ScoringJobCounter
         from open_detect.algorithms.uni_detect.config import UniDetectConfig, UnityCatalogLocation
         from open_detect.algorithms.uni_detect.core.enums import ErrorType
         from open_detect.algorithms.uni_detect.detectors.uniqueness import UniquenessDetector
@@ -262,39 +262,38 @@ class TestDetectCacheLifecycleSpark:
             error_types=[ErrorType.UNIQUENESS],
         )
 
-        counter = SparkJobCounter(spark, enabled=True)
+        with ScoringJobCounter(spark) as counter:
+            # Run detect -- this should launch jobs for ingestion + scoring
+            with counter.scope("detect"):
+                result = detector.detect(["spark_catalog.open_detect_test_schema.t1"])
 
-        # Run detect -- this should launch jobs for ingestion + scoring
-        with counter.scope("detect"):
-            result = detector.detect(["spark_catalog.open_detect_test_schema.t1"])
+            # Materialize once inside detect(); result is persisted
+            detect_jobs = counter.results[0].jobs
+            assert detect_jobs > 0, "detect() should have launched at least one scoring execution"
 
-        # Materialize once inside detect(); result is persisted
-        detect_jobs = counter.results[0].jobs
-        assert detect_jobs > 0, "detect() should have launched at least one job"
+            # Now call count() -- should NOT launch additional scoring executions
+            with counter.scope("count"):
+                _ = result.count()
+            assert (
+                counter.results[1].jobs == 0
+            ), f"count() re-executed {counter.results[1].jobs} scoring executions; frame should be cached"
 
-        # Now call count() -- should NOT launch additional jobs
-        with counter.scope("count"):
-            _ = result.count()
-        assert (
-            counter.results[1].jobs == 0
-        ), f"count() re-executed {counter.results[1].jobs} jobs; frame should be cached"
+            # collect() -- should NOT launch additional scoring executions
+            with counter.scope("collect"):
+                _ = result.limit(10).collect()
+            assert (
+                counter.results[2].jobs == 0
+            ), f"collect() re-executed {counter.results[2].jobs} scoring executions; frame should be cached"
 
-        # collect() -- should NOT launch additional jobs
-        with counter.scope("collect"):
-            _ = result.limit(10).collect()
-        assert (
-            counter.results[2].jobs == 0
-        ), f"collect() re-executed {counter.results[2].jobs} jobs; frame should be cached"
+            # write -- should NOT launch additional scoring executions
+            with counter.scope("write"):
+                result.write.format("noop").mode("overwrite").save()
+            assert (
+                counter.results[3].jobs == 0
+            ), f"write() re-executed {counter.results[3].jobs} scoring executions; frame should be cached"
 
-        # write -- should NOT launch additional jobs
-        with counter.scope("write"):
-            result.write.format("noop").mode("overwrite").save()
-        assert (
-            counter.results[3].jobs == 0
-        ), f"write() re-executed {counter.results[3].jobs} jobs; frame should be cached"
-
-        # Clean up
-        result.unpersist()
+            # Clean up
+            result.unpersist()
 
     def test_pipeline_detect_unioned_result_no_reexecution(self, spark):
         """UniDetect.detect() returns a unioned, persisted frame with no re-execution."""
@@ -303,7 +302,7 @@ class TestDetectCacheLifecycleSpark:
         from pathlib import Path
 
         sys.path.insert(0, str(Path(__file__).parents[4] / "benchmarks"))
-        from common.spark_jobs import SparkJobCounter
+        from common.spark_jobs import ScoringJobCounter
         from open_detect.algorithms.uni_detect.config import UniDetectConfig, UnityCatalogLocation
         from open_detect.algorithms.uni_detect.core.enums import ErrorType
         from open_detect.algorithms.uni_detect.pipeline import UniDetect
@@ -332,30 +331,29 @@ class TestDetectCacheLifecycleSpark:
             error_types=[ErrorType.UNIQUENESS],
         )
 
-        counter = SparkJobCounter(spark, enabled=True)
+        with ScoringJobCounter(spark) as counter:
+            with counter.scope("pipeline_detect"):
+                detections = ud.detect(["spark_catalog.open_detect_test_schema.t2"])
 
-        with counter.scope("pipeline_detect"):
-            detections = ud.detect(["spark_catalog.open_detect_test_schema.t2"])
+            detect_jobs = counter.results[0].jobs
+            assert detect_jobs > 0
 
-        detect_jobs = counter.results[0].jobs
-        assert detect_jobs > 0
+            # The returned frame must be the *sorted* one, and it must be the frame
+            # that was persisted+materialized -- otherwise count/collect/write below
+            # would re-execute the scoring stage.
+            lr_ratios = [row["lr_ratio"] for row in detections.select("lr_ratio").collect()]
+            assert lr_ratios == sorted(lr_ratios), "pipeline result must be sorted by lr_ratio"
 
-        # The returned frame must be the *sorted* one, and it must be the frame
-        # that was persisted+materialized -- otherwise count/collect/write below
-        # would re-execute the scoring stage.
-        lr_ratios = [row["lr_ratio"] for row in detections.select("lr_ratio").collect()]
-        assert lr_ratios == sorted(lr_ratios), "pipeline result must be sorted by lr_ratio"
+            with counter.scope("count"):
+                _ = detections.count()
+            assert counter.results[1].jobs == 0
 
-        with counter.scope("count"):
-            _ = detections.count()
-        assert counter.results[1].jobs == 0
+            with counter.scope("collect"):
+                _ = detections.limit(5).collect()
+            assert counter.results[2].jobs == 0
 
-        with counter.scope("collect"):
-            _ = detections.limit(5).collect()
-        assert counter.results[2].jobs == 0
+            with counter.scope("write"):
+                detections.write.format("noop").mode("overwrite").save()
+            assert counter.results[3].jobs == 0
 
-        with counter.scope("write"):
-            detections.write.format("noop").mode("overwrite").save()
-        assert counter.results[3].jobs == 0
-
-        detections.unpersist()
+            detections.unpersist()
