@@ -2,6 +2,19 @@
 
 <!-- version list -->
 
+## v0.3.0 (2026-11-14)
+
+### Features
+
+- **auto_validate**: Per-distinct-value verdicts (OPE-86, P-10)
+  ([#99](https://github.com/arman1371/open-detect/pull/99),
+  [`5478548`](https://github.com/arman1371/open-detect/commit/5478548271d381fa37734644ef1f65d2e0046986))
+
+---
+
+**Full Changelog**: [v0.2.9...v0.3.0](https://github.com/arman1371/open-detect/compare/v0.2.9...v0.3.0)
+
+
 ## v0.2.9 (2026-11-06)
 
 ### Bug Fixes
