@@ -109,6 +109,7 @@ class FunctionalDependencyDetector(BaseDetector):
                 yield pd.DataFrame(rows, columns=[f.name for f in CANDIDATE_SCHEMA.fields])
 
         pairs_df = self.ingestor.ingest_column_pairs(table_names)
+<<<<<<< HEAD
         with scoped_conf(
             self.spark,
             **{ARROW_MAX_RECORDS_PER_BATCH_KEY: str(ARROW_MAX_RECORDS_PER_BATCH)},
@@ -122,3 +123,17 @@ class FunctionalDependencyDetector(BaseDetector):
                 "lhs_values",
                 "rhs_values",
             ).mapInPandas(compute, schema=CANDIDATE_SCHEMA)
+=======
+        # ARROW_MAX_RECORDS_PER_BATCH is set by BaseDetector.detect() so it stays
+        # active through the lazy execution of mapInPandas and the subsequent count().
+        # Keep the override active through candidate materialization in the base detector.
+        return pairs_df.select(
+            "table_id",
+            "lhs_column",
+            "rhs_column",
+            "rhs_column_index",
+            "num_rows",
+            "lhs_values",
+            "rhs_values",
+        ).mapInPandas(compute, schema=CANDIDATE_SCHEMA)
+>>>>>>> origin/main

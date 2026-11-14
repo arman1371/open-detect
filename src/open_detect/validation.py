@@ -17,20 +17,14 @@ from open_detect.exceptions import ValidationError
 T = TypeVar("T")
 
 
-def _check_unknown_kwargs(kwargs: dict[str, Any], accepted: set[str]) -> None:
-    """Raise ValidationError if any unknown kwargs are passed.
-
-    Parameters
-    ----------
-    kwargs:
-        The keyword arguments that were passed to detect().
-    accepted:
-        The set of kwarg names that are accepted by the algorithm.
-    """
+def _check_unknown_kwargs(
+    kwargs: dict[str, Any], accepted: set[str], param_name: str = "detect"
+) -> None:
+    """Raise ValidationError if kwargs contains keys not in ``accepted``."""
     unknown = set(kwargs) - accepted
     if unknown:
         msg = (
-            f"Unknown parameter(s): {', '.join(sorted(unknown))}. "
+            f"Unknown parameter(s) in {param_name}: {', '.join(sorted(unknown))}. "
             f"Accepted parameters: {', '.join(sorted(accepted))}"
         )
         raise ValidationError(msg)
@@ -41,30 +35,38 @@ def _check_expected_type(value: Any, expected_type: type, param_name: str) -> No
 
     For Sequence[str] parameters, also rejects bare str (which would be
     iterated character-by-character rather than as a sequence).
+    Uses the already-computed origin for runtime type checks to avoid
+    TypeError from parameterized generics.
     """
-    # Special case: if expected_type is a parameterized Sequence[str],
-    # and value is a bare str, reject with a helpful message.
-    # Also extract the origin for isinstance check (parameterized generics
-    # cannot be used directly with isinstance).
+    from typing import get_args
+
     origin = get_origin(expected_type)
-    if origin is not None and origin is Sequence:
-        # expected_type is Sequence[Something], use bare Sequence for isinstance
-        args = getattr(expected_type, "__args__", ())
+
+    # Check for bare str rejection first (works for typing.Sequence[str], collections.abc.Sequence, etc.)
+    if origin is not None:
+        args = get_args(expected_type)
         if args and args[0] is str and isinstance(value, str):
             raise ValidationError("expected a sequence of str, got str; wrap in a list")
-        # Use the origin (bare Sequence) for isinstance check
-        if not isinstance(value, origin):
-            raise ValidationError(
-                f"{param_name} must be a sequence, "
-                f"got {type(value).__name__}: {value!r}"
-            )
-        return
-    # Default isinstance check for non-generic types
-    if expected_type is not None and not isinstance(value, expected_type):
-        raise ValidationError(
-            f"{param_name} must be of type {expected_type.__name__}, "
-            f"got {type(value).__name__}: {value!r}"
-        )
+
+    # Use the origin type (collections.abc.Sequence) for isinstance check.
+    # Parameterized generics like Sequence[str] cannot be used with isinstance.
+    # If there's no origin (concrete types like str, int, list), use expected_type directly.
+    check_type = origin if origin is not None else expected_type
+
+    if check_type is not None:
+        # Runtime type check. Parameterized generics like Sequence[str] are
+        # not valid isinstance targets; we already used the origin above.
+        # Only perform isinstance if check_type is a valid class.
+        try:
+            if not isinstance(value, check_type):
+                raise ValidationError(
+                    f"{param_name} must be of type {getattr(expected_type, '__name__', str(expected_type))}, "
+                    f"got {type(value).__name__}: {value!r}"
+                )
+        except TypeError:
+            # Parameterized generics (e.g., Sequence[str]) can't be used with
+            # isinstance. The origin check already validated the container type.
+            pass
 
 
 def _validate_literal_value(
@@ -75,11 +77,13 @@ def _validate_literal_value(
     """Validate that value is one of the allowed Literal values.
 
     Uses typing.get_origin to check the actual Literal constraint at runtime.
+    Checks isinstance(value, str) before set membership to avoid TypeError on
+    unhashable types (e.g. lists, dicts). Raises ValidationError instead.
     """
+    if not isinstance(value, str):
+        raise ValidationError(f"{param_name} must be one of {sorted(valid_values)}, got {value!r}")
     if value not in valid_values:
-        raise ValidationError(
-            f"{param_name} must be one of {sorted(valid_values)}, " f"got {value!r}"
-        )
+        raise ValidationError(f"{param_name} must be one of {sorted(valid_values)}, got {value!r}")
 
 
 def _check_columns_unique(columns: list[str]) -> None:
@@ -100,7 +104,7 @@ def _check_dataframe_is_spark(df: Any, param_name: str = "data") -> None:
 
         if not isinstance(df, SparkDataFrame):
             raise ValidationError(
-                f"{param_name} must be a pyspark.sql.DataFrame, " f"got {type(df).__name__}"
+                f"{param_name} must be a pyspark.sql.DataFrame, got {type(df).__name__}"
             )
     except ImportError:
         # PySpark not available; skip this check

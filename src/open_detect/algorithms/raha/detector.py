@@ -75,7 +75,13 @@ class RahaDetector(ErrorDetectionAlgorithm):
             (evaluation) or :class:`~open_detect.algorithms.raha.labeling.CallableLabeler`
             (a real human/UI) for results matching the paper.
         """
-        from open_detect.validation import _ensure_dataframe_is_spark, _validate_literal_value
+        from open_detect.validation import (
+            _check_unknown_kwargs,
+            _ensure_dataframe_is_spark,
+            _validate_literal_value,
+        )
+
+        _check_unknown_kwargs(kwargs, {"table_id", "conflict_resolution", "labeler"}, "detect")
 
         _ensure_dataframe_is_spark(data, "data")
         if conflict_resolution is not None:
@@ -84,6 +90,7 @@ class RahaDetector(ErrorDetectionAlgorithm):
             )
         if variant is not None:
             _validate_literal_value(variant, {"A", "B"}, "variant")
+
 
         df = data
         n = len(df)
@@ -128,11 +135,12 @@ class RahaDetector(ErrorDetectionAlgorithm):
             evidence_cache: dict[tuple[str, tuple[str, ...]], dict[str, str | list[str]]] = {}
 
             cells: list[CellResult] = []
+            effective_conflict_resolution = conflict_resolution or self.config.conflict_resolution
             for col in df.columns:
                 propagated = propagate_labels(
                     cluster_ids_by_column[col],
                     per_column_labels[col],
-                    self.config.conflict_resolution,
+                    effective_conflict_resolution,
                 )
                 predictions = train_and_predict(column_features[col], propagated, self.config)
                 feature_names = column_features[col].feature_names

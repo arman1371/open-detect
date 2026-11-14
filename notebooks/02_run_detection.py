@@ -17,10 +17,16 @@
 # COMMAND ----------
 
 dbutils.widgets.text("open_detect_catalog", "main", "Catalog holding open_detect's own tables")
-dbutils.widgets.text("open_detect_schema", "data_quality", "Schema holding open_detect's own tables")
+dbutils.widgets.text(
+    "open_detect_schema", "data_quality", "Schema holding open_detect's own tables"
+)
 dbutils.widgets.text("target_tables", "", "Comma-separated fully-qualified tables to scan")
-dbutils.widgets.text("error_types", "uniqueness,numeric_outlier,spelling,functional_dependency", "Error types")
-dbutils.widgets.text("alpha", "0.05", "Significance level (lower = fewer, higher-confidence results)")
+dbutils.widgets.text(
+    "error_types", "uniqueness,numeric_outlier,spelling,functional_dependency", "Error types"
+)
+dbutils.widgets.text(
+    "alpha", "0.05", "Significance level (lower = fewer, higher-confidence results)"
+)
 
 # COMMAND ----------
 
@@ -31,11 +37,14 @@ from open_detect.algorithms.uni_detect.pipeline import UniDetect
 from open_detect.algorithms.uni_detect.core.enums import ErrorType
 
 location = UnityCatalogLocation(
-    catalog=dbutils.widgets.get("open_detect_catalog"), schema=dbutils.widgets.get("open_detect_schema")
+    catalog=dbutils.widgets.get("open_detect_catalog"),
+    schema=dbutils.widgets.get("open_detect_schema"),
 )
 config = UniDetectConfig(location=location, alpha=float(dbutils.widgets.get("alpha")))
 target_tables = [t.strip() for t in dbutils.widgets.get("target_tables").split(",") if t.strip()]
-error_types = [ErrorType(e.strip()) for e in dbutils.widgets.get("error_types").split(",") if e.strip()]
+error_types = [
+    ErrorType(e.strip()) for e in dbutils.widgets.get("error_types").split(",") if e.strip()
+]
 
 assert target_tables, "Set the target_tables widget to a comma-separated list of tables to scan."
 
@@ -45,7 +54,9 @@ ud = UniDetect(config, spark=spark)
 detections = ud.detect(target_tables, error_types=error_types)
 detections.cache()
 
-print(f"{detections.count()} candidate(s) scored; {detections.where('is_significant').count()} significant at alpha={config.alpha}")
+print(
+    f"{detections.count()} candidate(s) scored; {detections.where('is_significant').count()} significant at alpha={config.alpha}"
+)
 display(detections.orderBy("lr_ratio"))
 
 # COMMAND ----------

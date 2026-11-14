@@ -87,9 +87,13 @@ def main(argv: list[str] | None = None) -> None:
         redact_evidence=args.redact_evidence,
     )
     ud = UniDetect(config, spark=spark)
+    original_detections = None
     detections = None
     try:
-        detections = ud.detect(target_tables, error_types=error_types)
+        # Keep the original persisted frame for cleanup; limit()/show()/write() create
+        # new logical plans.  We must unpersist the original, not the limited one.
+        original_detections = ud.detect(target_tables, error_types=error_types)
+        detections = original_detections
 
         if args.top_k is not None:
             detections = detections.limit(args.top_k)
@@ -107,10 +111,12 @@ def main(argv: list[str] | None = None) -> None:
             ud.write_detections(detections, mode="append")
             logger.info("Wrote results to %s", config.detections_fqn)
     finally:
-        # The unioned result is persisted by detect(); release it once we are
-        # done counting, showing and writing so the executor memory is freed.
-        if detections is not None:
-            detections.unpersist()
+        # The unioned result is persisted by detect(); release the original
+        # frame so the executor memory is freed.  limit()/show()/write() create
+        # new logical plans, so we must unpersist the original, not the limited one.
+        if original_detections is not None:
+            with suppress(Exception):
+                original_detections.unpersist()
         # Also release any cached detector resources held by the UniDetect instance.
         try:
             ud.release()

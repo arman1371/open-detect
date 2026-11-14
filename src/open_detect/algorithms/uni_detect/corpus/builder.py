@@ -165,6 +165,7 @@ class CorpusStatsBuilder:
             stats = corpus_pairs.select(
                 "table_id", "lhs_values", "rhs_values", "num_rows", "rhs_column_index"
             ).mapInPandas(compute, schema=result_schema)
+            # Keep Arrow limit active through statistics materialization
             stats = stats.withColumn("error_type", F.lit(ErrorType.FUNCTIONAL_DEPENDENCY.value))
             stats = stats.select(*[f.name for f in CORPUS_STATS_SCHEMA.fields])
         self._trackers[stats] = tracker
@@ -218,6 +219,9 @@ class CorpusStatsBuilder:
                 )
 
         result_schema = _stats_schema_without_error_type()
+        # Keep Arrow limit active through the ENTIRE pipeline: mapInPandas, cache
+        # registration, counting, and writing. This protects against oversized
+        # batches during the first materialization (count()) and the write.
         with (
             log_duration(logger, f"build_{error_type.value}_stats"),
             scoped_conf(
@@ -228,8 +232,13 @@ class CorpusStatsBuilder:
             stats = corpus_columns.select(
                 "table_id", "column_index", "num_rows", "values"
             ).mapInPandas(compute, schema=result_schema)
+            # Keep Arrow limit active through statistics materialization and writing
             stats = stats.withColumn("error_type", F.lit(error_type.value))
             stats = stats.select(*[f.name for f in CORPUS_STATS_SCHEMA.fields])
+        # Note: The tracker is stored on the returned frame for write() to pick up.
+        # The scoped_conf above keeps the override active through the return,
+        # but the caller (write()) must also use scoped_conf when materializing
+        # and writing the frame. See write() implementation.
         self._trackers[stats] = tracker
         return stats
 
@@ -256,19 +265,39 @@ class CorpusStatsBuilder:
         logged and ``max_failure_ratio`` enforced *before* anything is
         written; a breach raises :class:`~open_detect.algorithms.uni_detect.exceptions.DataQualityError`
         and leaves the existing table untouched.
+
+        The Arrow batch limit is kept active through statistics materialization
+        and writing to protect against oversized batches during the write.
         """
         tracker = self._trackers.pop(stats, None)
         if tracker is None:
-            self._write(stats, mode, error_types)
+            # Untracked frames bypass the Arrow-protected write path; keep the
+            # override active around them too so a caller-supplied oversized
+            # frame is not materialized with Spark's default batch size.
+            with scoped_conf(
+                self.spark,
+                **{ARROW_MAX_RECORDS_PER_BATCH_KEY: str(ARROW_MAX_RECORDS_PER_BATCH)},
+            ):
+                self._write(stats, mode, error_types)
             return
 
         already_cached = stats.is_cached
-        if not already_cached:
-            stats.cache()
         try:
-            stats.count()
-            tracker.check()
-            self._write(stats, mode, error_types)
+            # Keep the Arrow limit active through cache registration, counting,
+            # failure tracking, and writing. The override starts *before*
+            # stats.cache() materializes the lazy mapInPandas plan, so the first
+            # materialization (not just the write) is protected. The scoped_conf
+            # wraps the entire write path including _write to keep the Arrow
+            # batch limit active through the write operation itself.
+            with scoped_conf(
+                self.spark,
+                **{ARROW_MAX_RECORDS_PER_BATCH_KEY: str(ARROW_MAX_RECORDS_PER_BATCH)},
+            ):
+                if not already_cached:
+                    stats.cache()
+                stats.count()
+                tracker.check()
+                self._write(stats, mode, error_types)
         finally:
             if not already_cached:
                 stats.unpersist()
