@@ -44,13 +44,22 @@ def _check_expected_type(value: Any, expected_type: type, param_name: str) -> No
     """
     # Special case: if expected_type is a parameterized Sequence[str],
     # and value is a bare str, reject with a helpful message.
+    # Also extract the origin for isinstance check (parameterized generics
+    # cannot be used directly with isinstance).
     origin = get_origin(expected_type)
     if origin is not None and origin is Sequence:
-        # expected_type is Sequence[Something], check the args
+        # expected_type is Sequence[Something], use bare Sequence for isinstance
         args = getattr(expected_type, "__args__", ())
         if args and args[0] is str and isinstance(value, str):
             raise ValidationError("expected a sequence of str, got str; wrap in a list")
-    # Default isinstance check
+        # Use the origin (bare Sequence) for isinstance check
+        if not isinstance(value, origin):
+            raise ValidationError(
+                f"{param_name} must be a sequence, "
+                f"got {type(value).__name__}: {value!r}"
+            )
+        return
+    # Default isinstance check for non-generic types
     if expected_type is not None and not isinstance(value, expected_type):
         raise ValidationError(
             f"{param_name} must be of type {expected_type.__name__}, "

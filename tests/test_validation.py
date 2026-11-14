@@ -50,6 +50,14 @@ class TestCheckExpectedType:
             _check_expected_type("hello", Sequence[str], "param")
 
     def test_accepts_list_for_sequence_str(self):
+        # Using parameterized Sequence[str] as expected_type - the function should
+        # use bare Sequence for the isinstance check (avoiding TypeError from
+        # parameterized generics as second argument to isinstance)
+        from collections.abc import Sequence
+
+        _check_expected_type(["a", "b"], Sequence[str], "param")
+
+    def test_accepts_list_for_bare_sequence(self):
         from collections.abc import Sequence
 
         # Use bare Sequence (not parameterized) for isinstance check
