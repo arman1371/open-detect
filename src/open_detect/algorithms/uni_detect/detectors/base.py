@@ -158,7 +158,15 @@ class BaseDetector(ABC):
                     return result
 
                 scored = self.store.batch_score(candidates, self.error_type, spec.direction)
+                # Persist scored frame so downstream materialization doesn't
+                # re-execute the scoring stage. Track it for later release.
+                scored = self._track(scored.persist(StorageLevel.MEMORY_AND_DISK))
+                scored.count()
                 joined = candidates.join(scored, on="candidate_id", how="inner")
+                # Persist the joined frame so the final select reads from cache,
+                # not from the candidate/scored lineage that gets unpersisted.
+                joined = self._track(joined.persist(StorageLevel.MEMORY_AND_DISK))
+                joined.count()
 
                 alpha = float(self.config.alpha)
                 result = (
@@ -182,6 +190,8 @@ class BaseDetector(ABC):
                 # Materialize once while ``candidates`` is still cached, then
                 # release the inputs.  The persisted result survives on its own,
                 # so downstream actions never re-execute the scoring stage.
+                # (``scored`` and ``joined`` are intermediate frames in the same
+                # logical plan; they are not separately cached here.)
                 result = self._track(result.persist(StorageLevel.MEMORY_AND_DISK))
                 result.count()
                 return result
@@ -249,5 +259,5 @@ def redact_evidence(evidence: dict[str, Any], mode: RedactMode) -> dict[str, Any
     return {k: _hash_value(v) if k in RAW_VALUE_EVIDENCE_KEYS else v for k, v in evidence.items()}
 
 
-def make_evidence_json(evidence: dict, redact: RedactMode = "none") -> str:
+def make_evidence_json(evidence: dict[str, Any], redact: RedactMode = "none") -> str:
     return json.dumps(redact_evidence(evidence, redact), default=str)

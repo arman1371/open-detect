@@ -37,13 +37,13 @@
     }
 
     @media (prefers-color-scheme: dark) {
-      html:not([data-theme="light"]) body {
+      body:not([data-theme="light"]) {
         background: var(--page-dark);
         color: var(--text-primary-dark);
       }
     }
 
-    html[data-theme="dark"] body {
+    [data-theme="dark"] body {
       background: var(--page-dark);
       color: var(--text-primary-dark);
     }
@@ -67,12 +67,12 @@
     }
 
     @media (prefers-color-scheme: dark) {
-      html:not([data-theme="light"]) .subtitle {
+      body:not([data-theme="light"]) .subtitle {
         color: var(--text-secondary-dark);
       }
     }
 
-    html[data-theme="dark"] .subtitle {
+    [data-theme="dark"] .subtitle {
       color: var(--text-secondary-dark);
     }
 
@@ -93,14 +93,14 @@
     }
 
     @media (prefers-color-scheme: dark) {
-      html:not([data-theme="light"]) .theme-toggle {
+      body:not([data-theme="light"]) .theme-toggle {
         border-color: var(--border-dark);
         background: var(--surface-dark);
         color: var(--text-primary-dark);
       }
     }
 
-    html[data-theme="dark"] .theme-toggle {
+    [data-theme="dark"] .theme-toggle {
       border-color: var(--border-dark);
       background: var(--surface-dark);
       color: var(--text-primary-dark);
@@ -126,13 +126,13 @@
     }
 
     @media (prefers-color-scheme: dark) {
-      html:not([data-theme="light"]) .color-card {
+      body:not([data-theme="light"]) .color-card {
         background: var(--surface-dark);
         border-color: var(--border-dark);
       }
     }
 
-    html[data-theme="dark"] .color-card {
+    [data-theme="dark"] .color-card {
       background: var(--surface-dark);
       border-color: var(--border-dark);
     }
@@ -143,12 +143,12 @@
     }
 
     @media (prefers-color-scheme: dark) {
-      html:not([data-theme="light"]) .color-card:hover {
+      body:not([data-theme="light"]) .color-card:hover {
         box-shadow: 0 8px 24px rgba(0,0,0,0.3);
       }
     }
 
-    html[data-theme="dark"] .color-card:hover {
+    [data-theme="dark"] .color-card:hover {
       box-shadow: 0 8px 24px rgba(0,0,0,0.3);
     }
 
@@ -216,12 +216,12 @@
     }
 
     @media (prefers-color-scheme: dark) {
-      html:not([data-theme="light"]) .value-label {
+      body:not([data-theme="light"]) .value-label {
         color: var(--text-secondary-dark);
       }
     }
 
-    html[data-theme="dark"] .value-label {
+    [data-theme="dark"] .value-label {
       color: var(--text-secondary-dark);
     }
 
@@ -235,14 +235,14 @@
     }
 
     @media (prefers-color-scheme: dark) {
-      html:not([data-theme="light"]) .value-hex {
+      body:not([data-theme="light"]) .value-hex {
         color: var(--text-primary-dark);
         background: var(--page-dark);
         border-color: var(--border-dark);
       }
     }
 
-    html[data-theme="dark"] .value-hex {
+    [data-theme="dark"] .value-hex {
       color: var(--text-primary-dark);
       background: var(--page-dark);
       border-color: var(--border-dark);
@@ -261,13 +261,13 @@
     }
 
     @media (prefers-color-scheme: dark) {
-      html:not([data-theme="light"]) .copy-btn {
+      body:not([data-theme="light"]) .copy-btn {
         border-color: var(--border-dark);
         color: var(--text-secondary-dark);
       }
     }
 
-    html[data-theme="dark"] .copy-btn {
+    [data-theme="dark"] .copy-btn {
       border-color: var(--border-dark);
       color: var(--text-secondary-dark);
     }
@@ -278,13 +278,13 @@
     }
 
     @media (prefers-color-scheme: dark) {
-      html:not([data-theme="light"]) .copy-btn:hover {
+      body:not([data-theme="light"]) .copy-btn:hover {
         background: var(--page-dark);
         color: var(--text-primary-dark);
       }
     }
 
-    html[data-theme="dark"] .copy-btn:hover {
+    [data-theme="dark"] .copy-btn:hover {
       background: var(--page-dark);
       color: var(--text-primary-dark);
     }
@@ -305,23 +305,8 @@
       border-radius: 0.25rem;
       font-size: 0.7rem;
       font-weight: 700;
-      color: var(--text-primary-light);
-      background: var(--surface-light);
-      border: 1px solid var(--border-light);
-    }
-
-    @media (prefers-color-scheme: dark) {
-      html:not([data-theme="light"]) .slot-badge {
-        color: var(--text-primary-dark);
-        background: var(--surface-dark);
-        border-color: var(--border-dark);
-      }
-    }
-
-    html[data-theme="dark"] .slot-badge {
-      color: var(--text-primary-dark);
-      background: var(--surface-dark);
-      border-color: var(--border-dark);
+      color: white;
+      background: var(--text-primary-light);
     }
 
     /* Responsive */
@@ -353,14 +338,14 @@
     }
 
     @media (prefers-color-scheme: dark) {
-      html:not([data-theme="light"]) .footer-note {
+      body:not([data-theme="light"]) .footer-note {
         background: var(--surface-dark);
         border-color: var(--border-dark);
         color: var(--text-secondary-dark);
       }
     }
 
-    html[data-theme="dark"] .footer-note {
+    [data-theme="dark"] .footer-note {
       background: var(--surface-dark);
       border-color: var(--border-dark);
       color: var(--text-secondary-dark);
@@ -371,12 +356,12 @@
     }
 
     @media (prefers-color-scheme: dark) {
-      html:not([data-theme="light"]) .footer-note strong {
+      body:not([data-theme="light"]) .footer-note strong {
         color: var(--text-primary-dark);
       }
     }
 
-    html[data-theme="dark"] .footer-note strong {
+    [data-theme="dark"] .footer-note strong {
       color: var(--text-primary-dark);
     }
   </style>
@@ -444,14 +429,6 @@
       const darkLum = getLuminance(color.dark);
       const lightLabelColor = lightLum > 0.5 ? '#0b0b0b' : '#ffffff';
       const darkLabelColor = darkLum > 0.5 ? '#0b0b0b' : '#ffffff';
-      const badgeTextColor = lightLum > 0.5 ? '#0b0b0b' : '#ffffff';
-
-      // Slot badge needs readable contrast on both light and dark surfaces
-      // Compute contrast ratio against black and white, pick the better one
-      const badgeBg = color.light;
-      const contrastWithBlack = (lightLum + 0.05) / 0.05;  // (L1 + 0.05) / (L2 + 0.05) where L2=0 (black)
-      const contrastWithWhite = 1.05 / (lightLum + 0.05);  // (L1 + 0.05) / (L2 + 0.05) where L1=1 (white)
-      const badgeFg = contrastWithBlack >= contrastWithWhite ? '#0b0b0b' : '#ffffff';
 
       card.innerHTML = `
         <div class="color-swatch">
@@ -464,7 +441,7 @@
         </div>
         <div class="color-info">
           <div class="color-name">
-            <span class="slot-badge" style="background: ${badgeBg}; color: ${badgeFg};">${color.slot}</span>
+            <span class="slot-badge" style="background: ${color.light};">${color.slot}</span>
             ${color.hue.charAt(0).toUpperCase() + color.hue.slice(1)}
           </div>
           <div class="color-values">
@@ -512,7 +489,6 @@
 
     function applyTheme(theme) {
       document.documentElement.setAttribute('data-theme', theme);
-      document.body.setAttribute('data-theme', theme);
       if (theme === 'dark') {
         themeLabel.textContent = 'Light Mode';
         sunIcon.style.display = 'block';

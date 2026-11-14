@@ -9,9 +9,9 @@ Two tiers, matching the acceptance criteria for OPE-89:
   everywhere.
 * **Spark tests** (``TestDetectCacheLifecycleSpark``): drive a real detector
   end-to-end and assert that ``count()``/``collect()``/``write`` on the returned
-  frame no longer re-executes the scoring stage, via instrumentation of the
-  scoring computation. These require a Delta-enabled Spark session and are
-  skipped automatically when no Java is available.
+  frame no longer re-executes the scoring stage, via the job counter in
+  :mod:`benchmarks.common.spark_jobs`. These require a Delta-enabled Spark
+  session and are skipped automatically when no Java is available.
 """
 
 from __future__ import annotations
@@ -173,40 +173,65 @@ class TestDetectCacheContract:
 # ----------------------------------------------------------------------
 
 
-# Skip condition: rely on the session fixture from conftest.py which properly
-# configures the Spark session with the correct driver heap settings.
-# The fixture skips tests automatically when no Java is available.
+def _spark_available() -> bool:
+    """Probe whether a Delta-enabled Spark session can be started."""
+    import os
+    import sys
+
+    os.environ.setdefault("PYSPARK_PYTHON", sys.executable)
+    os.environ.setdefault("PYSPARK_DRIVER_PYTHON", sys.executable)
+    try:
+        from delta import configure_spark_with_delta_pip
+        from pyspark.sql import SparkSession
+
+        with SparkUnavailableContext():
+            builder = (
+                SparkSession.builder.master("local[1]")
+                .appName("cache-test-probe")
+                .config("spark.sql.extensions", "io.delta.sql.DeltaSparkSessionExtension")
+                .config(
+                    "spark.sql.catalog.spark_catalog",
+                    "org.apache.spark.sql.delta.catalog.DeltaCatalog",
+                )
+            )
+            session = configure_spark_with_delta_pip(builder).getOrCreate()
+            session.sparkContext.setLogLevel("ERROR")
+            session.stop()
+        return True
+    except Exception:
+        return False
 
 
+class SparkUnavailableContext:
+    """Context manager that catches and silences any exception for the probe."""
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        return True  # suppress any exception
+
+
+@pytest.mark.skipif(
+    not _spark_available(), reason="requires a Delta-enabled Spark session with Java"
+)
 class TestDetectCacheLifecycleSpark:
     """End-to-end cache contract on a real Spark session (skipped without Java).
 
     The test builds a real uniqueness detector, runs ``detect()`` on a tiny
-    Delta table, and asserts that subsequent actions (``count()``, ``collect()``, ``write``)
-    on the returned frame do not re-execute the scoring computation.
+    Delta table, and asserts via :class:`benchmarks.common.spark_jobs.SparkJobCounter`
+    that subsequent actions (``count()``, ``collect()``, ``write``) on the returned
+    frame do not trigger additional Spark jobs beyond the initial materialization.
     """
-
-    @staticmethod
-    def _import_scoring_job_counter():
-        """Import ScoringJobCounter, adding benchmarks to sys.path if needed."""
-        import sys
-        from pathlib import Path
-
-        # Add the repository root so the ``benchmarks`` package is importable.
-        # ``tests/benchmarks/test_bench_spark_jobs.py`` instead inserts the
-        # ``benchmarks/`` directory itself and imports ``common.spark_jobs``;
-        # either path works, but the path must match the dotted module name.
-        repo_root = Path(__file__).resolve().parents[4]
-        if str(repo_root) not in sys.path:
-            sys.path.insert(0, str(repo_root))
-        from benchmarks.common.spark_jobs import ScoringJobCounter
-
-        return ScoringJobCounter
 
     def test_detect_returns_persisted_frame_no_reexecution_on_count_collect_write(self, spark):
         """After ``detect()`` returns, downstream actions reuse the cached frame."""
-        ScoringJobCounter = self._import_scoring_job_counter()
+        # Import the job counter from benchmarks
+        import sys
+        from pathlib import Path
 
+        sys.path.insert(0, str(Path(__file__).parents[4] / "benchmarks"))
+        from common.spark_jobs import SparkJobCounter
         from open_detect.algorithms.uni_detect.config import UniDetectConfig, UnityCatalogLocation
         from open_detect.algorithms.uni_detect.core.enums import ErrorType
         from open_detect.algorithms.uni_detect.detectors.uniqueness import UniquenessDetector
@@ -237,47 +262,48 @@ class TestDetectCacheLifecycleSpark:
             error_types=[ErrorType.UNIQUENESS],
         )
 
-        counter = ScoringJobCounter(spark, enabled=True)
+        counter = SparkJobCounter(spark, enabled=True)
 
-        # Run detect -- this should launch scoring computation
+        # Run detect -- this should launch jobs for ingestion + scoring
         with counter.scope("detect"):
             result = detector.detect(["spark_catalog.open_detect_test_schema.t1"])
 
         # Materialize once inside detect(); result is persisted
         detect_jobs = counter.results[0].jobs
-        assert detect_jobs > 0, "detect() should have launched scoring computation"
+        assert detect_jobs > 0, "detect() should have launched at least one job"
 
-        # Now call count() -- should NOT launch additional scoring
+        # Now call count() -- should NOT launch additional jobs
         with counter.scope("count"):
             _ = result.count()
         assert (
             counter.results[1].jobs == 0
-        ), f"count() re-executed {counter.results[1].jobs} scoring jobs; frame should be cached"
+        ), f"count() re-executed {counter.results[1].jobs} jobs; frame should be cached"
 
-        # collect() -- should NOT launch additional scoring
+        # collect() -- should NOT launch additional jobs
         with counter.scope("collect"):
             _ = result.limit(10).collect()
         assert (
             counter.results[2].jobs == 0
-        ), f"collect() re-executed {counter.results[2].jobs} scoring jobs; frame should be cached"
+        ), f"collect() re-executed {counter.results[2].jobs} jobs; frame should be cached"
 
-        # write -- should NOT launch additional scoring
+        # write -- should NOT launch additional jobs
         with counter.scope("write"):
             result.write.format("noop").mode("overwrite").save()
         assert (
             counter.results[3].jobs == 0
-        ), f"write() re-executed {counter.results[3].jobs} scoring jobs; frame should be cached"
+        ), f"write() re-executed {counter.results[3].jobs} jobs; frame should be cached"
 
         # Clean up
         result.unpersist()
 
     def test_pipeline_detect_unioned_result_no_reexecution(self, spark):
         """UniDetect.detect() returns a unioned, persisted frame with no re-execution."""
-        ScoringJobCounter = self._import_scoring_job_counter()
+        # Import the job counter from benchmarks
+        import sys
+        from pathlib import Path
 
-        # This test also needs the import for the assert statement below
-        # Import is already done above via _import_scoring_job_counter
-
+        sys.path.insert(0, str(Path(__file__).parents[4] / "benchmarks"))
+        from common.spark_jobs import SparkJobCounter
         from open_detect.algorithms.uni_detect.config import UniDetectConfig, UnityCatalogLocation
         from open_detect.algorithms.uni_detect.core.enums import ErrorType
         from open_detect.algorithms.uni_detect.pipeline import UniDetect
@@ -306,7 +332,7 @@ class TestDetectCacheLifecycleSpark:
             error_types=[ErrorType.UNIQUENESS],
         )
 
-        counter = ScoringJobCounter(spark, enabled=True)
+        counter = SparkJobCounter(spark, enabled=True)
 
         with counter.scope("pipeline_detect"):
             detections = ud.detect(["spark_catalog.open_detect_test_schema.t2"])

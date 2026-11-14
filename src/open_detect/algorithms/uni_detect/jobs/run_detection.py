@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import argparse
 import sys
+from contextlib import suppress
 
 from open_detect.algorithms.uni_detect.config import UniDetectConfig, UnityCatalogLocation
 from open_detect.algorithms.uni_detect.core.enums import ErrorType
@@ -112,9 +113,16 @@ def main(argv: list[str] | None = None) -> None:
             logger.info("Wrote results to %s", config.detections_fqn)
     finally:
         # The unioned result is persisted by detect(); release the original
-        # frame so the executor memory is freed.
+        # frame so the executor memory is freed.  limit()/show()/write() create
+        # new logical plans, so we must unpersist the original, not the limited one.
         if original_detections is not None:
-            original_detections.unpersist()
+            with suppress(Exception):
+                original_detections.unpersist()
+        # Also release any cached detector resources held by the UniDetect instance.
+        try:
+            ud.release()
+        except Exception as e:
+            logger.warning("Failed to release UniDetect resources: %s", e)
 
 
 if __name__ == "__main__":  # pragma: no cover

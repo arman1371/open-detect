@@ -40,7 +40,7 @@ TEST_CATALOG = "spark_catalog"
 TEST_SCHEMA = "open_detect_test_schema"
 
 _MAVEN_BASE = "https://repo1.maven.org/maven2"
-_SCALA_VERSION = "2.12"
+_SCALA_VERSION = "2.13"
 
 
 def _download(url: str, dest: Path) -> None:

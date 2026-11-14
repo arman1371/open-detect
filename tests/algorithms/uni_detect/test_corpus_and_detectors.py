@@ -25,7 +25,7 @@ def _write_table(spark, fqn: str, rows: list[dict], columns: list[str]) -> None:
 CORPUS_SCHEMA = "open_detect_corpus_fixture"
 
 
-@pytest.fixture(scope="module")
+@pytest.fixture(scope="session")
 def corpus_tables_by_category(spark, uc_location):
     """Builds a small but statistically meaningful synthetic corpus, grouped by category.
 
