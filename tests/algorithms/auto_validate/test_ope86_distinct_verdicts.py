@@ -32,14 +32,13 @@ import pytest
 from open_detect.algorithms.auto_validate.config import AutoValidateConfig
 from open_detect.algorithms.auto_validate.detector import (
     AutoValidateAlgorithm,
+    _distinct_value_verdicts_groups,
     _feasible_evidence,
     _infeasible_evidence,
     _infer_pattern_to_groups,
-    _distinct_value_verdicts_groups,
     _is_null,
     _make_tooltip,
     _non_null_cells,
-    _value_matches,
     _value_matches_groups,
     _value_text,
 )
@@ -94,7 +93,7 @@ def _per_cell_reference(dirty: pd.DataFrame) -> tuple[CellResult, ...]:
             score = 1.0 - fpr_t if n_total > 0 else 0.0
             groups = _infer_pattern_to_groups(inferred)
             verdicts = _distinct_value_verdicts_groups(series, groups)
-            is_null_mask = series.map(_is_null)
+            series.map(_is_null)
             for idx, value in series.items():
                 if _is_null(value):
                     continue

@@ -18,7 +18,7 @@ from __future__ import annotations
 import heapq
 import itertools
 import logging
-from collections.abc import Iterator
+from collections.abc import Iterator, Sequence
 from functools import lru_cache
 
 from open_detect.algorithms.auto_validate.hierarchy import (
@@ -237,17 +237,24 @@ def pattern_to_language(pattern: str | Sequence[str] | list[Sequence[str]], vari
 
     # List-based patterns
     if variant == "fmdv_v":
-        segments = pattern if isinstance(pattern, list) else pattern.split("+")
-        readable = []
-        for seg in segments:
-            seg = seg.replace("<alphanum>", "[a-zA-Z0-9]")
-            seg = seg.replace("<digit>", "[0-9]")
-            seg = seg.replace("<symbol>", "[!@#$%^&*()_+={}|:'\",.<>?/]")
-            seg = seg.replace("<letter>", "[a-zA-Z]")
-            seg = seg.replace("+", "")
-            seg = seg.replace("*", "")
-            readable.append(seg)
-        return " and ".join(readable) if len(readable) > 1 else (readable[0] if readable else pattern)
+        if isinstance(pattern, list):
+            pattern_list = pattern
+        elif isinstance(pattern, str):
+            pattern_list = pattern.split("+")
+        else:
+            # For Sequence[str] that is not a list
+            pattern_list = list(pattern)
+        readable_list: list[str] = []
+        for seg in pattern_list:
+            seg_str: str = str(seg)
+            seg_str = seg_str.replace("<alphanum>", "[a-zA-Z0-9]")
+            seg_str = seg_str.replace("<digit>", "[0-9]")
+            seg_str = seg_str.replace("<symbol>", "[!@#$%^&*()_+={}|:'\",.<>?/]")
+            seg_str = seg_str.replace("<letter>", "[a-zA-Z]")
+            seg_str = seg_str.replace("+", "")
+            seg_str = seg_str.replace("*", "")
+            readable_list.append(seg_str)
+        return " and ".join(readable_list) if len(readable_list) > 1 else (readable_list[0] if readable_list else str(pattern))
 
     elif variant == "fmdv_vh":
         # pattern is a list of groups, each group is a list of segments

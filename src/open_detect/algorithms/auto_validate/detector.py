@@ -35,7 +35,12 @@ from open_detect.algorithms.auto_validate.fmdv import InferredPattern, fmdv, fmd
 from open_detect.algorithms.auto_validate.fmdv_v import fmdv_v, fmdv_vh
 from open_detect.algorithms.auto_validate.hierarchy import matches
 from open_detect.algorithms.auto_validate.index import PatternIndex, build_pattern_index
-from open_detect.algorithms.base import AlgorithmResult, CellResult, ErrorDetectionAlgorithm, TooltipContent
+from open_detect.algorithms.base import (
+    AlgorithmResult,
+    CellResult,
+    ErrorDetectionAlgorithm,
+    TooltipContent,
+)
 from open_detect.exceptions import ValidationError
 from open_detect.validation import _check_unknown_kwargs
 
@@ -69,28 +74,6 @@ _DISPATCH: dict[str, Any] = {
     "fmdv_v": fmdv_v,
     "fmdv_vh": fmdv_vh,
 }
-
-
-def _check_columns_present(
-    columns: list[str] | None, df_columns: list[str], skip_missing: bool = False
-) -> None:
-    """Validate that requested columns exist in the DataFrame.
-
-    Parameters
-    ----------
-    columns:
-        The list of columns requested by the caller (may be None for all).
-    df_columns:
-        The list of columns actually present in the DataFrame.
-    skip_missing:
-        If True, silently skip missing columns. If False (default), raise
-        ValidationError listing any missing columns.
-    """
-    if columns is None:
-        return
-    missing = [c for c in columns if c not in df_columns]
-    if missing and not skip_missing:
-        raise ValidationError(f"Requested column(s) not found in DataFrame: {', '.join(missing)}")
 
 
 class AutoValidateAlgorithm(ErrorDetectionAlgorithm):
@@ -309,7 +292,7 @@ def _build_suggestion(
         if "@@" in received or received.count("@") > 1:
             return "Remove duplicate '@' symbol"
         elif not received.endswith(".com") and not received.endswith(".org") and not received.endswith(".net"):
-            return f"Use a valid domain extension (e.g. '.com', '.org', '.net')"
+            return "Use a valid domain extension (e.g. '.com', '.org', '.net')"
     if "-" in pattern_lang and any(c.isdigit() for c in pattern_lang):
         # Date-like pattern
         return "Use YYYY-MM-DD format"
