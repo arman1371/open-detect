@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import argparse
 import sys
+from contextlib import suppress
 
 from open_detect.algorithms.uni_detect.config import UniDetectConfig, UnityCatalogLocation
 from open_detect.algorithms.uni_detect.core.enums import ErrorType

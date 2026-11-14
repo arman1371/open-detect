@@ -13,11 +13,6 @@ from open_detect.algorithms.uni_detect.detectors.schema import CANDIDATE_SCHEMA
 from open_detect.algorithms.uni_detect.failures import FailureCounts
 from open_detect.algorithms.uni_detect.featurization import build_spelling_bucket
 from open_detect.algorithms.uni_detect.perturbation import perturb_spelling
-from open_detect.algorithms.uni_detect.spark_utils import (
-    ARROW_MAX_RECORDS_PER_BATCH,
-    ARROW_MAX_RECORDS_PER_BATCH_KEY,
-    scoped_conf,
-)
 from open_detect.algorithms.uni_detect.strategies import get_spec
 
 if TYPE_CHECKING:
@@ -108,19 +103,9 @@ class SpellingDetector(BaseDetector):
                 yield pd.DataFrame(rows, columns=[f.name for f in CANDIDATE_SCHEMA.fields])
 
         columns_df = self.ingestor.ingest_columns(table_names)
-<<<<<<< HEAD
-        with scoped_conf(
-            self.spark,
-            **{ARROW_MAX_RECORDS_PER_BATCH_KEY: str(ARROW_MAX_RECORDS_PER_BATCH)},
-        ):
-            return columns_df.select("table_id", "column_name", "num_rows", "values").mapInPandas(
-                compute, schema=CANDIDATE_SCHEMA
-            )
-=======
         # ARROW_MAX_RECORDS_PER_BATCH is set by BaseDetector.detect() so it stays
         # active through the lazy execution of mapInPandas and the subsequent count().
         # Keep the override active through candidate materialization in the base detector.
         return columns_df.select("table_id", "column_name", "num_rows", "values").mapInPandas(
             compute, schema=CANDIDATE_SCHEMA
         )
->>>>>>> origin/main
