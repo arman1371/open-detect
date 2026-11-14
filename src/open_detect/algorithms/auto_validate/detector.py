@@ -200,9 +200,7 @@ class AutoValidateAlgorithm(ErrorDetectionAlgorithm):
                     # Unhashable value or empty text: resolve per cell
                     is_error = False if text is None else not _value_matches_groups(groups, text)
                 if is_error:
-                    tooltip = _make_tooltip(
-                        value, inferred, fpr_t, cov_t, theta_c, self.config
-                    )
+                    tooltip = _make_tooltip(value, inferred, fpr_t, cov_t, theta_c, self.config)
                 else:
                     tooltip = None
                 cells.append(
@@ -291,7 +289,11 @@ def _build_suggestion(
         # Email-like pattern
         if "@@" in received or received.count("@") > 1:
             return "Remove duplicate '@' symbol"
-        elif not received.endswith(".com") and not received.endswith(".org") and not received.endswith(".net"):
+        elif (
+            not received.endswith(".com")
+            and not received.endswith(".org")
+            and not received.endswith(".net")
+        ):
             return "Use a valid domain extension (e.g. '.com', '.org', '.net')"
     if "-" in pattern_lang and any(c.isdigit() for c in pattern_lang):
         # Date-like pattern

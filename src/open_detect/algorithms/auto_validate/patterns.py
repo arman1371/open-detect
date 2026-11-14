@@ -223,7 +223,9 @@ def pattern_to_language(pattern: str | Sequence[str] | list[Sequence[str]], vari
                 seg = seg.replace("+", "")
                 seg = seg.replace("*", "")
                 readable.append(seg)
-            return " + ".join(readable) if len(readable) > 1 else readable[0] if readable else pattern
+            return (
+                " + ".join(readable) if len(readable) > 1 else readable[0] if readable else pattern
+            )
         # fmdv_vh: list of groups (pattern is a string here for single-segment case)
         elif variant == "fmdv_vh":
             result = pattern.replace("<alphanum>", "[a-zA-Z0-9]")
@@ -254,7 +256,11 @@ def pattern_to_language(pattern: str | Sequence[str] | list[Sequence[str]], vari
             seg_str = seg_str.replace("+", "")
             seg_str = seg_str.replace("*", "")
             readable_list.append(seg_str)
-        return " and ".join(readable_list) if len(readable_list) > 1 else (readable_list[0] if readable_list else str(pattern))
+        return (
+            " and ".join(readable_list)
+            if len(readable_list) > 1
+            else (readable_list[0] if readable_list else str(pattern))
+        )
 
     elif variant == "fmdv_vh":
         # pattern is a list of groups, each group is a list of segments

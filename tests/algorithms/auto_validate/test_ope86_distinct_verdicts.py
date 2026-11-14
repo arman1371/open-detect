@@ -103,9 +103,7 @@ def _per_cell_reference(dirty: pd.DataFrame) -> tuple[CellResult, ...]:
                 else:
                     is_error = not _value_matches_groups(groups, text)
                 if is_error:
-                    tooltip = _make_tooltip(
-                        value, inferred, fpr_t, cov_t, theta_c, detector.config
-                    )
+                    tooltip = _make_tooltip(value, inferred, fpr_t, cov_t, theta_c, detector.config)
                 else:
                     tooltip = None
                 cells.append(
