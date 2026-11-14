@@ -35,7 +35,7 @@ from open_detect.algorithms.auto_validate.fmdv import InferredPattern, fmdv, fmd
 from open_detect.algorithms.auto_validate.fmdv_v import fmdv_v, fmdv_vh
 from open_detect.algorithms.auto_validate.hierarchy import matches
 from open_detect.algorithms.auto_validate.index import PatternIndex, build_pattern_index
-from open_detect.algorithms.base import AlgorithmResult, CellResult, ErrorDetectionAlgorithm
+from open_detect.algorithms.base import AlgorithmResult, CellResult, ErrorDetectionAlgorithm, TooltipContent
 from open_detect.exceptions import ValidationError
 from open_detect.validation import _check_unknown_kwargs
 
@@ -69,6 +69,28 @@ _DISPATCH: dict[str, Any] = {
     "fmdv_v": fmdv_v,
     "fmdv_vh": fmdv_vh,
 }
+
+
+def _check_columns_present(
+    columns: list[str] | None, df_columns: list[str], skip_missing: bool = False
+) -> None:
+    """Validate that requested columns exist in the DataFrame.
+
+    Parameters
+    ----------
+    columns:
+        The list of columns requested by the caller (may be None for all).
+    df_columns:
+        The list of columns actually present in the DataFrame.
+    skip_missing:
+        If True, silently skip missing columns. If False (default), raise
+        ValidationError listing any missing columns.
+    """
+    if columns is None:
+        return
+    missing = [c for c in columns if c not in df_columns]
+    if missing and not skip_missing:
+        raise ValidationError(f"Requested column(s) not found in DataFrame: {', '.join(missing)}")
 
 
 class AutoValidateAlgorithm(ErrorDetectionAlgorithm):
@@ -194,6 +216,12 @@ class AutoValidateAlgorithm(ErrorDetectionAlgorithm):
                 else:
                     # Unhashable value or empty text: resolve per cell
                     is_error = False if text is None else not _value_matches_groups(groups, text)
+                if is_error:
+                    tooltip = _make_tooltip(
+                        value, inferred, fpr_t, cov_t, theta_c, self.config
+                    )
+                else:
+                    tooltip = None
                 cells.append(
                     CellResult(
                         table_id=table_id,
@@ -205,9 +233,91 @@ class AutoValidateAlgorithm(ErrorDetectionAlgorithm):
                         evidence=_feasible_evidence(
                             self.config, inferred.pattern, fpr_t, cov_t, theta_c
                         ),
+                        tooltip=tooltip,
                     )
                 )
         return AlgorithmResult(algorithm=self.name, cells=tuple(cells))
+
+
+def _make_tooltip(
+    value: Any,
+    inferred: InferredPattern,
+    fpr_t: float,
+    cov_t: int,
+    theta_c: float,
+    config: AutoValidateConfig,
+) -> TooltipContent:
+    """Generate tooltip content for a flagged cell.
+
+    Translates the inferred pattern and cell value into a human-readable
+    explanation with an actionable suggestion.
+    """
+    from open_detect.algorithms.auto_validate.patterns import pattern_to_language
+
+    # Get human-readable pattern description
+    pattern_lang = pattern_to_language(inferred.pattern, config.variant)
+
+    # Format the received value (truncate if too long)
+    received = str(value)
+    if len(received) > 80:
+        received = received[:77] + "..."
+
+    # Build suggestion based on pattern type and value
+    suggestion = _build_suggestion(pattern_lang, received, fpr_t, cov_t)
+
+    # Determine severity and category
+    severity = "error" if fpr_t < 0.1 else "warning"
+    category = "format"
+
+    # Gather details for the tooltip
+    details = {
+        "inferred_pattern": pattern_lang,
+        "fpr_t": fpr_t,
+        "cov_t": cov_t,
+        "theta_c": theta_c,
+        "variant": config.variant,
+        "r": config.r,
+        "m": config.m,
+        "tau": config.tau,
+    }
+
+    # Available actions
+    actions = ["copy_explanation", "view_evidence"]
+
+    return _tooltip_content(
+        title=f"Invalid {category}: {pattern_lang}",
+        severity=severity,
+        category=category,
+        expected_pattern=pattern_lang,
+        received_value=received,
+        suggestion=suggestion,
+        details=details,
+        actions=actions,
+    )
+
+
+def _build_suggestion(
+    pattern_lang: str,
+    received: str,
+    fpr_t: float,
+    cov_t: int,
+) -> str:
+    """Build an actionable suggestion for the tooltip."""
+    # Common patterns and suggestions
+    if "@" in pattern_lang and "." in pattern_lang:
+        # Email-like pattern
+        if "@@" in received or received.count("@") > 1:
+            return "Remove duplicate '@' symbol"
+        elif not received.endswith(".com") and not received.endswith(".org") and not received.endswith(".net"):
+            return f"Use a valid domain extension (e.g. '.com', '.org', '.net')"
+    if "-" in pattern_lang and any(c.isdigit() for c in pattern_lang):
+        # Date-like pattern
+        return "Use YYYY-MM-DD format"
+    if fpr_t < 0.01:
+        return "Value exceeds 3σ threshold — verify data entry"
+    if cov_t < 3:
+        return "Low coverage — verify this is expected"
+    return "Check value against expected format"
 
 
 def _is_null(value: Any) -> bool:
@@ -445,3 +555,26 @@ def _feasible_evidence(
         "m": config.m,
         "tau": config.tau,
     }
+
+
+def _tooltip_content(
+    title: str,
+    severity: str,
+    category: str,
+    expected_pattern: str,
+    received_value: str,
+    suggestion: str,
+    details: dict[str, Any],
+    actions: list[str],
+) -> TooltipContent:
+    """Create a TooltipContent instance."""
+    return TooltipContent(
+        title=title,
+        severity=severity,
+        category=category,
+        expected_pattern=expected_pattern,
+        received_value=received_value,
+        suggestion=suggestion,
+        details=details,
+        actions=actions,
+    )
