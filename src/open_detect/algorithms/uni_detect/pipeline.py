@@ -13,8 +13,11 @@ This is the single entry point most users need:
 
 from __future__ import annotations
 
+from contextlib import suppress
 from functools import reduce
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
+
+from pyspark import StorageLevel
 
 from open_detect.algorithms.uni_detect.catalog import ensure_schema_exists
 from open_detect.algorithms.uni_detect.config import UniDetectConfig
@@ -64,6 +67,25 @@ class UniDetect:
             ErrorType.SPELLING: SpellingDetector(self.spark, config),
             ErrorType.FUNCTIONAL_DEPENDENCY: FunctionalDependencyDetector(self.spark, config),
         }
+
+    def _validate_inputs(
+        self,
+        table_names: Sequence[str] | None = None,
+        error_types: Sequence[ErrorType] | None = None,
+        **kwargs: Any,
+    ) -> None:
+        """Run shared validation before the online detection phase."""
+        from open_detect.validation import _ensure_sequence_of_str, _reject_unknown_kwargs
+
+        _reject_unknown_kwargs(
+            kwargs,
+            allowed={"table_names", "error_types"},
+            param_name="detect",
+        )
+        if table_names is not None:
+            _ensure_sequence_of_str(table_names, "table_names")
+        if error_types is not None:
+            _ensure_sequence_of_str(error_types, "error_types")
 
     # ------------------------------------------------------------------
     # Offline: "learning" phase (paper Sec. 2.2.3)
@@ -142,19 +164,70 @@ class UniDetect:
         self,
         table_names: Sequence[str],
         error_types: Sequence[ErrorType] | None = None,
+        **kwargs: Any,
     ) -> DataFrame:
         """Score ``table_names`` for the requested error types and rank all results together.
 
         Returns a single DataFrame unioning every requested detector's
         output, sorted ascending by ``lr_ratio`` (Definition 3: smaller is
         more surprising, i.e. more likely a real error).
+
+        Raises
+        ------
+        ValidationError
+            If ``kwargs`` contains unrecognised parameters, or if
+            ``table_names`` / ``error_types`` are not a sequence of ``str``.
         """
+        self._validate_inputs(table_names=table_names, error_types=error_types, **kwargs)
+
         from pyspark.sql import functions as F
 
+        from open_detect.algorithms.uni_detect.spark_utils import (
+            ARROW_MAX_RECORDS_PER_BATCH,
+            ARROW_MAX_RECORDS_PER_BATCH_KEY,
+            scoped_conf,
+        )
+
         error_types = tuple(error_types) if error_types else tuple(ErrorType)
-        frames = [self._detectors[et].detect(table_names) for et in error_types]
-        result = reduce(lambda a, b: a.unionByName(b), frames)
-        return result.orderBy(F.col("lr_ratio").asc())
+        frames = []
+        result = None
+        try:
+            # Keep Arrow limit active through ALL detector operations:
+            # extract_candidates (mapInPandas), candidate materialization (count),
+            # scoring (batch_score join), and result materialization.
+            with scoped_conf(
+                self.spark,
+                **{ARROW_MAX_RECORDS_PER_BATCH_KEY: str(ARROW_MAX_RECORDS_PER_BATCH)},
+            ):
+                for et in error_types:
+                    frame = self._detectors[et].detect(table_names)
+                    frames.append(frame)
+                result = reduce(lambda a, b: a.unionByName(b), frames)
+                # Order first, then persist and materialize the *final* frame.  Sorting
+                # after persist() would return an unpersisted frame, so the caller's
+                # count/show/write would re-execute the scoring stage to re-materialize
+                # it -- the very thing this cache lifecycle exists to prevent.
+                # The per-detector caches are released only after the union is cached.
+                result = result.orderBy(F.col("lr_ratio").asc())
+                result = result.persist(StorageLevel.MEMORY_AND_DISK)
+                result.count()
+                return result
+        except Exception:
+            # Clean up detector results on failure - this includes any frames
+            # already returned by detector.detect() calls.
+            for frame in frames:
+                with suppress(Exception):
+                    frame.unpersist()
+            # Clean up the unioned result frame if it was created but failed
+            if result is not None:
+                with suppress(Exception):
+                    result.unpersist()
+            raise
+        finally:
+            # Ensure per-detector results are released even on success
+            # (the unioned result is tracked by the caller, not by detectors)
+            for detector in (self._detectors[et] for et in error_types):
+                detector.release()
 
     def write_detections(self, detections: DataFrame, mode: str = "append") -> None:
         """Append (or overwrite) a detection result set to the configured UC table."""

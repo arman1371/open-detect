@@ -37,6 +37,7 @@ from open_detect.algorithms.auto_validate.detector import (
     _is_null,
     _non_null_cells,
     _value_matches,
+    _value_matches_groups,
 )
 from open_detect.algorithms.auto_validate.fmdv import InferredPattern
 from open_detect.algorithms.base import CellResult
@@ -179,12 +180,12 @@ def test_identical_to_per_cell_baseline_multi_column() -> None:
     assert _detect(dirty) == _per_cell_reference(dirty)
 
 
-def _counting_value_matches(call_counter: dict[str, int]) -> Callable:
-    """Wrapper around ``_value_matches`` that records how often it is called."""
+def _counting_value_matches_groups(call_counter: dict[str, int]) -> Callable:
+    """Wrapper around ``_value_matches_groups`` that records how often it is called."""
 
-    def counting(pattern, value):
+    def counting(groups, text):
         call_counter["n"] += 1
-        return _value_matches(pattern, value)
+        return _value_matches_groups(groups, text)
 
     return counting
 
@@ -199,6 +200,8 @@ def _counting_value_matches(call_counter: dict[str, int]) -> Callable:
 #: real result, and :func:`test_verdict_cache_matches_per_cell_under_broadcasting`
 #: / :func:`test_identical_to_per_cell_baseline` keep asserting full equivalence
 #: against the oracle with the *real* inference (no stub).
+#: For this test fixture (emails), all values share the same coarse signature,
+#: so fmdv_vh returns a single string pattern (backward compat: one group, one segment).
 STUBBED_INFERRED_PATTERN = InferredPattern(
     pattern="<alphanum>+<symbol>+<alphanum>+<symbol>+<alphanum>+",
     fpr_t=0.0,
@@ -209,18 +212,18 @@ STUBBED_INFERRED_PATTERN = InferredPattern(
 
 
 def _count_detect_calls(dirty: pd.DataFrame) -> tuple[int, int]:
-    """Run ``detect`` with ``_value_matches`` counted and ``infer_pattern`` stubbed.
+    """Run ``detect`` with ``_value_matches_groups`` counted and ``infer_pattern`` stubbed.
 
     Returns ``(num_cells, num_value_matches_calls)``. ``infer_pattern`` never
-    calls ``_value_matches``, so the count isolates the verdict loop.
+    calls ``_value_matches_groups``, so the count isolates the verdict loop.
     """
     detector = _detector()
     call_counter: dict[str, int] = {"n": 0}
     with (
         patch.object(detector, "infer_pattern", return_value=STUBBED_INFERRED_PATTERN),
         patch(
-            "open_detect.algorithms.auto_validate.detector._value_matches",
-            _counting_value_matches(call_counter),
+            "open_detect.algorithms.auto_validate.detector._value_matches_groups",
+            _counting_value_matches_groups(call_counter),
         ),
     ):
         cells = detector.detect(dirty, table_id=TABLE_ID).cells

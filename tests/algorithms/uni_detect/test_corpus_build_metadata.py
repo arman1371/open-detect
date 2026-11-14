@@ -34,6 +34,7 @@ class FakeSpark:
     def __init__(self, properties: dict[str, str] | None = None) -> None:
         self.properties = dict(properties or {})
         self.statements: list[str] = []
+        self.conf = FakeConf()
 
     def sql(self, statement: str):
         self.statements.append(statement)
@@ -49,6 +50,25 @@ class FakeSpark:
                 self.properties[key] = value.rstrip("'")
             return MagicMock()
         raise AssertionError(statement)
+
+
+class FakeConf:
+    """Minimal Spark conf stand-in."""
+
+    def __init__(self) -> None:
+        self._conf = {}
+
+    def get(self, key: str) -> str:
+        if key not in self._conf:
+            raise KeyError(key)
+        return self._conf[key]
+
+    def set(self, key: str, value: str) -> None:
+        self._conf[key] = value
+
+    def unset(self, key: str) -> None:
+        if key in self._conf:
+            del self._conf[key]
 
 
 class TestRoundTrip:

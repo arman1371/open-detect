@@ -136,8 +136,11 @@ class TestFmdvVh:
         cfg_tau3 = AutoValidateConfig(m=1, tau=3, r=1.0)
         result3 = fmdv_v(values, build_pattern_index(corpus, cfg_tau3), cfg_tau3)
         assert result3 is not None
+        # For fmdv_v with a single signature group, pattern is [group] where group
+        # is a list of ordered segments.
         assert isinstance(result3.pattern, list)
-        assert len(result3.pattern) == 2
+        assert len(result3.pattern) == 1  # one signature group
+        assert len(result3.pattern[0]) == 2  # two ordered segments
         cfg_tau4 = AutoValidateConfig(m=1, tau=4, r=1.0)
         result4 = fmdv_v(values, build_pattern_index(corpus, cfg_tau4), cfg_tau4)
         assert result4 is not None
@@ -174,8 +177,12 @@ class TestSegmentDp:
         index = build_pattern_index(corpus, cfg)
         result = _segment_dp(values, index, cfg, "fmdv_v", _fmdv_single_segment)
         assert result is not None
-        assert isinstance(result.pattern, list)
-        assert len(result.pattern) >= 2
+        groups, _fpr, _cov, _theta = result
+        assert isinstance(groups, list)
+        assert len(groups) == 1  # one coarse-signature group
+        segments = groups[0]
+        assert isinstance(segments, list)
+        assert len(segments) >= 2
 
     def test_segments_solved_independently(self):
         """Each segment is solved: total FPR is the sum of the per-segment FPRs."""
@@ -191,10 +198,12 @@ class TestSegmentDp:
         index = build_pattern_index([["a"]], cfg)
         result = _segment_dp(["a+b/c", "d+e/f"], index, cfg, "fmdv_v", solve)
         assert result is not None
+        groups, fpr, _cov, _theta = result
         # 5 tokens, max width 2 => exactly 3 segments, hence fpr_t == 0.03.
-        assert isinstance(result.pattern, list)
-        assert len(result.pattern) == 3
-        assert result.fpr_t == pytest.approx(0.03)
+        assert isinstance(groups, list)
+        assert len(groups) == 1
+        assert len(groups[0]) == 3
+        assert fpr == pytest.approx(0.03)
         # solve_segment results are memoized per (start, end) span.
         assert len(calls) == len(set(calls))
 

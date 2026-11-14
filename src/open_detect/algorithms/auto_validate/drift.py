@@ -79,11 +79,10 @@ def _fisher_two_tailed(
         )
 
     pat = pattern.pattern
-    segments = (pat,) if isinstance(pat, str) else tuple(pat)
 
-    conform_train = sum(1 for v in train_clean if _conforms(segments, v))
+    conform_train = sum(1 for v in train_clean if _conforms(pat, v))
     noncon_train = n_train - conform_train
-    conform_test = sum(1 for v in test_clean if _conforms(segments, v))
+    conform_test = sum(1 for v in test_clean if _conforms(pat, v))
     noncon_test = n_test - conform_test
 
     oddsratio, p_value = fisher_exact(
@@ -101,7 +100,34 @@ def _fisher_two_tailed(
     )
 
 
-def _conforms(segments: Sequence[str], value: str) -> bool:
+def _conforms(pattern: str | Sequence[str] | list[Sequence[str]], value: str) -> bool:
+    """Whether ``value`` conforms to a pattern.
+
+    The pattern can be:
+    - A single string (fmdv, fmdv_h)
+    - A Sequence[str] of ordered segments (fmdv_v) - ALL must match
+    - A list[Sequence[str]] of segment groups (fmdv_vh) - ANY group must match
+    """
+    # Single string pattern
+    if isinstance(pattern, str):
+        return matches(pattern, value)
+
+    # Check if it's a list of sequences (fmdv_vh: one sequence per signature group)
+    # We distinguish by checking if the first element is a sequence but not a string.
+    # Flat list of strings (single group, fmdv_v): all elements are strings
+    # List of groups (fmdv_vh): elements are sequences of strings
+    is_flat_segments = all(isinstance(g, str) for g in pattern)
+
+    if is_flat_segments:
+        # fmdv_v: ordered segments that must ALL match
+        segments: Sequence[str] = pattern  # type: ignore[assignment]
+        return _conforms_segments(segments, value)
+
+    # fmdv_vh: value matches if it matches ANY group's segments
+    return any(_conforms_segments(list(group), value) for group in pattern)
+
+
+def _conforms_segments(segments: Sequence[str], value: str) -> bool:
     """Whether ``value`` conforms to a vertical-cut pattern list.
 
     The value's tokens are split left to right into consecutive slices, one per

@@ -12,6 +12,7 @@ can be compared or unioned with another algorithm's (e.g. Raha's) output.
 
 from __future__ import annotations
 
+from contextlib import suppress
 from typing import TYPE_CHECKING, Any
 
 from open_detect.algorithms.base import AlgorithmResult, CellResult, ErrorDetectionAlgorithm
@@ -60,24 +61,32 @@ class UniDetectAlgorithm(ErrorDetectionAlgorithm):
         """
         spark_result = self._pipeline.detect(list(data), error_types=error_types)
         cells: list[CellResult] = []
-        for row in spark_result.collect():
-            evidence = {
-                "lr_ratio": row["lr_ratio"],
-                "support": row["support"],
-                "error_type": row["error_type"],
-                "evidence_json": row["evidence_json"],
-            }
-            for column_name in row["column_names"] or ():
-                for row_id in row["row_ids"] or (None,):
-                    cells.append(
-                        CellResult(
-                            table_id=row["table_id"],
-                            row_index=row_id,
-                            column_name=column_name,
-                            algorithm=self.name,
-                            is_error=bool(row["is_significant"]),
-                            score=float(row["surprisal"]),
-                            evidence=evidence,
+        try:
+            for row in spark_result.collect():
+                evidence = {
+                    "lr_ratio": row["lr_ratio"],
+                    "support": row["support"],
+                    "error_type": row["error_type"],
+                    "evidence_json": row["evidence_json"],
+                }
+                for column_name in row["column_names"] or ():
+                    for row_id in row["row_ids"] or (None,):
+                        cells.append(
+                            CellResult(
+                                table_id=row["table_id"],
+                                row_index=row_id,
+                                column_name=column_name,
+                                algorithm=self.name,
+                                is_error=bool(row["is_significant"]),
+                                score=float(row["surprisal"]),
+                                evidence=evidence,
+                            )
                         )
-                    )
+        finally:
+            # The pipeline returns a persisted frame; unpersist it after
+            # conversion so callers don't retain a Spark cache they can't
+            # release (they receive only Python cells). Apply the same ownership
+            # rule to eager benchmark consumers.
+            with suppress(Exception):
+                spark_result.unpersist()
         return AlgorithmResult(algorithm=self.name, cells=tuple(cells))

@@ -104,6 +104,9 @@ class FunctionalDependencyDetector(BaseDetector):
                 yield pd.DataFrame(rows, columns=[f.name for f in CANDIDATE_SCHEMA.fields])
 
         pairs_df = self.ingestor.ingest_column_pairs(table_names)
+        # ARROW_MAX_RECORDS_PER_BATCH is set by BaseDetector.detect() so it stays
+        # active through the lazy execution of mapInPandas and the subsequent count().
+        # Keep the override active through candidate materialization in the base detector.
         return pairs_df.select(
             "table_id",
             "lhs_column",
