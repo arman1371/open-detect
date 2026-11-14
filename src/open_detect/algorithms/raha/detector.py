@@ -91,7 +91,6 @@ class RahaDetector(ErrorDetectionAlgorithm):
         if variant is not None:
             _validate_literal_value(variant, {"A", "B"}, "variant")
 
-
         df = data
         n = len(df)
         if n == 0 or df.shape[1] == 0:
