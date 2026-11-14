@@ -238,7 +238,7 @@ def pattern_to_language(pattern: str | Sequence[str] | list[Sequence[str]], vari
     # List-based patterns
     if variant == "fmdv_v":
         if isinstance(pattern, list):
-            pattern_list = pattern
+            pattern_list: list[str] = pattern  # type: ignore[assignment]
         elif isinstance(pattern, str):
             pattern_list = pattern.split("+")
         else:
