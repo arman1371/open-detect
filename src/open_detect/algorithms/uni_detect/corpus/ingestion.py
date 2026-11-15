@@ -21,7 +21,6 @@ from __future__ import annotations
 import hashlib
 import heapq
 from collections.abc import Sequence
-from functools import reduce
 from itertools import permutations
 from typing import TYPE_CHECKING
 
@@ -114,6 +113,7 @@ class CorpusIngestor:
         return self._balanced_union(per_table_frames)
 
     def _per_table_column_frame(self, fqn: str) -> DataFrame | None:
+        from pyspark.sql import Window
         from pyspark.sql import functions as F
 
         df = self.spark.table(fqn)
@@ -124,20 +124,18 @@ class CorpusIngestor:
 
         # Build a single agg with collect_list for all columns
         # This scans the table once instead of once per column
+        # Use window-based ranking to respect max_values_per_column limit
+        # while collecting all columns' values together
         agg_exprs = []
         for idx, field in enumerate(fields):
             col_name = field.name
-            # Order before limit: without an explicit orderBy, Spark's limit(n)
-            # returns an arbitrary n rows and collect_list preserves that order,
-            # so the per-column value list -- and therefore the row_ids derived
-            # from it -- can change between runs on identical input data. Ordering
-            # by value makes both the sampled set and the list order deterministic.
-            sampled = (
-                df.select(F.col(f"`{col_name}`").cast("string").alias("v"))
-                .orderBy(F.col("v"))
-                .limit(self.max_values_per_column)
+            w = Window.orderBy(F.col(f"`{col_name}`").cast("string"))
+            df = df.withColumn(f"rank_{idx}", F.row_number().over(w))
+            agg_exprs.append(
+                F.expr(
+                    f"filter(collect_list(`{col_name}`), rank_{idx} <= {self.max_values_per_column})"
+                ).alias(f"values_{idx}")
             )
-            agg_exprs.append(F.collect_list("v").alias(f"values_{idx}"))
 
         # Single scan: collect all column values in one agg
         all_values_row = df.select(*agg_exprs).first()
@@ -155,16 +153,17 @@ class CorpusIngestor:
             values = all_values_row[f"values_{idx}"] or []
             # Infer column data type for P-14 tagging
             col_type = infer_column_data_type(values)
-            rows.append((
-                fqn,  # table_id
-                col_name,  # column_name
-                idx,  # column_index
-                num_rows,  # num_rows
-                values,  # values
-                col_type.value,  # column_data_type
-            ))
+            rows.append(
+                (
+                    fqn,  # table_id
+                    col_name,  # column_name
+                    idx,  # column_index
+                    num_rows,  # num_rows
+                    values,  # values
+                    col_type.value,  # column_data_type
+                )
+            )
 
-        from pyspark.sql import Row
         return self.spark.createDataFrame(rows, schema=CORPUS_COLUMNS_SCHEMA)
 
     def _balanced_union(self, frames: list[DataFrame]) -> DataFrame:
@@ -231,15 +230,18 @@ class CorpusIngestor:
         # Filter rows where any pair has nulls - keep only rows where all selected pairs are non-null
         filter_cond = F.lit(True)
         for lhs_idx, rhs_idx in pairs:
-            filter_cond = filter_cond & F.col(f"pair_{lhs_idx}_{rhs_idx}.lhs").isNotNull() & F.col(f"pair_{lhs_idx}_{rhs_idx}.rhs").isNotNull()
+            filter_cond = (
+                filter_cond
+                & F.col(f"pair_{lhs_idx}_{rhs_idx}.lhs").isNotNull()
+                & F.col(f"pair_{lhs_idx}_{rhs_idx}.rhs").isNotNull()
+            )
 
         all_pairs_df = all_pairs_df.where(filter_cond)
 
         # Order by first pair for determinism, then limit
         first_lhs, first_rhs = pairs[0]
         all_pairs_df = all_pairs_df.orderBy(
-            F.col(f"pair_{first_lhs}_{first_rhs}.lhs"),
-            F.col(f"pair_{first_lhs}_{first_rhs}.rhs")
+            F.col(f"pair_{first_lhs}_{first_rhs}.lhs"), F.col(f"pair_{first_lhs}_{first_rhs}.rhs")
         ).limit(self.max_values_per_column)
 
         all_pairs_row = all_pairs_df.first()
@@ -253,17 +255,12 @@ class CorpusIngestor:
             lhs_values = [p["lhs"] for p in pair_data]
             rhs_values = [p["rhs"] for p in pair_data]
 
-            from pyspark.sql import Row
-            row = Row(
-                table_id=fqn,
-                lhs_column=lhs_col,
-                rhs_column=rhs_col,
-                rhs_column_index=rhs_idx,
-                num_rows=num_rows,
-                lhs_values=lhs_values,
-                rhs_values=rhs_values,
+            frames.append(
+                self.spark.createDataFrame(
+                    [(fqn, lhs_col, rhs_col, rhs_idx, num_rows, lhs_values, rhs_values)],
+                    schema=CORPUS_PAIRS_SCHEMA,
+                )
             )
-            frames.append(self.spark.createDataFrame([row], schema=CORPUS_PAIRS_SCHEMA))
         return frames
 
     def build_token_stats(self, corpus_columns: DataFrame) -> DataFrame:
