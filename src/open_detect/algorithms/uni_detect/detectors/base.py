@@ -153,12 +153,24 @@ class BaseDetector(ABC):
                     # Return a persisted empty result so downstream actions (count, collect,
                     # write) don't re-execute the scoring stage, and the frame can be
                     # released via release() like any other result.
+                    # candidates must be explicitly unpersisted since we're returning early
+                    # without going through the normal finally path.
+                    with suppress(Exception):
+                        candidates.unpersist()
                     result = self._track(self._empty_result().persist(StorageLevel.MEMORY_AND_DISK))
                     result.count()
                     return result
 
                 scored = self.store.batch_score(candidates, self.error_type, spec.direction)
+                # Persist scored frame so downstream materialization doesn't
+                # re-execute the scoring stage. Track it for later release.
+                scored = self._track(scored.persist(StorageLevel.MEMORY_AND_DISK))
+                scored.count()
                 joined = candidates.join(scored, on="candidate_id", how="inner")
+                # Persist the joined frame so the final select reads from cache,
+                # not from the candidate/scored lineage that gets unpersisted.
+                joined = self._track(joined.persist(StorageLevel.MEMORY_AND_DISK))
+                joined.count()
 
                 alpha = float(self.config.alpha)
                 result = (
@@ -182,6 +194,8 @@ class BaseDetector(ABC):
                 # Materialize once while ``candidates`` is still cached, then
                 # release the inputs.  The persisted result survives on its own,
                 # so downstream actions never re-execute the scoring stage.
+                # (``scored`` and ``joined`` are intermediate frames in the same
+                # logical plan; they are not separately cached here.)
                 result = self._track(result.persist(StorageLevel.MEMORY_AND_DISK))
                 result.count()
                 return result
@@ -190,12 +204,17 @@ class BaseDetector(ABC):
             if result is not None:
                 with suppress(Exception):
                     result.unpersist()
-            raise
-        finally:
-            # Always release the candidate frame
+            # Always release candidates on failure too
             if candidates is not None:
                 with suppress(Exception):
                     candidates.unpersist()
+            raise
+        # NOTE: No 'finally' block that unpersists candidates.  The result DataFrame
+        # is persisted (MEMORY_AND_DISK) and must survive until the caller consumes
+        # it via count()/collect()/write().  The caller is responsible for calling
+        # ``detector.release()`` or ``result.unpersist()`` when the result is no
+        # longer needed.  This ensures downstream actions reuse the cached frame
+        # instead of re-executing the scoring stage.
 
     def _empty_result(self) -> DataFrame:
         from open_detect.algorithms.uni_detect.detectors.schema import DETECTION_RESULT_SCHEMA
@@ -249,5 +268,5 @@ def redact_evidence(evidence: dict[str, Any], mode: RedactMode) -> dict[str, Any
     return {k: _hash_value(v) if k in RAW_VALUE_EVIDENCE_KEYS else v for k, v in evidence.items()}
 
 
-def make_evidence_json(evidence: dict, redact: RedactMode = "none") -> str:
+def make_evidence_json(evidence: dict[str, Any], redact: RedactMode = "none") -> str:
     return json.dumps(redact_evidence(evidence, redact), default=str)

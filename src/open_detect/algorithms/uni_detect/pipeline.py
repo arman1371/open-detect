@@ -172,6 +172,10 @@ class UniDetect:
         output, sorted ascending by ``lr_ratio`` (Definition 3: smaller is
         more surprising, i.e. more likely a real error).
 
+        The returned DataFrame is persisted and materialized once.  After
+        the caller finishes using the result they should call :meth:`release`
+        on the ``UniDetect`` instance to free the cached detector frames.
+
         Raises
         ------
         ValidationError
@@ -224,10 +228,21 @@ class UniDetect:
                     result.unpersist()
             raise
         finally:
-            # Ensure per-detector results are released even on success
-            # (the unioned result is tracked by the caller, not by detectors)
+            # Release per-detector caches (scored, joined, result frames) now that
+            # the unioned result is materialized.  Must run on both success and
+            # error to avoid memory leaks from accumulated persisted frames.
             for detector in (self._detectors[et] for et in error_types):
                 detector.release()
+
+    def release(self) -> None:
+        """Release all cached detector resources.
+
+        After calling :meth:`detect` the underlying detectors keep persisted
+        frames in memory (``_persisted``).  Call this method when the result is
+        no longer needed to avoid memory leaks.
+        """
+        for detector in self._detectors.values():
+            detector.release()
 
     def write_detections(self, detections: DataFrame, mode: str = "append") -> None:
         """Append (or overwrite) a detection result set to the configured UC table."""

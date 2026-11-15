@@ -46,6 +46,7 @@ class RahaDetector(ErrorDetectionAlgorithm):
         *,
         table_id: str = "table",
         conflict_resolution: Literal["homogeneity", "majority"] | None = None,
+        variant: Literal["A", "B"] | None = None,
         labeler: Labeler | None = None,
         **kwargs: Any,
     ) -> AlgorithmResult:
@@ -63,6 +64,9 @@ class RahaDetector(ErrorDetectionAlgorithm):
             Rule for resolving contradicting user labels when propagating them
             (Section 4.4): ``"homogeneity"`` or ``"majority"``. If not supplied,
             the config default is used.
+        variant:
+            Variant label for the column being scanned. Must be one of ``"A"``
+            or ``"B"``. If not supplied, the config default is used.
         labeler:
             Answers "is this cell dirty?" for the tuples Raha samples
             (Section 4.3). Defaults to :class:`~open_detect.algorithms.raha.labeling.HeuristicLabeler`,
@@ -78,14 +82,14 @@ class RahaDetector(ErrorDetectionAlgorithm):
         )
 
         _check_unknown_kwargs(kwargs, {"table_id", "conflict_resolution", "labeler"}, "detect")
+
         _ensure_dataframe_is_spark(data, "data")
         if conflict_resolution is not None:
             _validate_literal_value(
                 conflict_resolution, {"homogeneity", "majority"}, "conflict_resolution"
             )
-
-        # Reject any remaining unknown kwargs.
-        _check_unknown_kwargs(kwargs, set(), "detect")
+        if variant is not None:
+            _validate_literal_value(variant, {"A", "B"}, "variant")
 
         df = data
         n = len(df)

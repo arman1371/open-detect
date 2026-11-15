@@ -32,12 +32,15 @@ import pytest
 from open_detect.algorithms.auto_validate.config import AutoValidateConfig
 from open_detect.algorithms.auto_validate.detector import (
     AutoValidateAlgorithm,
+    _distinct_value_verdicts_groups,
     _feasible_evidence,
     _infeasible_evidence,
+    _infer_pattern_to_groups,
     _is_null,
+    _make_tooltip,
     _non_null_cells,
-    _value_matches,
     _value_matches_groups,
+    _value_text,
 )
 from open_detect.algorithms.auto_validate.fmdv import InferredPattern
 from open_detect.algorithms.base import CellResult
@@ -88,10 +91,21 @@ def _per_cell_reference(dirty: pd.DataFrame) -> tuple[CellResult, ...]:
             fpr_t, cov_t, theta_c = inferred.fpr_t, inferred.cov_t, inferred.theta_c
             n_total = len(series) - sum(1 for v in series if _is_null(v))
             score = 1.0 - fpr_t if n_total > 0 else 0.0
+            groups = _infer_pattern_to_groups(inferred)
+            verdicts = _distinct_value_verdicts_groups(series, groups)
+            series.map(_is_null)
             for idx, value in series.items():
                 if _is_null(value):
                     continue
-                is_error = not _value_matches(pattern, value)
+                text = _value_text(value)
+                if text is not None and text in verdicts:
+                    is_error = verdicts[text]
+                else:
+                    is_error = not _value_matches_groups(groups, text)
+                if is_error:
+                    tooltip = _make_tooltip(value, inferred, fpr_t, cov_t, theta_c, detector.config)
+                else:
+                    tooltip = None
                 cells.append(
                     CellResult(
                         table_id=TABLE_ID,
@@ -103,6 +117,7 @@ def _per_cell_reference(dirty: pd.DataFrame) -> tuple[CellResult, ...]:
                         evidence=_feasible_evidence(
                             detector.config, pattern, fpr_t, cov_t, theta_c
                         ),
+                        tooltip=tooltip,
                     )
                 )
         else:
