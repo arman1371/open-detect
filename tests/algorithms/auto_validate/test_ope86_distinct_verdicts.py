@@ -35,8 +35,10 @@ from open_detect.algorithms.auto_validate.detector import (
     _feasible_evidence,
     _infeasible_evidence,
     _is_null,
+    _make_tooltip,
     _non_null_cells,
     _value_matches,
+    _value_matches_groups,
 )
 from open_detect.algorithms.auto_validate.fmdv import InferredPattern
 from open_detect.algorithms.base import CellResult
@@ -101,6 +103,11 @@ def _per_cell_reference(dirty: pd.DataFrame) -> tuple[CellResult, ...]:
                         score=score if is_error else 0.0,
                         evidence=_feasible_evidence(
                             detector.config, pattern, fpr_t, cov_t, theta_c
+                        ),
+                        tooltip=(
+                            _make_tooltip(value, inferred, fpr_t, cov_t, theta_c, detector.config)
+                            if is_error
+                            else None
                         ),
                     )
                 )
@@ -189,6 +196,21 @@ def _counting_value_matches(call_counter: dict[str, int]) -> Callable:
     return counting
 
 
+def _counting_value_matches_groups(call_counter: dict[str, int]) -> Callable:
+    """Wrapper around ``_value_matches_groups`` that records how often it is called.
+
+    The verdict cache routes through ``_value_matches_groups`` for the
+    ``fmdv_vh`` groups representation, so the call-count tests patch this
+    path too. The invariant is unchanged: one match per distinct text.
+    """
+
+    def counting(groups, text):
+        call_counter["n"] += 1
+        return _value_matches_groups(groups, text)
+
+    return counting
+
+
 #: Verdict produced by ``infer_pattern`` for :func:`_two_distinct_frame`, taken
 #: from the real (``fmdv_vh``) inference instead of being re-run inside the
 #: call-count tests. ``infer_pattern`` is the slow half of ``detect`` (~28s at
@@ -221,6 +243,10 @@ def _count_detect_calls(dirty: pd.DataFrame) -> tuple[int, int]:
         patch(
             "open_detect.algorithms.auto_validate.detector._value_matches",
             _counting_value_matches(call_counter),
+        ),
+        patch(
+            "open_detect.algorithms.auto_validate.detector._value_matches_groups",
+            _counting_value_matches_groups(call_counter),
         ),
     ):
         cells = detector.detect(dirty, table_id=TABLE_ID).cells
