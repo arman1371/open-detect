@@ -76,8 +76,25 @@ class BaseDetector(ABC):
         )
 
     @abstractmethod
-    def extract_candidates(self, table_names: Sequence[str]) -> DataFrame:
-        """Return a DataFrame with the columns in :data:`CANDIDATE_COLUMNS`."""
+    def extract_candidates(
+        self,
+        table_names: Sequence[str],
+        ingested_columns_df: DataFrame | None = None,
+        ingested_pairs_df: DataFrame | None = None,
+    ) -> DataFrame:
+        """Return a DataFrame with the columns in :data:`CANDIDATE_COLUMNS`.
+
+        Parameters
+        ----------
+        table_names:
+            Tables to scan for errors (used if no pre-ingested DataFrame provided).
+        ingested_columns_df:
+            Pre-ingested columns DataFrame from a shared ingestion call.
+            If provided, this detector will use it instead of re-ingesting.
+        ingested_pairs_df:
+            Pre-ingested column pairs DataFrame for FD detection.
+            If provided, FD detector will use it instead of re-ingesting.
+        """
 
     def _new_failure_tracker(self) -> FailureTracker:
         """Create the accumulator-backed tracker an ``extract_candidates`` run reports into."""
@@ -88,7 +105,12 @@ class BaseDetector(ABC):
         )
         return self._failure_tracker
 
-    def detect(self, table_names: Sequence[str]) -> DataFrame:
+    def detect(
+        self,
+        table_names: Sequence[str],
+        ingested_columns_df: DataFrame | None = None,
+        ingested_pairs_df: DataFrame | None = None,
+    ) -> DataFrame:
         """Run the full Definition-4 pipeline for ``table_names`` and rank results.
 
         Returns a DataFrame with columns: ``candidate_id``, ``error_type``,
@@ -105,6 +127,17 @@ class BaseDetector(ABC):
         ``orderBy`` was removed because it is redundant with the global sort in
         ``pipeline.UniDetect.detect``.  Direct callers that need a specific
         order must sort the returned frame themselves.
+
+        Parameters
+        ----------
+        table_names:
+            Tables to scan for errors.
+        ingested_columns_df:
+            Pre-ingested columns DataFrame from a shared ingestion call.
+            If provided, this detector will use it instead of re-ingesting.
+        ingested_pairs_df:
+            Pre-ingested column pairs DataFrame for FD detection.
+            If provided, FD detector will use it instead of re-ingesting.
 
         .. note::
 
@@ -138,7 +171,11 @@ class BaseDetector(ABC):
                     **{ARROW_MAX_RECORDS_PER_BATCH_KEY: str(ARROW_MAX_RECORDS_PER_BATCH)},
                 ),
             ):
-                candidates = self.extract_candidates(table_names)
+                candidates = self.extract_candidates(
+                    table_names,
+                    ingested_columns_df=ingested_columns_df,
+                    ingested_pairs_df=ingested_pairs_df,
+                )
                 candidates.persist(StorageLevel.MEMORY_AND_DISK)
                 n = candidates.count()
                 if self._failure_tracker is not None:

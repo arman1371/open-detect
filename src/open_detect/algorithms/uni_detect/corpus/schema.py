@@ -17,6 +17,8 @@ from pyspark.sql.types import (
     StructType,
 )
 
+from open_detect.algorithms.uni_detect.core.enums import ColumnDataType
+
 #: One row per (table, column) in the background corpus T -- the canonical
 #: representation every metric/featurization function in this package
 #: consumes. Produced by :class:`open_detect.algorithms.uni_detect.corpus.ingestion.CorpusIngestor`.
@@ -27,6 +29,7 @@ CORPUS_COLUMNS_SCHEMA = StructType(
         StructField("column_index", IntegerType(), nullable=False),
         StructField("num_rows", IntegerType(), nullable=False),
         StructField("values", ArrayType(StringType()), nullable=False),
+        StructField("column_data_type", StringType(), nullable=False),
     ]
 )
 
