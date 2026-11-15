@@ -186,7 +186,11 @@ class CorpusIngestor:
     def ingest_column_pairs(self, table_names: Sequence[str]) -> DataFrame:
         """Build the ``corpus_column_pairs`` DataFrame used for FD statistics.
 
-        Uses the same single-scan frame via explode/arrays_zip; no per-pair scans.
+        Builds one row per FD pair from the same table scan. Pair selection
+        (``select_fd_column_pairs``) and per-pair null alignment (collecting
+        ``(lhs, rhs)`` as a struct so both sides stay row-aligned) are preserved
+        exactly; only the final per-table merge uses the balanced union tree
+        instead of a left-deep ``reduce(unionByName)``.
         """
         per_pair_frames: list[DataFrame] = []
         with log_duration(logger, f"ingest_column_pairs({len(table_names)} tables)"):
