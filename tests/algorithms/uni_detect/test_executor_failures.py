@@ -80,8 +80,8 @@ class TestCorpusBuilderFailureGate:
         builder = CorpusStatsBuilder(spark, config)
         columns = spark.createDataFrame(
             [
-                ("t", 0, 5, ["a", "b", "c", "d", "e"], "STRING"),
-                ("t", 1, 5, ["1", "2", "3", "4", "50"], "INTEGER"),
+                ("t", 0, 5, ["a", "b", "c", "d", "e"], "string"),
+                ("t", 1, 5, ["1", "2", "3", "4", "50"], "integer"),
             ],
             "table_id string, column_index int, num_rows int, values array<string>, column_data_type string",
         )

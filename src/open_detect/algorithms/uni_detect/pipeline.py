@@ -63,12 +63,15 @@ def _filter_by_column_type(columns_df: DataFrame, error_type: ErrorType) -> Data
     """Filter columns by their inferred data type for the given error type."""
     from pyspark.sql import functions as F
 
+    from open_detect.algorithms.uni_detect.core.enums import ColumnDataType
+
+    numeric_types = {ColumnDataType.INTEGER, ColumnDataType.FLOAT}
     if error_type in _NUMERIC_ONLY_TYPES:
-        # Numeric outlier: only INTEGER, FLOAT columns
-        return columns_df.where(F.col("column_data_type").isin(["INTEGER", "FLOAT"]))
+        # Numeric outlier: only integer, float columns
+        return columns_df.where(F.col("column_data_type").isin([t.value for t in numeric_types]))
     elif error_type in _NON_NUMERIC_ONLY_TYPES:
-        # Spelling: only STRING, MIXED_ALPHANUMERIC columns (not numeric)
-        return columns_df.where(~F.col("column_data_type").isin(["INTEGER", "FLOAT"]))
+        # Spelling: only string, mixed_alphanumeric columns (not numeric)
+        return columns_df.where(~F.col("column_data_type").isin([t.value for t in numeric_types]))
     # Uniqueness and FD: all types
     return columns_df
 

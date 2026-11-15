@@ -95,7 +95,12 @@ class NumericOutlierDetector(BaseDetector):
         from pyspark.sql import functions as F
 
         # Filter to numeric-only columns for outlier detection
-        filtered_columns = columns_df.filter(F.col("column_data_type").isin(["INTEGER", "FLOAT"]))
+        from open_detect.algorithms.uni_detect.core.enums import ColumnDataType
+
+        numeric_types = {ColumnDataType.INTEGER, ColumnDataType.FLOAT}
+        filtered_columns = columns_df.filter(
+            F.col("column_data_type").isin([t.value for t in numeric_types])
+        )
 
         # ARROW_MAX_RECORDS_PER_BATCH is set by BaseDetector.detect() so it stays
         # active through the lazy execution of mapInPandas and the subsequent count().
