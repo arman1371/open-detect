@@ -97,7 +97,12 @@ class _StubDetector(BaseDetector):
     error_type = ErrorType.UNIQUENESS
     values: tuple[str, ...] = ()
 
-    def extract_candidates(self, table_names):
+    def extract_candidates(
+        self,
+        table_names,
+        ingested_columns_df=None,
+        ingested_pairs_df=None,
+    ):
         import pandas as pd
 
         tracker = self._new_failure_tracker()

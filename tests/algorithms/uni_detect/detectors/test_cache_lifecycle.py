@@ -44,7 +44,12 @@ class _FakeDetector(BaseDetector):
         self._frames: list[Any] = []
         self._next_count = 1
 
-    def extract_candidates(self, table_names):  # type: ignore[override]
+    def extract_candidates(
+            self,
+            table_names,
+            ingested_columns_df=None,
+            ingested_pairs_df=None,
+        ):  # type: ignore[override]
         self._extract_calls += 1
         frame = MagicMock(name=f"candidates-{self._extract_calls}")
         frame.count.return_value = self._next_count
