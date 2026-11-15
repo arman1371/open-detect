@@ -65,14 +65,10 @@ def _filter_by_column_type(columns_df: DataFrame, error_type: ErrorType) -> Data
 
     if error_type in _NUMERIC_ONLY_TYPES:
         # Numeric outlier: only INTEGER, FLOAT columns
-        return columns_df.where(
-            F.col("column_data_type").isin(["INTEGER", "FLOAT"])
-        )
+        return columns_df.where(F.col("column_data_type").isin(["INTEGER", "FLOAT"]))
     elif error_type in _NON_NUMERIC_ONLY_TYPES:
         # Spelling: only STRING, MIXED_ALPHANUMERIC columns (not numeric)
-        return columns_df.where(
-            ~F.col("column_data_type").isin(["INTEGER", "FLOAT"])
-        )
+        return columns_df.where(~F.col("column_data_type").isin(["INTEGER", "FLOAT"]))
     # Uniqueness and FD: all types
     return columns_df
 

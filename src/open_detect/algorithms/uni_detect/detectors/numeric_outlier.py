@@ -93,6 +93,7 @@ class NumericOutlierDetector(BaseDetector):
             columns_df = self.ingestor.ingest_columns(table_names)
 
         from pyspark.sql import functions as F
+
         # Filter to numeric-only columns for outlier detection
         filtered_columns = columns_df.filter(F.col("column_data_type").isin(["INTEGER", "FLOAT"]))
 

@@ -114,6 +114,7 @@ class SpellingDetector(BaseDetector):
             columns_df = self.ingestor.ingest_columns(table_names)
 
         from pyspark.sql import functions as F
+
         # Filter to non-numeric columns for spelling detection
         filtered_columns = columns_df.filter(~F.col("column_data_type").isin(["INTEGER", "FLOAT"]))
 
