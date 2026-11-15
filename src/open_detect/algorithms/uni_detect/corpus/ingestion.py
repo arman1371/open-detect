@@ -224,7 +224,11 @@ class CorpusIngestor:
 
         # Order by first pair for deterministic selection, then limit rows
         first_lhs, first_rhs = pairs[0]
-        ordered_df = df.select(*pair_exprs).orderBy(f"pair_{first_lhs}_{first_rhs}.lhs", f"pair_{first_lhs}_{first_rhs}.rhs").limit(self.max_values_per_column)
+        ordered_df = (
+            df.select(*pair_exprs)
+            .orderBy(f"pair_{first_lhs}_{first_rhs}.lhs", f"pair_{first_lhs}_{first_rhs}.rhs")
+            .limit(self.max_values_per_column)
+        )
 
         all_pairs_row = ordered_df.first()
         if all_pairs_row is None:
@@ -235,8 +239,12 @@ class CorpusIngestor:
             lhs_col, rhs_col = columns[lhs_idx], columns[rhs_idx]
             pair_data = all_pairs_row[f"pair_{lhs_idx}_{rhs_idx}"] or []
             # Filter nulls: keep only rows where both lhs and rhs are non-null
-            lhs_values = [p["lhs"] for p in pair_data if p["lhs"] is not None and p["rhs"] is not None]
-            rhs_values = [p["rhs"] for p in pair_data if p["lhs"] is not None and p["rhs"] is not None]
+            lhs_values = [
+                p["lhs"] for p in pair_data if p["lhs"] is not None and p["rhs"] is not None
+            ]
+            rhs_values = [
+                p["rhs"] for p in pair_data if p["lhs"] is not None and p["rhs"] is not None
+            ]
 
             frames.append(
                 self.spark.createDataFrame(

@@ -99,7 +99,11 @@ class CorpusStatsBuilder:
 
         # P-14: spelling runs on non-numeric columns
         numeric_types = {ColumnDataType.INTEGER, ColumnDataType.FLOAT}
-        filtered_columns = corpus_columns.where(F.col("column_data_type").isin([t.value for t in ColumnDataType if t not in numeric_types]))
+        filtered_columns = corpus_columns.where(
+            F.col("column_data_type").isin(
+                [t.value for t in ColumnDataType if t not in numeric_types]
+            )
+        )
         return self._build_single_column_stats(
             filtered_columns, error_type=ErrorType.SPELLING, token_document_frequency={}
         )
@@ -111,7 +115,9 @@ class CorpusStatsBuilder:
 
         # P-14: outlier runs on numeric columns only
         numeric_types = {ColumnDataType.INTEGER, ColumnDataType.FLOAT}
-        filtered_columns = corpus_columns.where(F.col("column_data_type").isin([t.value for t in numeric_types]))
+        filtered_columns = corpus_columns.where(
+            F.col("column_data_type").isin([t.value for t in numeric_types])
+        )
         return self._build_single_column_stats(
             filtered_columns, error_type=ErrorType.NUMERIC_OUTLIER, token_document_frequency={}
         )
