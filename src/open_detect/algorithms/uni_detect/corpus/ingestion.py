@@ -113,32 +113,29 @@ class CorpusIngestor:
         return self._balanced_union(per_table_frames)
 
     def _per_table_column_frame(self, fqn: str) -> DataFrame | None:
-        from pyspark.sql import Window
         from pyspark.sql import functions as F
 
         df = self.spark.table(fqn)
         fields = df.schema.fields
-        num_cols = len(fields)
-        if num_cols == 0:
+        if not fields:
             return None
 
-        # Build a single agg with collect_list for all columns
-        # This scans the table once instead of once per column
-        # Use window-based ranking to respect max_values_per_column limit
-        # while collecting all columns' values together
-        agg_exprs = []
-        for idx, field in enumerate(fields):
-            col_name = field.name
-            w = Window.orderBy(F.col(f"`{col_name}`").cast("string"))
-            df = df.withColumn(f"rank_{idx}", F.row_number().over(w))
-            agg_exprs.append(
-                F.expr(
-                    f"filter(collect_list(`{col_name}`), rank_{idx} <= {self.max_values_per_column})"
-                ).alias(f"values_{idx}")
-            )
-
-        # Single scan: collect all column values in one agg
-        all_values_row = df.select(*agg_exprs).first()
+        # Single scan: collect every column's values in one ``agg`` call.
+        # ``array_sort(collect_list(...))`` + ``slice`` reproduces the baseline
+        # ``orderBy(value).limit(max_values_per_column)`` semantics (the N
+        # smallest stringified values, in sorted order) without a per-column
+        # scan, a window rank column, or a driver-side collect.
+        col_names = [f.name for f in fields]
+        cast_df = df.select(*[F.col(f"`{c}`").cast("string").alias(c) for c in col_names])
+        agg_exprs = [
+            F.slice(
+                F.array_sort(F.collect_list(F.col(c))),
+                1,
+                self.max_values_per_column,
+            ).alias(f"values_{idx}")
+            for idx, c in enumerate(col_names)
+        ]
+        all_values_row = cast_df.agg(*agg_exprs).first()
         if all_values_row is None:
             return None
 
@@ -180,7 +177,9 @@ class CorpusIngestor:
 
         Uses the same single-scan frame via explode/arrays_zip; no per-pair scans.
         """
-        per_table_frames: list[DataFrame] = []
+        from functools import reduce
+
+        per_pair_frames: list[DataFrame] = []
         with log_duration(logger, f"ingest_column_pairs({len(table_names)} tables)"):
             for fqn in table_names:
                 try:
@@ -188,11 +187,11 @@ class CorpusIngestor:
                 except Exception:
                     logger.exception("Skipping table %s: failed to read/profile it", fqn)
                     continue
-                per_table_frames.extend(frames)
+                per_pair_frames.extend(frames)
 
-        if not per_table_frames:
+        if not per_pair_frames:
             return self.spark.createDataFrame([], schema=CORPUS_PAIRS_SCHEMA)
-        return self._balanced_union(per_table_frames)
+        return reduce(lambda a, b: a.unionByName(b), per_pair_frames)
 
     def _per_table_pair_frames(self, fqn: str) -> list[DataFrame]:
         from pyspark.sql import functions as F
@@ -207,44 +206,27 @@ class CorpusIngestor:
             return []
 
         pairs = select_fd_column_pairs(fqn, columns, self.max_fd_column_pairs_per_table)
-
-        # Single scan: collect all selected pair values at once
-        # Build struct arrays for each pair
-        pair_exprs = []
-        for lhs_idx, rhs_idx in pairs:
-            lhs_col, rhs_col = columns[lhs_idx], columns[rhs_idx]
-            pair_exprs.append(
-                F.struct(
-                    F.col(f"`{lhs_col}`").cast("string").alias("lhs"),
-                    F.col(f"`{rhs_col}`").cast("string").alias("rhs"),
-                ).alias(f"pair_{lhs_idx}_{rhs_idx}")
-            )
-
-        # Filter non-null and limit per pair - we do this in a single pass
-        # by collecting all pairs, then filtering/exploding
-        if not pair_exprs:
+        if not pairs:
             return []
 
-        # Collect all pair structs in one scan
-        all_pairs_df = df.select(*pair_exprs)
-        # Filter rows where any pair has nulls - keep only rows where all selected pairs are non-null
-        filter_cond = F.lit(True)
-        for lhs_idx, rhs_idx in pairs:
-            filter_cond = (
-                filter_cond
-                & F.col(f"pair_{lhs_idx}_{rhs_idx}.lhs").isNotNull()
-                & F.col(f"pair_{lhs_idx}_{rhs_idx}.rhs").isNotNull()
-            )
+        # Single scan: collect every selected pair's (lhs, rhs) values at once.
+        # Each pair is collected independently -- nulls are dropped *per pair*
+        # (a row with a null lhs/rhs is dropped for that pair but kept for others),
+        # matching the baseline per-pair ``where(lhs.isNotNull() & rhs.isNotNull())``
+        # semantics. A global null filter would misalign the arrays across pairs.
+        pair_exprs = [
+            F.struct(
+                F.col(f"`{columns[lhs_idx]}`").cast("string").alias("lhs"),
+                F.col(f"`{columns[rhs_idx]}`").cast("string").alias("rhs"),
+            ).alias(f"pair_{lhs_idx}_{rhs_idx}")
+            for lhs_idx, rhs_idx in pairs
+        ]
 
-        all_pairs_df = all_pairs_df.where(filter_cond)
-
-        # Order by first pair for determinism, then limit
+        # Order by first pair for deterministic selection, then limit rows
         first_lhs, first_rhs = pairs[0]
-        all_pairs_df = all_pairs_df.orderBy(
-            F.col(f"pair_{first_lhs}_{first_rhs}.lhs"), F.col(f"pair_{first_lhs}_{first_rhs}.rhs")
-        ).limit(self.max_values_per_column)
+        ordered_df = df.select(*pair_exprs).orderBy(f"pair_{first_lhs}_{first_rhs}.lhs", f"pair_{first_lhs}_{first_rhs}.rhs").limit(self.max_values_per_column)
 
-        all_pairs_row = all_pairs_df.first()
+        all_pairs_row = ordered_df.first()
         if all_pairs_row is None:
             return []
 
@@ -252,8 +234,9 @@ class CorpusIngestor:
         for lhs_idx, rhs_idx in pairs:
             lhs_col, rhs_col = columns[lhs_idx], columns[rhs_idx]
             pair_data = all_pairs_row[f"pair_{lhs_idx}_{rhs_idx}"] or []
-            lhs_values = [p["lhs"] for p in pair_data]
-            rhs_values = [p["rhs"] for p in pair_data]
+            # Filter nulls: keep only rows where both lhs and rhs are non-null
+            lhs_values = [p["lhs"] for p in pair_data if p["lhs"] is not None and p["rhs"] is not None]
+            rhs_values = [p["rhs"] for p in pair_data if p["lhs"] is not None and p["rhs"] is not None]
 
             frames.append(
                 self.spark.createDataFrame(
