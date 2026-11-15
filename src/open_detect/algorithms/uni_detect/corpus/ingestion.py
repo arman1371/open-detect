@@ -177,8 +177,6 @@ class CorpusIngestor:
 
         Uses the same single-scan frame via explode/arrays_zip; no per-pair scans.
         """
-        from functools import reduce
-
         per_pair_frames: list[DataFrame] = []
         with log_duration(logger, f"ingest_column_pairs({len(table_names)} tables)"):
             for fqn in table_names:
@@ -191,7 +189,9 @@ class CorpusIngestor:
 
         if not per_pair_frames:
             return self.spark.createDataFrame([], schema=CORPUS_PAIRS_SCHEMA)
-        return reduce(lambda a, b: a.unionByName(b), per_pair_frames)
+        # Balanced union tree (not left-deep reduce) to avoid plan blow-up on
+        # many pairs/tables, matching ingest_columns. Pair content is unchanged.
+        return self._balanced_union(per_pair_frames)
 
     def _per_table_pair_frames(self, fqn: str) -> list[DataFrame]:
         from pyspark.sql import functions as F
