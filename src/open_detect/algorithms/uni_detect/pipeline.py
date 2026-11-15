@@ -60,15 +60,24 @@ def _require_columns(columns_df: DataFrame | None) -> DataFrame:
 
 
 def _filter_by_column_type(columns_df: DataFrame, error_type: ErrorType) -> DataFrame:
-    """Filter columns by their inferred data type for the given error type."""
+    """Filter columns by their inferred data type for the given error type.
+
+    This mirrors the P-14 filtering logic in CorpusStatsBuilder.build_spelling_stats
+    and build_outlier_stats, using the same ColumnDataType enum values.
+    """
     from pyspark.sql import functions as F
+
+    from open_detect.algorithms.uni_detect.core.enums import ColumnDataType
+
+    # Same logic as builder.py: numeric types are INTEGER and FLOAT
+    numeric_type_values = [t.value for t in ColumnDataType if t in (ColumnDataType.INTEGER, ColumnDataType.FLOAT)]
 
     if error_type in _NUMERIC_ONLY_TYPES:
         # Numeric outlier: only INTEGER, FLOAT columns
-        return columns_df.where(F.col("column_data_type").isin(["INTEGER", "FLOAT"]))
+        return columns_df.where(F.col("column_data_type").isin(numeric_type_values))
     elif error_type in _NON_NUMERIC_ONLY_TYPES:
-        # Spelling: only STRING, MIXED_ALPHANUMERIC columns (not numeric)
-        return columns_df.where(~F.col("column_data_type").isin(["INTEGER", "FLOAT"]))
+        # Spelling: only STRING, MIXED_ALPHANUMERIC, UNKNOWN columns (not numeric)
+        return columns_df.where(~F.col("column_data_type").isin(numeric_type_values))
     # Uniqueness and FD: all types
     return columns_df
 
