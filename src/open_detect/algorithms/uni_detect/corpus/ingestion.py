@@ -209,49 +209,31 @@ class CorpusIngestor:
         if not pairs:
             return []
 
-        # Single scan: collect every selected pair's (lhs, rhs) values at once.
-        # Each pair is collected independently -- nulls are dropped *per pair*
-        # (a row with a null lhs/rhs is dropped for that pair but kept for others),
-        # matching the baseline per-pair ``where(lhs.isNotNull() & rhs.isNotNull())``
-        # semantics. A global null filter would misalign the arrays across pairs.
-        pair_exprs = [
-            F.struct(
-                F.col(f"`{columns[lhs_idx]}`").cast("string").alias("lhs"),
-                F.col(f"`{columns[rhs_idx]}`").cast("string").alias("rhs"),
-            ).alias(f"pair_{lhs_idx}_{rhs_idx}")
-            for lhs_idx, rhs_idx in pairs
-        ]
-
-        # Order by first pair for deterministic selection, then limit rows
-        first_lhs, first_rhs = pairs[0]
-        ordered_df = (
-            df.select(*pair_exprs)
-            .orderBy(f"pair_{first_lhs}_{first_rhs}.lhs", f"pair_{first_lhs}_{first_rhs}.rhs")
-            .limit(self.max_values_per_column)
-        )
-
-        all_pairs_row = ordered_df.first()
-        if all_pairs_row is None:
-            return []
-
         frames: list[DataFrame] = []
         for lhs_idx, rhs_idx in pairs:
             lhs_col, rhs_col = columns[lhs_idx], columns[rhs_idx]
-            pair_data = all_pairs_row[f"pair_{lhs_idx}_{rhs_idx}"] or []
-            # Filter nulls: keep only rows where both lhs and rhs are non-null
-            lhs_values = [
-                p["lhs"] for p in pair_data if p["lhs"] is not None and p["rhs"] is not None
-            ]
-            rhs_values = [
-                p["rhs"] for p in pair_data if p["lhs"] is not None and p["rhs"] is not None
-            ]
-
-            frames.append(
-                self.spark.createDataFrame(
-                    [(fqn, lhs_col, rhs_col, rhs_idx, num_rows, lhs_values, rhs_values)],
-                    schema=CORPUS_PAIRS_SCHEMA,
+            # Collect (lhs, rhs) as one struct, keeping only rows where both
+            # sides are non-null: collecting the columns independently drops
+            # nulls independently, leaving arrays of different lengths whose
+            # positions no longer refer to the same rows.
+            sampled = (
+                df.select(
+                    F.col(f"`{lhs_col}`").cast("string").alias("lhs"),
+                    F.col(f"`{rhs_col}`").cast("string").alias("rhs"),
                 )
+                .where(F.col("lhs").isNotNull() & F.col("rhs").isNotNull())
+                .limit(self.max_values_per_column)
             )
+            per_pair = sampled.agg(F.collect_list(F.struct("lhs", "rhs")).alias("pairs")).select(
+                F.lit(fqn).alias("table_id"),
+                F.lit(lhs_col).alias("lhs_column"),
+                F.lit(rhs_col).alias("rhs_column"),
+                F.lit(rhs_idx).alias("rhs_column_index"),
+                F.lit(num_rows).alias("num_rows"),
+                F.col("pairs.lhs").alias("lhs_values"),
+                F.col("pairs.rhs").alias("rhs_values"),
+            )
+            frames.append(per_pair)
         return frames
 
     def build_token_stats(self, corpus_columns: DataFrame) -> DataFrame:

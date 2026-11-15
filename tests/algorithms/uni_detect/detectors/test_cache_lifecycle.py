@@ -45,11 +45,11 @@ class _FakeDetector(BaseDetector):
         self._next_count = 1
 
     def extract_candidates(
-            self,
-            table_names,
-            ingested_columns_df=None,
-            ingested_pairs_df=None,
-        ):  # type: ignore[override]
+        self,
+        table_names,
+        ingested_columns_df=None,
+        ingested_pairs_df=None,
+    ):  # type: ignore[override]
         self._extract_calls += 1
         frame = MagicMock(name=f"candidates-{self._extract_calls}")
         frame.count.return_value = self._next_count

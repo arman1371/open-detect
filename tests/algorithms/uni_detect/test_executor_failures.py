@@ -79,8 +79,11 @@ class TestCorpusBuilderFailureGate:
         config = _config(uc_location, "exec_fail_not_applicable", max_failure_ratio=0.0)
         builder = CorpusStatsBuilder(spark, config)
         columns = spark.createDataFrame(
-            [("t", 0, 5, ["a", "b", "c", "d", "e"]), ("t", 1, 5, ["1", "2", "3", "4", "50"])],
-            "table_id string, column_index int, num_rows int, values array<string>",
+            [
+                ("t", 0, 5, ["a", "b", "c", "d", "e"], "STRING"),
+                ("t", 1, 5, ["1", "2", "3", "4", "50"], "INTEGER"),
+            ],
+            "table_id string, column_index int, num_rows int, values array<string>, column_data_type string",
         )
         stats = builder.build_outlier_stats(columns)
 
