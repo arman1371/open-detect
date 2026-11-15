@@ -14,7 +14,6 @@ This is the single entry point most users need:
 from __future__ import annotations
 
 from contextlib import suppress
-from functools import reduce
 from typing import TYPE_CHECKING, Any
 
 from pyspark import StorageLevel
@@ -23,7 +22,7 @@ from open_detect.algorithms.uni_detect.catalog import ensure_schema_exists
 from open_detect.algorithms.uni_detect.config import UniDetectConfig
 from open_detect.algorithms.uni_detect.core.enums import ErrorType
 from open_detect.algorithms.uni_detect.corpus.builder import CorpusStatsBuilder
-from open_detect.algorithms.uni_detect.corpus.ingestion import CorpusIngestor
+from open_detect.algorithms.uni_detect.corpus.ingestion import CorpusIngestor, balanced_union
 from open_detect.algorithms.uni_detect.detectors import (
     FunctionalDependencyDetector,
     NumericOutlierDetector,
@@ -259,7 +258,9 @@ class UniDetect:
                         ingested_pairs_df=shared_pairs_df,
                     )
                     frames.append(frame)
-                result = reduce(lambda a, b: a.unionByName(b), frames)
+                # Balanced union (not left-deep reduce) so the final merge plan is
+                # ceil(log2(N)) deep regardless of how many detectors are enabled.
+                result = balanced_union(frames)
                 # Order first, then persist and materialize the *final* frame.  Sorting
                 # after persist() would return an unpersisted frame, so the caller's
                 # count/show/write would re-execute the scoring stage to re-materialize

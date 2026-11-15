@@ -61,6 +61,22 @@ def select_fd_column_pairs(
     return heapq.nsmallest(max_pairs, candidates, key=sort_key)
 
 
+def balanced_union(frames: list[DataFrame]) -> DataFrame:
+    """Combine DataFrames with a balanced binary union tree.
+
+    A naive ``reduce(lambda a, b: a.unionByName(b), frames)`` produces a
+    left-deep plan whose depth equals the number of frames; on thousands of
+    tables that is a quadratic plan-blow-up risk. This halves the depth at
+    each level (``ceil(log2(N))`` total) by unioning the two halves of the
+    list recursively. Pair/column content is unchanged -- only the plan shape
+    differs.
+    """
+    if len(frames) == 1:
+        return frames[0]
+    mid = len(frames) // 2
+    return balanced_union(frames[:mid]).unionByName(balanced_union(frames[mid:]))
+
+
 class CorpusIngestor:
     """Builds ``corpus_columns``, ``corpus_column_pairs`` and ``token_stats``.
 
@@ -110,7 +126,7 @@ class CorpusIngestor:
         if not per_table_frames:
             return self.spark.createDataFrame([], schema=CORPUS_COLUMNS_SCHEMA)
         # Use balanced union to avoid left-deep reduce(unionByName) plan blow-up
-        return self._balanced_union(per_table_frames)
+        return balanced_union(per_table_frames)
 
     def _per_table_column_frame(self, fqn: str) -> DataFrame | None:
         from pyspark.sql import functions as F
@@ -165,12 +181,7 @@ class CorpusIngestor:
 
     def _balanced_union(self, frames: list[DataFrame]) -> DataFrame:
         """Combine DataFrames with a balanced union tree to avoid left-deep plans."""
-        if len(frames) == 1:
-            return frames[0]
-        mid = len(frames) // 2
-        left = self._balanced_union(frames[:mid])
-        right = self._balanced_union(frames[mid:])
-        return left.unionByName(right)
+        return balanced_union(frames)
 
     def ingest_column_pairs(self, table_names: Sequence[str]) -> DataFrame:
         """Build the ``corpus_column_pairs`` DataFrame used for FD statistics.
