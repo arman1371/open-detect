@@ -106,7 +106,9 @@ class FailureCountsAccumulatorParam:
     def zero(self, value: FailureCounts) -> FailureCounts:  # noqa: ARG002
         return FailureCounts()
 
-    def addInPlace(self, value1: FailureCounts, value2: FailureCounts) -> FailureCounts:  # noqa: N802
+    def addInPlace(
+        self, value1: FailureCounts, value2: FailureCounts
+    ) -> FailureCounts:  # noqa: N802
         value1.merge(value2)
         return value1
 
