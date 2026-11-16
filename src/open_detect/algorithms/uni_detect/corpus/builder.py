@@ -136,7 +136,8 @@ class CorpusStatsBuilder:
             tdf = broadcast_tdf.value
             for batch in batches:
                 counts = FailureCounts()
-                out_bucket, out_before, out_after, out_table = [], [], [], []
+                # Collect scored results first
+                rows = []
                 for tid, lhs_vals, rhs_vals, n, rhs_idx in zip(
                     batch["table_id"],
                     batch["lhs_values"],
@@ -157,20 +158,46 @@ class CorpusStatsBuilder:
                     if scored is None:
                         continue
                     bucket, outcome = scored
-                    out_table.append(tid)
-                    out_bucket.append(bucket.as_key())
-                    out_before.append(outcome.theta_before)
-                    out_after.append(outcome.theta_after)
+                    rows.append(
+                        (
+                            tid,
+                            bucket.as_key(),
+                            outcome.theta_before,
+                            outcome.theta_after,
+                        )
+                    )
 
                 tracker.flush(counts)
-                yield pd.DataFrame(
-                    {
-                        "feature_bucket": out_bucket,
-                        "theta_before": out_before,
-                        "theta_after": out_after,
-                        "table_id": out_table,
-                    }
+                if not rows:
+                    # Yield empty DataFrame with correct schema including weight
+                    yield pd.DataFrame(
+                        {
+                            "feature_bucket": pd.Series(dtype="string"),
+                            "theta_before": pd.Series(dtype="float64"),
+                            "theta_after": pd.Series(dtype="float64"),
+                            "weight": pd.Series(dtype="float64"),
+                            "table_id": pd.Series(dtype="string"),
+                        }
+                    )
+                    continue
+
+                # Aggregate by (feature_bucket, theta_before, theta_after, table_id)
+                # and compute weight = 1/count
+                df = pd.DataFrame(
+                    rows,
+                    columns=["table_id", "feature_bucket", "theta_before", "theta_after"],
                 )
+                # Group and compute weight
+                grouped = (
+                    df.groupby(["feature_bucket", "theta_before", "theta_after", "table_id"])
+                    .size()
+                    .reset_index(name="count")
+                )
+                grouped["weight"] = 1.0 / grouped["count"]
+                # Select columns in the correct order
+                yield grouped[
+                    ["feature_bucket", "theta_before", "theta_after", "weight", "table_id"]
+                ]
 
         result_schema = _stats_schema_without_error_type()
         with (
@@ -209,7 +236,8 @@ class CorpusStatsBuilder:
             tdf = broadcast_tdf.value
             for batch in batches:
                 counts = FailureCounts()
-                out_bucket, out_before, out_after, out_table = [], [], [], []
+                # Collect scored results first
+                rows = []
                 for tid, vals, n, idx in zip(
                     batch["table_id"],
                     batch["values"],
@@ -223,20 +251,46 @@ class CorpusStatsBuilder:
                     if scored is None:
                         continue
                     bucket, outcome = scored
-                    out_table.append(tid)
-                    out_bucket.append(bucket.as_key())
-                    out_before.append(outcome.theta_before)
-                    out_after.append(outcome.theta_after)
+                    rows.append(
+                        (
+                            tid,
+                            bucket.as_key(),
+                            outcome.theta_before,
+                            outcome.theta_after,
+                        )
+                    )
 
                 tracker.flush(counts)
-                yield pd.DataFrame(
-                    {
-                        "feature_bucket": out_bucket,
-                        "theta_before": out_before,
-                        "theta_after": out_after,
-                        "table_id": out_table,
-                    }
+                if not rows:
+                    # Yield empty DataFrame with correct schema including weight
+                    yield pd.DataFrame(
+                        {
+                            "feature_bucket": pd.Series(dtype="string"),
+                            "theta_before": pd.Series(dtype="float64"),
+                            "theta_after": pd.Series(dtype="float64"),
+                            "weight": pd.Series(dtype="float64"),
+                            "table_id": pd.Series(dtype="string"),
+                        }
+                    )
+                    continue
+
+                # Aggregate by (feature_bucket, theta_before, theta_after, table_id)
+                # and compute weight = 1/count
+                df = pd.DataFrame(
+                    rows,
+                    columns=["table_id", "feature_bucket", "theta_before", "theta_after"],
                 )
+                # Group and compute weight
+                grouped = (
+                    df.groupby(["feature_bucket", "theta_before", "theta_after", "table_id"])
+                    .size()
+                    .reset_index(name="count")
+                )
+                grouped["weight"] = 1.0 / grouped["count"]
+                # Select columns in the correct order
+                yield grouped[
+                    ["feature_bucket", "theta_before", "theta_after", "weight", "table_id"]
+                ]
 
         result_schema = _stats_schema_without_error_type()
         # Keep Arrow limit active through the ENTIRE pipeline: mapInPandas, cache

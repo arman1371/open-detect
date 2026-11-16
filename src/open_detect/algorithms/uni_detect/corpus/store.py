@@ -127,14 +127,26 @@ class CorpusStatsStore:
             (Laplace-smoothed). Candidates whose feature bucket has no
             corpus support at all get ``lr_ratio == 1.0`` (maximally
             un-surprising), consistent with "assume clean absent evidence".
+
+        OPE-92: This method now uses the pre-aggregated ``weight`` column
+        from the corpus stats table to compute weighted counts instead of
+        materializing cross-products. The corpus is pre-aggregated by
+        ``(feature_bucket, theta_before, theta_after)`` with weight = 1/count,
+        so the weighted sum equals the original row count.
+
+        OPE-92: Candidates are deduplicated by ``(feature_bucket, theta1, theta2)``
+        before scoring to avoid redundant computation. The distinct triples are
+        scored once, then joined back to the original candidates.
         """
         from pyspark.sql import functions as F
 
         with log_duration(logger, f"batch_score[{error_type.value}]"):
+            # Load corpus with weight column
             corpus = self.load(error_type).select(
                 F.col("feature_bucket"),
                 F.col("theta_before").alias("corpus_before"),
                 F.col("theta_after").alias("corpus_after"),
+                F.col("weight"),
             )
             cand = candidates.select(
                 "candidate_id",
@@ -143,9 +155,22 @@ class CorpusStatsStore:
                 F.col("theta_after").alias("theta2"),
             )
 
-            relevant_buckets = F.broadcast(cand.select("feature_bucket").distinct())
+            # OPE-92: Deduplicate candidates by (feature_bucket, theta1, theta2)
+            # Create a deduplication key and score only distinct triples
+            dedup_key = "candidate_dedup_key"
+            cand = cand.withColumn(
+                dedup_key,
+                F.concat_ws("|", "feature_bucket", "theta1", "theta2"),
+            )
+            distinct_cand = cand.select("feature_bucket", "theta1", "theta2", dedup_key).distinct()
+
+            # OPE-92: Use left_semi join to restrict corpus to buckets present in candidates
+            # instead of broadcasting all candidates. Broadcast only the distinct bucket list.
+            relevant_buckets = F.broadcast(distinct_cand.select("feature_bucket").distinct())
             corpus_relevant = corpus.join(relevant_buckets, on="feature_bucket", how="inner")
-            joined = corpus_relevant.join(F.broadcast(cand), on="feature_bucket", how="inner")
+
+            # Join with distinct candidates on feature_bucket
+            joined = corpus_relevant.join(F.broadcast(distinct_cand), on="feature_bucket", how="inner")
 
             if direction is ComparisonDirection.INCREASING:
                 numerator_cond = (F.col("corpus_before") <= F.col("theta1")) & (
@@ -158,21 +183,28 @@ class CorpusStatsStore:
                 )
                 denominator_cond = F.col("corpus_before") >= F.col("theta2")
 
-            counts = joined.groupBy("candidate_id").agg(
-                F.sum(F.when(numerator_cond, 1).otherwise(0)).alias("numerator_count"),
-                F.sum(F.when(denominator_cond, 1).otherwise(0)).alias("denominator_count"),
+            # OPE-92: Use weighted sum instead of count
+            # weight = 1/count where count is the number of corpus rows with same
+            # (feature_bucket, theta_before, theta_after). Summing weight gives
+            # the same result as counting individual rows.
+            counts = joined.groupBy(dedup_key).agg(
+                F.sum(F.when(numerator_cond, F.col("weight")).otherwise(0)).alias("numerator_count"),
+                F.sum(F.when(denominator_cond, F.col("weight")).otherwise(0)).alias("denominator_count"),
                 F.count(F.lit(1)).alias("bucket_support"),
             )
 
-            smoothing = float(self.config.laplace_smoothing)
-            scored = (
-                cand.select("candidate_id")
-                .join(counts, on="candidate_id", how="left")
-                .fillna({"numerator_count": 0, "denominator_count": 0, "bucket_support": 0})
+            # Join scores back to original candidates via dedup_key
+            scored_distinct = (
+                counts
                 .withColumn(
                     "lr_ratio",
-                    (F.col("numerator_count") + F.lit(smoothing))
-                    / (F.col("denominator_count") + F.lit(smoothing)),
+                    (F.col("numerator_count") + F.lit(float(self.config.laplace_smoothing)))
+                    / (F.col("denominator_count") + F.lit(float(self.config.laplace_smoothing))),
                 )
+            )
+            scored = (
+                cand.join(scored_distinct, on=dedup_key, how="left")
+                .fillna({"numerator_count": 0, "denominator_count": 0, "bucket_support": 0, "lr_ratio": 1.0})
+                .select("candidate_id", "numerator_count", "denominator_count", "bucket_support", "lr_ratio")
             )
         return scored
