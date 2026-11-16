@@ -73,4 +73,3 @@ CORPUS_STATS_SCHEMA = StructType(
         StructField("table_id", StringType(), nullable=True),
     ]
 )
-

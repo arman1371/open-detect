@@ -170,7 +170,9 @@ class CorpusStatsStore:
             corpus_relevant = corpus.join(relevant_buckets, on="feature_bucket", how="inner")
 
             # Join with distinct candidates on feature_bucket
-            joined = corpus_relevant.join(F.broadcast(distinct_cand), on="feature_bucket", how="inner")
+            joined = corpus_relevant.join(
+                F.broadcast(distinct_cand), on="feature_bucket", how="inner"
+            )
 
             if direction is ComparisonDirection.INCREASING:
                 numerator_cond = (F.col("corpus_before") <= F.col("theta1")) & (
@@ -188,23 +190,37 @@ class CorpusStatsStore:
             # (feature_bucket, theta_before, theta_after). Summing weight gives
             # the same result as counting individual rows.
             counts = joined.groupBy(dedup_key).agg(
-                F.sum(F.when(numerator_cond, F.col("weight")).otherwise(0)).alias("numerator_count"),
-                F.sum(F.when(denominator_cond, F.col("weight")).otherwise(0)).alias("denominator_count"),
+                F.sum(F.when(numerator_cond, F.col("weight")).otherwise(0)).alias(
+                    "numerator_count"
+                ),
+                F.sum(F.when(denominator_cond, F.col("weight")).otherwise(0)).alias(
+                    "denominator_count"
+                ),
                 F.count(F.lit(1)).alias("bucket_support"),
             )
 
             # Join scores back to original candidates via dedup_key
-            scored_distinct = (
-                counts
-                .withColumn(
-                    "lr_ratio",
-                    (F.col("numerator_count") + F.lit(float(self.config.laplace_smoothing)))
-                    / (F.col("denominator_count") + F.lit(float(self.config.laplace_smoothing))),
-                )
+            scored_distinct = counts.withColumn(
+                "lr_ratio",
+                (F.col("numerator_count") + F.lit(float(self.config.laplace_smoothing)))
+                / (F.col("denominator_count") + F.lit(float(self.config.laplace_smoothing))),
             )
             scored = (
                 cand.join(scored_distinct, on=dedup_key, how="left")
-                .fillna({"numerator_count": 0, "denominator_count": 0, "bucket_support": 0, "lr_ratio": 1.0})
-                .select("candidate_id", "numerator_count", "denominator_count", "bucket_support", "lr_ratio")
+                .fillna(
+                    {
+                        "numerator_count": 0,
+                        "denominator_count": 0,
+                        "bucket_support": 0,
+                        "lr_ratio": 1.0,
+                    }
+                )
+                .select(
+                    "candidate_id",
+                    "numerator_count",
+                    "denominator_count",
+                    "bucket_support",
+                    "lr_ratio",
+                )
             )
         return scored
