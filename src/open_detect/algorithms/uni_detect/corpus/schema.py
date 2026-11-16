@@ -20,6 +20,8 @@ from pyspark.sql.types import (
 #: One row per (table, column) in the background corpus T -- the canonical
 #: representation every metric/featurization function in this package
 #: consumes. Produced by :class:`open_detect.algorithms.uni_detect.corpus.ingestion.CorpusIngestor`.
+#: Note: column_data_type is nullable for backward compatibility with existing Delta tables.
+#: Existing tables remain readable without rebuild (additive nullable column).
 CORPUS_COLUMNS_SCHEMA = StructType(
     [
         StructField("table_id", StringType(), nullable=False),
@@ -27,7 +29,7 @@ CORPUS_COLUMNS_SCHEMA = StructType(
         StructField("column_index", IntegerType(), nullable=False),
         StructField("num_rows", IntegerType(), nullable=False),
         StructField("values", ArrayType(StringType()), nullable=False),
-        StructField("column_data_type", StringType(), nullable=False),
+        StructField("column_data_type", StringType(), nullable=True),
     ]
 )
 
