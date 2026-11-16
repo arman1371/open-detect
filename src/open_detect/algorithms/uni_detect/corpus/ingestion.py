@@ -179,9 +179,130 @@ class CorpusIngestor:
 
         return self.spark.createDataFrame(rows, schema=CORPUS_COLUMNS_SCHEMA)
 
+    def _per_table_column_frame_with_pairs(
+        self, fqn: str
+    ) -> tuple[DataFrame | None, list[DataFrame]]:
+        """Return both column frame and pair frames from one aggregation."""
+        from pyspark.sql import functions as F
+
+        df = self.spark.table(fqn)
+        fields = df.schema.fields
+        if not fields:
+            return None, []
+
+        col_names = [f.name for f in fields]
+        cast_df = df.select(*[F.col(f"`{c}`").cast("string").alias(c) for c in col_names])
+
+        # Single agg for all column values
+        agg_exprs = [
+            F.slice(
+                F.array_sort(F.collect_list(F.col(c))),
+                1,
+                self.max_values_per_column,
+            ).alias(f"values_{idx}")
+            for idx, c in enumerate(col_names)
+        ]
+        all_values_row = cast_df.agg(*agg_exprs).first()
+        if all_values_row is None:
+            return None, []
+
+        num_rows = df.count()
+        if num_rows == 0:
+            return None, []
+
+        # Build per-column rows from the single-scan result
+        rows = []
+        for idx, field in enumerate(fields):
+            col_name = field.name
+            values = all_values_row[f"values_{idx}"] or []
+            col_type = infer_column_data_type(values)
+            rows.append(
+                (
+                    fqn,
+                    col_name,
+                    idx,
+                    num_rows,
+                    values,
+                    col_type.value,
+                )
+            )
+
+        col_frame = self.spark.createDataFrame(rows, schema=CORPUS_COLUMNS_SCHEMA)
+
+        # Build pair frames from the same collected values (no re-scan)
+        pair_frames: list[DataFrame] = []
+        if len(col_names) >= 2:
+            pairs = select_fd_column_pairs(fqn, col_names, self.max_fd_column_pairs_per_table)
+            for lhs_idx, rhs_idx in pairs:
+                lhs_col, rhs_col = col_names[lhs_idx], col_names[rhs_idx]
+                lhs_values = all_values_row[f"values_{lhs_idx}"] or []
+                rhs_values = all_values_row[f"values_{rhs_idx}"] or []
+
+                # Align nulls: only keep rows where both sides are non-null
+                aligned_pairs = [
+                    (lhs, rhs)
+                    for lhs, rhs in zip(lhs_values, rhs_values, strict=False)
+                    if lhs is not None and rhs is not None
+                ]
+                if not aligned_pairs:
+                    continue
+                aligned_pairs = aligned_pairs[: self.max_values_per_column]
+
+                lhs_aligned, rhs_aligned = zip(*aligned_pairs, strict=True)
+                import pandas as pd
+
+                pair_pdf = pd.DataFrame(
+                    {
+                        "table_id": fqn,
+                        "lhs_column": lhs_col,
+                        "rhs_column": rhs_col,
+                        "rhs_column_index": rhs_idx,
+                        "num_rows": num_rows,
+                        "lhs_values": [list(lhs_aligned)],
+                        "rhs_values": [list(rhs_aligned)],
+                    }
+                )
+                pair_frame = self.spark.createDataFrame(pair_pdf, schema=CORPUS_PAIRS_SCHEMA)
+                pair_frames.append(pair_frame)
+
+        return col_frame, pair_frames
+
     def _balanced_union(self, frames: list[DataFrame]) -> DataFrame:
         """Combine DataFrames with a balanced union tree to avoid left-deep plans."""
         return balanced_union(frames)
+
+    def ingest_columns_with_pairs(self, table_names: Sequence[str]) -> tuple[DataFrame, DataFrame]:
+        """Build both ``corpus_columns`` and ``corpus_column_pairs`` in a single scan per table.
+
+        This avoids re-scanning tables when both column statistics and FD pair
+        statistics are needed (e.g., during ``build_corpus_statistics`` when
+        both single-column and FD error types are requested).
+        """
+        per_table_column_frames: list[DataFrame] = []
+        per_table_pair_frames: list[DataFrame] = []
+
+        with log_duration(logger, f"ingest_columns_with_pairs({len(table_names)} tables)"):
+            for fqn in table_names:
+                try:
+                    col_frame, pair_frames = self._per_table_column_frame_with_pairs(fqn)
+                except Exception:
+                    logger.exception("Skipping table %s: failed to read/profile it", fqn)
+                    continue
+                if col_frame is not None:
+                    per_table_column_frames.append(col_frame)
+                per_table_pair_frames.extend(pair_frames)
+
+        if not per_table_column_frames:
+            columns_df = self.spark.createDataFrame([], schema=CORPUS_COLUMNS_SCHEMA)
+        else:
+            columns_df = balanced_union(per_table_column_frames)
+
+        if not per_table_pair_frames:
+            pairs_df = self.spark.createDataFrame([], schema=CORPUS_PAIRS_SCHEMA)
+        else:
+            pairs_df = balanced_union(per_table_pair_frames)
+
+        return columns_df, pairs_df
 
     def ingest_column_pairs(self, table_names: Sequence[str]) -> DataFrame:
         """Build the ``corpus_column_pairs`` DataFrame used for FD statistics.

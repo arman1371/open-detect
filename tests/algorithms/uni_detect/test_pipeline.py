@@ -150,13 +150,12 @@ class TestUniDetectDetect:
             result.persist.assert_called_once()
             result.count.assert_called_once()
 
-            # Verify each detector was called
+            # Verify each detector was called - now with shared ingestion DataFrames
             for et in error_types:
-                ud._detectors[et].detect.assert_called_once_with(
-                    ["t1", "t2"],
-                    ingested_columns_df=None,
-                    ingested_pairs_df=None,
-                )
+                call_args, call_kwargs = ud._detectors[et].detect.call_args
+                assert call_args == (["t1", "t2"],)
+                assert call_kwargs["ingested_columns_df"] is not None
+                assert call_kwargs["ingested_pairs_df"] is None
 
             # release() IS called automatically in the finally block to free per-detector
             # caches (scored, joined, result frames) after the unioned result is
@@ -179,11 +178,14 @@ class TestUniDetectDetect:
             ud.detect(table_names=["t1"])
 
             for et in ErrorType:
-                ud._detectors[et].detect.assert_called_once_with(
-                    ["t1"],
-                    ingested_columns_df=None,
-                    ingested_pairs_df=None,
-                )
+                call_args, call_kwargs = ud._detectors[et].detect.call_args
+                assert call_args == (["t1"],)
+                # UNIQUENESS, NUMERIC_OUTLIER, SPELLING need columns
+                if et in (ErrorType.UNIQUENESS, ErrorType.NUMERIC_OUTLIER, ErrorType.SPELLING):
+                    assert call_kwargs["ingested_columns_df"] is not None
+                # FD needs pairs
+                if et == ErrorType.FUNCTIONAL_DEPENDENCY:
+                    assert call_kwargs["ingested_pairs_df"] is not None
 
     def test_detect_validation_error_propagates(self):
         """ValidationError from _validate_inputs should propagate."""

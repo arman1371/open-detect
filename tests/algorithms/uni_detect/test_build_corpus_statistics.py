@@ -50,7 +50,7 @@ def test_build_corpus_statistics_token_path(monkeypatch):
     mock_ingestor = MagicMock()
     mock_columns_df = MagicMock()
     mock_columns_df.cache.return_value = mock_columns_df
-    mock_ingestor.ingest_columns.return_value = mock_columns_df
+    mock_ingestor.ingest_columns_with_pairs.return_value = (mock_columns_df, MagicMock())
     # token stats path
     mock_token_stats = MagicMock()
     mock_ingestor.build_token_stats.return_value = mock_token_stats

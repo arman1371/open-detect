@@ -140,11 +140,19 @@ class UniDetect:
         )
 
         columns_df = None
+        pairs_df = None
         token_map: dict[str, int] = {}
         needs_columns = any(et in _SINGLE_COLUMN_TYPES for et in error_types)
+        needs_pairs = ErrorType.FUNCTIONAL_DEPENDENCY in error_types
         needs_tokens = any(et in _TOKEN_DEPENDENT_TYPES for et in error_types)
 
-        if needs_columns or needs_tokens:
+        # Use single-scan ingestion when both columns and pairs are needed
+        if (needs_columns or needs_tokens) and needs_pairs:
+            with log_duration(logger, "ingest_columns_with_pairs"):
+                columns_df, pairs_df = ingestor.ingest_columns_with_pairs(table_names)
+                columns_df.cache()
+                columns_df.count()  # materialize cache
+        elif needs_columns or needs_tokens:
             with log_duration(logger, "ingest_columns"):
                 columns_df = ingestor.ingest_columns(table_names).cache()
                 columns_df.count()  # materialize the cache deterministically
@@ -171,7 +179,8 @@ class UniDetect:
                 filtered_columns = _filter_by_column_type(_require_columns(columns_df), error_type)
                 stats = builder.build_spelling_stats(filtered_columns)
             elif error_type is ErrorType.FUNCTIONAL_DEPENDENCY:
-                pairs_df = ingestor.ingest_column_pairs(table_names)
+                if pairs_df is None:
+                    pairs_df = ingestor.ingest_column_pairs(table_names)
                 stats = builder.build_fd_stats(pairs_df, token_map)
             else:  # pragma: no cover - exhaustive over ErrorType
                 raise ValidationError(f"Unknown error type: {error_type}")
@@ -179,6 +188,8 @@ class UniDetect:
 
         if columns_df is not None:
             columns_df.unpersist()
+        if pairs_df is not None:
+            pairs_df.unpersist()
 
     # ------------------------------------------------------------------
     # Online: detection phase
