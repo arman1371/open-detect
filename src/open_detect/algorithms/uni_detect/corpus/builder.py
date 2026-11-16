@@ -63,9 +63,7 @@ MIN_NUMERIC_FRACTION = 0.8
 # float-accumulation bug where integer counts were widened to DoubleType by
 # mapInPandas and persisted as doubles despite the LongType declaration.
 def _stats_schema_without_error_type() -> StructType:
-    return StructType(
-        [f for f in CORPUS_STATS_SCHEMA.fields if f.name != "error_type"]
-    )
+    return StructType([f for f in CORPUS_STATS_SCHEMA.fields if f.name != "error_type"])
 
 
 def _aggregate_scored_rows(rows: list[tuple]) -> pd.DataFrame:
@@ -104,8 +102,6 @@ def _aggregate_scored_rows(rows: list[tuple]) -> pd.DataFrame:
     grouped["weight"] = grouped["weight"].astype("int64")
     # Select columns in the correct order
     return grouped[["feature_bucket", "theta_before", "theta_after", "weight", "table_id"]]
-
-
 
 
 class CorpusStatsBuilder:
