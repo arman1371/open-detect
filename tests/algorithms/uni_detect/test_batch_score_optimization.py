@@ -118,14 +118,21 @@ class TestBatchScoreOptimization:
         ).saveAsTable(fqn)
 
     def _make_config_with_fqn(self, config: UniDetectConfig, fqn: str) -> UniDetectConfig:
-        """Create a config with corpus_stats_fqn set to the test table."""
-        # Create a new config with the test FQN
+        """Create a config with corpus_stats_fqn set to the test table.
+
+        ``corpus_stats_fqn`` is a derived property of ``UniDetectConfig``
+        (``location.catalog.schema.corpus_stats_table``), so the test table
+        name is passed via ``corpus_stats_table`` against the same catalog/schema.
+        """
+        from open_detect.algorithms.uni_detect.config import UnityCatalogLocation
+
+        catalog, schema, table = fqn.split(".", 2)
         return UniDetectConfig(
-            location=config.location,
+            location=UnityCatalogLocation(catalog=catalog, schema=schema),
             epsilon=config.epsilon,
             alpha=config.alpha,
             laplace_smoothing=config.laplace_smoothing,
-            corpus_stats_fqn=fqn,
+            corpus_stats_table=table,
         )
 
     def test_weighted_sum_equivalence_increasing(self, spark: SparkSession, uc_location, config):
