@@ -25,7 +25,7 @@ import weakref
 from typing import TYPE_CHECKING
 
 import pandas as pd
-from pyspark.sql.types import DoubleType, LongType, StringType, StructField, StructType
+from pyspark.sql.types import StructType
 
 from open_detect.algorithms.uni_detect.config import UniDetectConfig
 from open_detect.algorithms.uni_detect.core.enums import ErrorType
@@ -56,17 +56,16 @@ logger = get_logger(__name__)
 MIN_NUMERIC_FRACTION = 0.8
 
 
-# Schema for the output of mapInPandas functions (without error_type, added later)
-# Uses LongType for weight to match CORPUS_STATS_SCHEMA and avoid float accumulation
-_STATS_SCHEMA_WITHOUT_ERROR_TYPE = StructType(
-    [
-        StructField("feature_bucket", StringType(), nullable=False),
-        StructField("theta_before", DoubleType(), nullable=False),
-        StructField("theta_after", DoubleType(), nullable=False),
-        StructField("weight", LongType(), nullable=False),
-        StructField("table_id", StringType(), nullable=True),
-    ]
-)
+# Schema for the output of mapInPandas functions (without error_type, added later).
+# Derived from the canonical CORPUS_STATS_SCHEMA so the builder's mapInPandas
+# output, the persisted Delta table, and the read-side store all agree on the
+# weight column type (LongType). Keeping one source of truth avoids the
+# float-accumulation bug where integer counts were widened to DoubleType by
+# mapInPandas and persisted as doubles despite the LongType declaration.
+def _stats_schema_without_error_type() -> StructType:
+    return StructType(
+        [f for f in CORPUS_STATS_SCHEMA.fields if f.name != "error_type"]
+    )
 
 
 def _aggregate_scored_rows(rows: list[tuple]) -> pd.DataFrame:
@@ -107,8 +106,6 @@ def _aggregate_scored_rows(rows: list[tuple]) -> pd.DataFrame:
     return grouped[["feature_bucket", "theta_before", "theta_after", "weight", "table_id"]]
 
 
-def _stats_schema_without_error_type():
-    return _STATS_SCHEMA_WITHOUT_ERROR_TYPE
 
 
 class CorpusStatsBuilder:
