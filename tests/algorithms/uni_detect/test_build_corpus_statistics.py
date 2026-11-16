@@ -50,7 +50,9 @@ def test_build_corpus_statistics_token_path(monkeypatch):
     mock_ingestor = MagicMock()
     mock_columns_df = MagicMock()
     mock_columns_df.cache.return_value = mock_columns_df
-    mock_ingestor.ingest_columns.return_value = mock_columns_df
+    mock_pairs_df = MagicMock()
+    # For FD, we need both columns and pairs from single-scan ingestion
+    mock_ingestor.ingest_columns_with_pairs.return_value = (mock_columns_df, mock_pairs_df)
     # token stats path
     mock_token_stats = MagicMock()
     mock_ingestor.build_token_stats.return_value = mock_token_stats
@@ -71,6 +73,8 @@ def test_build_corpus_statistics_token_path(monkeypatch):
         ["t1"],
         error_types=[ErrorType.FUNCTIONAL_DEPENDENCY],
     )
+    # Verify single-scan ingestion with pairs was called
+    mock_ingestor.ingest_columns_with_pairs.assert_called_once_with(["t1"])
     # Verify token stats building was called
     mock_ingestor.build_token_stats.assert_called_once()
     # Ensure columns were still cached and unpersisted

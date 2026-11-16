@@ -115,7 +115,7 @@ def spark() -> Iterator[pyspark.sql.SparkSession]:  # noqa: F821
 
     warehouse_dir = tempfile.mkdtemp(prefix="open_detect-warehouse-")
     builder = (
-        SparkSession.builder.master("local[2]")
+        SparkSession.builder.master("local[1]")
         .appName("open_detect-tests")
         .config("spark.sql.warehouse.dir", warehouse_dir)
         .config("spark.sql.shuffle.partitions", "2")
@@ -126,12 +126,15 @@ def spark() -> Iterator[pyspark.sql.SparkSession]:  # noqa: F821
         # Mirrors benchmarks/common/spark_session.py, which bumped this for the
         # same reason (corpus/store.py's load_token_stats_map() pre-sizes an
         # ordering buffer proportional to max_tokens; default 500k fits in 4g).
-        # CI runners have limited memory (7GB total), so use smaller heaps to fit.
+        # CI runners have limited memory (7GB total), so use a single executor
+        # thread with more memory to avoid Delta log replay OOM.
         .config("spark.driver.memory", "2g")
-        .config("spark.executor.memory", "3g")
+        .config("spark.executor.memory", "4g")
         # Delta replays its transaction log with this many partitions on every
         # snapshot load (default 50) -- pure overhead for tiny test tables.
         .config("spark.databricks.delta.snapshotPartitions", "2")
+        # Enable frequent checkpointing to keep Delta log size small in tests.
+        .config("spark.databricks.delta.checkpointInterval", "1")
         .config("spark.ui.enabled", "false")
         .config("spark.sql.extensions", "io.delta.sql.DeltaSparkSessionExtension")
         .config(

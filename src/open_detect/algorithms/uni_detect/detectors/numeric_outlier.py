@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from open_detect.algorithms.uni_detect.core.enums import ColumnDataType, ErrorType
+from open_detect.algorithms.uni_detect.core.enums import ErrorType
 from open_detect.algorithms.uni_detect.detectors.base import BaseDetector
 from open_detect.algorithms.uni_detect.detectors.schema import CANDIDATE_SCHEMA
 from open_detect.algorithms.uni_detect.failures import FailureCounts
@@ -95,9 +95,12 @@ class NumericOutlierDetector(BaseDetector):
         from pyspark.sql import functions as F
 
         # Filter to numeric-only columns for outlier detection
-        # Same logic as CorpusStatsBuilder.build_outlier_stats: only INTEGER and FLOAT
-        numeric_type_values = [t.value for t in ColumnDataType if t in (ColumnDataType.INTEGER, ColumnDataType.FLOAT)]
-        filtered_columns = columns_df.filter(F.col("column_data_type").isin(numeric_type_values))
+        from open_detect.algorithms.uni_detect.core.enums import ColumnDataType
+
+        numeric_types = {ColumnDataType.INTEGER, ColumnDataType.FLOAT}
+        filtered_columns = columns_df.filter(
+            F.col("column_data_type").isin([t.value for t in numeric_types])
+        )
 
         # ARROW_MAX_RECORDS_PER_BATCH is set by BaseDetector.detect() so it stays
         # active through the lazy execution of mapInPandas and the subsequent count().
