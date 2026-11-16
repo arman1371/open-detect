@@ -285,7 +285,10 @@ class CorpusIngestor:
 
                 if not token_table_pairs:
                     yield pd.DataFrame(
-                        {"token": pd.array([], dtype=StringType()), "table_id": pd.array([], dtype=StringType())}
+                        {
+                            "token": pd.array([], dtype=StringType()),
+                            "table_id": pd.array([], dtype=StringType()),
+                        }
                     )
                     continue
 
@@ -310,7 +313,10 @@ class CorpusIngestor:
                 for batch in batches:
                     if len(batch) == 0:
                         yield pd.DataFrame(
-                            {"token": pd.array([], dtype=StringType()), "doc_frequency": pd.array([], dtype="int64")}
+                            {
+                                "token": pd.array([], dtype=StringType()),
+                                "doc_frequency": pd.array([], dtype="int64"),
+                            }
                         )
                         continue
                     grouped = batch.groupby("token")["table_id"].nunique().reset_index()
