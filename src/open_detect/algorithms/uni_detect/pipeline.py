@@ -140,11 +140,19 @@ class UniDetect:
         )
 
         columns_df = None
+        pairs_df = None
         token_map: dict[str, int] = {}
         needs_columns = any(et in _SINGLE_COLUMN_TYPES for et in error_types)
+        needs_pairs = ErrorType.FUNCTIONAL_DEPENDENCY in error_types
         needs_tokens = any(et in _TOKEN_DEPENDENT_TYPES for et in error_types)
 
-        if needs_columns or needs_tokens:
+        # Use single-scan ingestion when both columns and pairs are needed
+        if (needs_columns or needs_tokens) and needs_pairs:
+            with log_duration(logger, "ingest_columns_with_pairs"):
+                columns_df, pairs_df = ingestor.ingest_columns_with_pairs(table_names)
+                columns_df.cache()
+                columns_df.count()  # materialize cache
+        elif needs_columns or needs_tokens:
             with log_duration(logger, "ingest_columns"):
                 columns_df = ingestor.ingest_columns(table_names).cache()
                 columns_df.count()  # materialize the cache deterministically
@@ -171,7 +179,8 @@ class UniDetect:
                 filtered_columns = _filter_by_column_type(_require_columns(columns_df), error_type)
                 stats = builder.build_spelling_stats(filtered_columns)
             elif error_type is ErrorType.FUNCTIONAL_DEPENDENCY:
-                pairs_df = ingestor.ingest_column_pairs(table_names)
+                if pairs_df is None:
+                    pairs_df = ingestor.ingest_column_pairs(table_names)
                 stats = builder.build_fd_stats(pairs_df, token_map)
             else:  # pragma: no cover - exhaustive over ErrorType
                 raise ValidationError(f"Unknown error type: {error_type}")
@@ -179,6 +188,8 @@ class UniDetect:
 
         if columns_df is not None:
             columns_df.unpersist()
+        if pairs_df is not None:
+            pairs_df.unpersist()
 
     # ------------------------------------------------------------------
     # Online: detection phase
@@ -231,6 +242,9 @@ class UniDetect:
             scoped_conf,
         )
 
+        # Constant for repartitioning before mapInPandas to avoid single-row partitions
+        INGESTION_REPARTITION_FACTOR = 4
+
         error_types = tuple(error_types) if error_types else tuple(ErrorType)
         frames = []
         result = None
@@ -250,6 +264,39 @@ class UniDetect:
                     shared_columns_df = ingested_columns_df
                 if ingested_pairs_df is not None:
                     shared_pairs_df = ingested_pairs_df
+
+                # Perform single-scan ingestion if not provided by caller
+                needs_columns = any(et in _SINGLE_COLUMN_TYPES for et in error_types)
+                needs_pairs = ErrorType.FUNCTIONAL_DEPENDENCY in error_types
+
+                if needs_columns and shared_columns_df is None:
+                    ingestor = CorpusIngestor(
+                        self.spark,
+                        max_values_per_column=self.config.max_mpd_block_size * 200,
+                        max_fd_column_pairs_per_table=self.config.max_fd_column_pairs_per_table,
+                    )
+                    # Use repartition to spread work across cores and avoid single-row partitions
+                    parallelism = self.spark.sparkContext.defaultParallelism
+                    shared_columns_df = (
+                        ingestor.ingest_columns(table_names)
+                        .repartition(parallelism * INGESTION_REPARTITION_FACTOR)
+                        .cache()
+                    )
+                    shared_columns_df.count()  # materialize cache
+
+                if needs_pairs and shared_pairs_df is None:
+                    if "ingestor" not in locals():
+                        ingestor = CorpusIngestor(
+                            self.spark,
+                            max_values_per_column=self.config.max_mpd_block_size * 200,
+                            max_fd_column_pairs_per_table=self.config.max_fd_column_pairs_per_table,
+                        )
+                    shared_pairs_df = (
+                        ingestor.ingest_column_pairs(table_names)
+                        .repartition(parallelism * INGESTION_REPARTITION_FACTOR)
+                        .cache()
+                    )
+                    shared_pairs_df.count()  # materialize cache
 
                 for et in error_types:
                     frame = self._detectors[et].detect(
@@ -287,6 +334,13 @@ class UniDetect:
             # error to avoid memory leaks from accumulated persisted frames.
             for detector in (self._detectors[et] for et in error_types):
                 detector.release()
+            # Release shared ingestion DataFrames
+            if shared_columns_df is not None and ingested_columns_df is None:
+                with suppress(Exception):
+                    shared_columns_df.unpersist()
+            if shared_pairs_df is not None and ingested_pairs_df is None:
+                with suppress(Exception):
+                    shared_pairs_df.unpersist()
 
     def release(self) -> None:
         """Release all cached detector resources.
