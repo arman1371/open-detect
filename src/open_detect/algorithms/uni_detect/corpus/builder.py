@@ -405,10 +405,11 @@ class CorpusStatsBuilder:
                     if existing_partition.count() > 0:
                         # Add weight column with default 1
                         existing_partition = existing_partition.withColumn("weight", F.lit(1))
-                        # Write back to the same partition
+                        # Write back to the same partition with schema evolution enabled
+                        # since the existing table is missing the weight column
                         existing_partition.write.format("delta").mode("overwrite").option(
                             "replaceWhere", f"error_type = '{et_str}'"
-                        ).saveAsTable(fqn)
+                        ).option("overwriteSchema", "true").saveAsTable(fqn)
                 # Reload table to get updated schema
                 existing_table = self.spark.table(fqn)
 
