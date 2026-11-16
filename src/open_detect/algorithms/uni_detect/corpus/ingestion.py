@@ -24,12 +24,19 @@ from collections.abc import Sequence
 from itertools import permutations
 from typing import TYPE_CHECKING
 
+import pandas as pd
+
 from open_detect.algorithms.uni_detect.corpus.schema import (
     CORPUS_COLUMNS_SCHEMA,
     CORPUS_PAIRS_SCHEMA,
     TOKEN_STATS_SCHEMA,
 )
-from open_detect.algorithms.uni_detect.text_utils import infer_column_data_type
+from open_detect.algorithms.uni_detect.spark_utils import (
+    ARROW_MAX_RECORDS_PER_BATCH,
+    ARROW_MAX_RECORDS_PER_BATCH_KEY,
+    scoped_conf,
+)
+from open_detect.algorithms.uni_detect.text_utils import infer_column_data_type, tokenize
 from open_detect.logging_utils import get_logger, log_duration
 
 if TYPE_CHECKING:
@@ -258,20 +265,64 @@ class CorpusIngestor:
         rows/values) it appears in, matching the paper's ``Prev`` definition
         (Sec. 3.3: "the number of times the tokens in C occur in other
         tables").
+
+        Uses ``mapInPandas`` with Arrow batch limits to avoid OOM on large
+        corpora (CI runner: 7GB total, 2g driver / 3g executor).
         """
-        from pyspark.sql import functions as F
+        from pyspark.sql.types import StringType
 
-        from open_detect.algorithms.uni_detect.text_utils import tokenize
+        def compute_token_counts(batches):
+            for batch in batches:
+                token_table_pairs: list[tuple[str, str]] = []
+                for tid, vals in zip(batch["table_id"], batch["values"], strict=True):
+                    if vals is None:
+                        continue
+                    for v in vals:
+                        if v is None:
+                            continue
+                        for tok in tokenize(v.lower()):
+                            token_table_pairs.append((tok, tid))
 
-        tokenize_udf = F.udf(lambda s: tokenize(s) if s else [], "array<string>")
+                if not token_table_pairs:
+                    yield pd.DataFrame(
+                        {"token": pd.array([], dtype=StringType()), "table_id": pd.array([], dtype=StringType())}
+                    )
+                    continue
 
-        exploded = (
-            corpus_columns.select("table_id", F.explode("values").alias("value"))
-            .where(F.col("value").isNotNull())
-            .select("table_id", F.explode(tokenize_udf(F.lower(F.col("value")))).alias("token"))
-            .dropDuplicates(["table_id", "token"])
-        )
-        return exploded.groupBy("token").agg(F.count("*").alias("doc_frequency"))
+                pdf = pd.DataFrame(token_table_pairs, columns=["token", "table_id"])
+                # Deduplicate per (token, table_id) locally in the batch
+                pdf = pdf.drop_duplicates(subset=["token", "table_id"])
+                yield pdf[["token", "table_id"]]
+
+        # Use mapInPandas with Arrow batch limit to bound memory
+        with scoped_conf(
+            self.spark,
+            **{ARROW_MAX_RECORDS_PER_BATCH_KEY: str(ARROW_MAX_RECORDS_PER_BATCH)},
+        ):
+            # First stage: (token, table_id) pairs per partition
+            intermediate = corpus_columns.select("table_id", "values").mapInPandas(
+                compute_token_counts,
+                schema="token string, table_id string",
+            )
+
+            # Second stage: group by token and count distinct table_ids
+            def count_tables(batches):
+                for batch in batches:
+                    if len(batch) == 0:
+                        yield pd.DataFrame(
+                            {"token": pd.array([], dtype=StringType()), "doc_frequency": pd.array([], dtype="int64")}
+                        )
+                        continue
+                    grouped = batch.groupby("token")["table_id"].nunique().reset_index()
+                    grouped.columns = ["token", "doc_frequency"]
+                    yield grouped
+
+            result = intermediate.mapInPandas(
+                count_tables,
+                schema="token string, doc_frequency long",
+            )
+
+        return result
 
     @staticmethod
     def token_stats_schema():
