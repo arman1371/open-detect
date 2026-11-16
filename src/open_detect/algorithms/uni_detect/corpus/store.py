@@ -164,11 +164,12 @@ class CorpusStatsStore:
 
         with log_duration(logger, f"batch_score[{error_type.value}]"):
             # Load corpus with weight column
+            # Keep original column names for use in join conditions
             corpus = self.load(error_type).select(
-                F.col("feature_bucket"),
-                F.col("theta_before").alias("corpus_before"),
-                F.col("theta_after").alias("corpus_after"),
-                F.col("weight"),
+                "feature_bucket",
+                "theta_before",
+                "theta_after",
+                "weight",
             )
             cand = candidates.select(
                 "candidate_id",
@@ -178,8 +179,6 @@ class CorpusStatsStore:
             )
 
             # OPE-92: Deduplicate candidates by (feature_bucket, theta1, theta2)
-            # Use groupBy/join on the three columns directly (null-safe via eqNullSafe if needed)
-            # instead of concat_ws to avoid potential string formatting collisions.
             dedup_cols = ["feature_bucket", "theta1", "theta2"]
             distinct_cand = cand.select(*dedup_cols).distinct()
 
@@ -188,19 +187,23 @@ class CorpusStatsStore:
             relevant_buckets = F.broadcast(distinct_cand.select("feature_bucket").distinct())
             corpus_relevant = corpus.join(relevant_buckets, on="feature_bucket", how="inner")
 
-            # Join with distinct candidates on feature_bucket (and theta1, theta2)
-            joined = corpus_relevant.join(F.broadcast(distinct_cand), on=dedup_cols, how="inner")
+            # Join corpus with distinct candidates on feature_bucket only
+            # This gives us all corpus rows for each candidate's bucket
+            # We then filter by theta conditions and aggregate
+            joined = corpus_relevant.join(
+                F.broadcast(distinct_cand), on="feature_bucket", how="inner"
+            )
 
             if direction is ComparisonDirection.INCREASING:
-                numerator_cond = (F.col("corpus_before") <= F.col("theta1")) & (
-                    F.col("corpus_after") >= F.col("theta2")
+                numerator_cond = (F.col("theta_before") <= F.col("theta1")) & (
+                    F.col("theta_after") >= F.col("theta2")
                 )
-                denominator_cond = F.col("corpus_before") <= F.col("theta2")
+                denominator_cond = F.col("theta_before") <= F.col("theta2")
             else:
-                numerator_cond = (F.col("corpus_before") >= F.col("theta1")) & (
-                    F.col("corpus_after") <= F.col("theta2")
+                numerator_cond = (F.col("theta_before") >= F.col("theta1")) & (
+                    F.col("theta_after") <= F.col("theta2")
                 )
-                denominator_cond = F.col("corpus_before") >= F.col("theta2")
+                denominator_cond = F.col("theta_before") >= F.col("theta2")
 
             # OPE-92: Use weighted sum instead of count
             # weight = count where count is the number of corpus rows with same
