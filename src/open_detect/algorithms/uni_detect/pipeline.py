@@ -269,14 +269,15 @@ class UniDetect:
                 needs_columns = any(et in _SINGLE_COLUMN_TYPES for et in error_types)
                 needs_pairs = ErrorType.FUNCTIONAL_DEPENDENCY in error_types
 
+                # Use repartition to spread work across cores and avoid single-row partitions
+                parallelism = self.spark.sparkContext.defaultParallelism
+
                 if needs_columns and shared_columns_df is None:
                     ingestor = CorpusIngestor(
                         self.spark,
                         max_values_per_column=self.config.max_mpd_block_size * 200,
                         max_fd_column_pairs_per_table=self.config.max_fd_column_pairs_per_table,
                     )
-                    # Use repartition to spread work across cores and avoid single-row partitions
-                    parallelism = self.spark.sparkContext.defaultParallelism
                     shared_columns_df = (
                         ingestor.ingest_columns(table_names)
                         .repartition(parallelism * INGESTION_REPARTITION_FACTOR)
