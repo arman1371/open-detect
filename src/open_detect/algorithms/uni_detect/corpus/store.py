@@ -29,18 +29,12 @@ from open_detect.algorithms.uni_detect.config import UniDetectConfig
 from open_detect.algorithms.uni_detect.core.enums import ComparisonDirection, ErrorType
 from open_detect.algorithms.uni_detect.corpus.build_metadata import verify_build_config
 from open_detect.algorithms.uni_detect.exceptions import CorpusNotFoundError
-from open_detect.algorithms.uni_detect.spark_utils import scoped_conf
 from open_detect.logging_utils import get_logger, log_duration
 
 if TYPE_CHECKING:
     from pyspark.sql import DataFrame, SparkSession
 
 logger = get_logger(__name__)
-
-# Disable automatic broadcast joins to avoid OOM on CI runners with small heaps.
-# Explicit F.broadcast() calls are still used where we know the data is small.
-# See: https://spark.apache.org/docs/latest/sql-performance-tuning.html#broadcast-join
-_AUTO_BROADCAST_DISABLED = {"spark.sql.autoBroadcastJoinThreshold": "-1"}
 
 
 class CorpusStatsStore:
@@ -71,7 +65,13 @@ class CorpusStatsStore:
         return self.spark.catalog.tableExists(self.config.corpus_stats_fqn)
 
     def load(self, error_type: ErrorType) -> DataFrame:
-        """Return the (partition-pruned) corpus statistics for one error type."""
+        """Return the (partition-pruned) corpus statistics for one error type.
+
+        If the corpus table was built before the OPE-92 optimization and lacks the
+        `weight` column, it is added with a default value of 1.0 (each row represents
+        one original corpus row). This maintains backward compatibility; a rebuild
+        is recommended to benefit from pre-aggregation.
+        """
         if not self.table_exists():
             raise CorpusNotFoundError(
                 f"Corpus statistics table {self.config.corpus_stats_fqn!r} does not exist. "
@@ -80,8 +80,23 @@ class CorpusStatsStore:
         from pyspark.sql import functions as F
 
         verify_build_config(self.spark, self.config.corpus_stats_fqn, error_type, self.config)
-        table = self.spark.table(self.config.corpus_stats_fqn)
-        return table.where(F.col("error_type") == error_type.value)
+        table = self.spark.table(self.config.corpus_stats_fqn).where(
+            F.col("error_type") == error_type.value
+        )
+
+        # Backward compatibility: if weight column doesn't exist (corpus built before OPE-92),
+        # add it with default value 1 (each row = one original corpus row).
+        if "weight" not in table.columns:
+            from open_detect.logging_utils import get_logger
+
+            logger = get_logger(__name__)
+            logger.warning(
+                "Corpus statistics table %s is missing 'weight' column (built before OPE-92). "
+                "Adding weight=1 for backward compatibility; rebuild recommended for pre-aggregation benefits.",
+                self.config.corpus_stats_fqn,
+            )
+            table = table.withColumn("weight", F.lit(1))
+        return table
 
     def load_token_stats_map(self, max_tokens: int | None = 500_000) -> dict[str, int]:
         """Collect the token-document-frequency table to the driver as a dict.
@@ -133,19 +148,27 @@ class CorpusStatsStore:
             (Laplace-smoothed). Candidates whose feature bucket has no
             corpus support at all get ``lr_ratio == 1.0`` (maximally
             un-surprising), consistent with "assume clean absent evidence".
+
+        OPE-92: This method now uses the pre-aggregated ``weight`` column
+        from the corpus stats table to compute weighted counts instead of
+        materializing cross-products. The corpus is pre-aggregated by
+        ``(feature_bucket, theta_before, theta_after)`` with weight = count
+        (the number of original corpus rows in that group), so the weighted
+        sum equals the original row count.
+
+        OPE-92: Candidates are deduplicated by ``(feature_bucket, theta1, theta2)``
+        before scoring to avoid redundant computation. The distinct triples are
+        scored once, then joined back to the original candidates.
         """
         from pyspark.sql import functions as F
 
-        # Disable auto-broadcast joins to prevent OOM on CI runners with small heaps.
-        # We use explicit F.broadcast() where data is known to be small.
-        with (
-            log_duration(logger, f"batch_score[{error_type.value}]"),
-            scoped_conf(self.spark, **_AUTO_BROADCAST_DISABLED),
-        ):
+        with log_duration(logger, f"batch_score[{error_type.value}]"):
+            # Load corpus with weight column
             corpus = self.load(error_type).select(
                 F.col("feature_bucket"),
                 F.col("theta_before").alias("corpus_before"),
                 F.col("theta_after").alias("corpus_after"),
+                F.col("weight"),
             )
             cand = candidates.select(
                 "candidate_id",
@@ -154,9 +177,19 @@ class CorpusStatsStore:
                 F.col("theta_after").alias("theta2"),
             )
 
-            relevant_buckets = F.broadcast(cand.select("feature_bucket").distinct())
+            # OPE-92: Deduplicate candidates by (feature_bucket, theta1, theta2)
+            # Use groupBy/join on the three columns directly (null-safe via eqNullSafe if needed)
+            # instead of concat_ws to avoid potential string formatting collisions.
+            dedup_cols = ["feature_bucket", "theta1", "theta2"]
+            distinct_cand = cand.select(*dedup_cols).distinct()
+
+            # OPE-92: Use left_semi join to restrict corpus to buckets present in candidates
+            # instead of broadcasting all candidates. Broadcast only the distinct bucket list.
+            relevant_buckets = F.broadcast(distinct_cand.select("feature_bucket").distinct())
             corpus_relevant = corpus.join(relevant_buckets, on="feature_bucket", how="inner")
-            joined = corpus_relevant.join(F.broadcast(cand), on="feature_bucket", how="inner")
+
+            # Join with distinct candidates on feature_bucket (and theta1, theta2)
+            joined = corpus_relevant.join(F.broadcast(distinct_cand), on=dedup_cols, how="inner")
 
             if direction is ComparisonDirection.INCREASING:
                 numerator_cond = (F.col("corpus_before") <= F.col("theta1")) & (
@@ -169,21 +202,44 @@ class CorpusStatsStore:
                 )
                 denominator_cond = F.col("corpus_before") >= F.col("theta2")
 
-            counts = joined.groupBy("candidate_id").agg(
-                F.sum(F.when(numerator_cond, 1).otherwise(0)).alias("numerator_count"),
-                F.sum(F.when(denominator_cond, 1).otherwise(0)).alias("denominator_count"),
-                F.count(F.lit(1)).alias("bucket_support"),
+            # OPE-92: Use weighted sum instead of count
+            # weight = count where count is the number of corpus rows with same
+            # (feature_bucket, theta_before, theta_after). Summing weight gives
+            # the same result as counting individual rows.
+            # bucket_support should sum weights (not count groups) to match the
+            # original row count semantics exposed as "support" in detectors.
+            counts = joined.groupBy(*dedup_cols).agg(
+                F.sum(F.when(numerator_cond, F.col("weight")).otherwise(0)).alias(
+                    "numerator_count"
+                ),
+                F.sum(F.when(denominator_cond, F.col("weight")).otherwise(0)).alias(
+                    "denominator_count"
+                ),
+                F.sum(F.col("weight")).cast("long").alias("bucket_support"),
             )
 
-            smoothing = float(self.config.laplace_smoothing)
+            # Join scores back to original candidates via dedup_cols
+            scored_distinct = counts.withColumn(
+                "lr_ratio",
+                (F.col("numerator_count") + F.lit(float(self.config.laplace_smoothing)))
+                / (F.col("denominator_count") + F.lit(float(self.config.laplace_smoothing))),
+            )
             scored = (
-                cand.select("candidate_id")
-                .join(counts, on="candidate_id", how="left")
-                .fillna({"numerator_count": 0, "denominator_count": 0, "bucket_support": 0})
-                .withColumn(
+                cand.join(scored_distinct, on=dedup_cols, how="left")
+                .fillna(
+                    {
+                        "numerator_count": 0,
+                        "denominator_count": 0,
+                        "bucket_support": 0,
+                        "lr_ratio": 1.0,
+                    }
+                )
+                .select(
+                    "candidate_id",
+                    "numerator_count",
+                    "denominator_count",
+                    "bucket_support",
                     "lr_ratio",
-                    (F.col("numerator_count") + F.lit(smoothing))
-                    / (F.col("denominator_count") + F.lit(smoothing)),
                 )
             )
         return scored

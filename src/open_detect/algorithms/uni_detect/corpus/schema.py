@@ -57,12 +57,20 @@ TOKEN_STATS_SCHEMA = StructType(
 #: recording its (feature_bucket, theta_before, theta_after) triple. This is
 #: the "learning" phase's only output, and the only thing the online
 #: detectors read (paper Sec. 2.2.3, "System Architecture").
+#:
+#: OPE-92: Added `weight` column to pre-aggregate corpus rows by
+#: (feature_bucket, theta_before, theta_after). Each row's weight is
+#: the count of original corpus rows in the same bucket with
+#: the same (theta_before, theta_after). This enables the online scorer to
+#: compute weighted sums (sum of weight) instead of materializing cross-products.
+#: Weight uses LongType to avoid float accumulation and match support semantics.
 CORPUS_STATS_SCHEMA = StructType(
     [
         StructField("error_type", StringType(), nullable=False),
         StructField("feature_bucket", StringType(), nullable=False),
         StructField("theta_before", DoubleType(), nullable=False),
         StructField("theta_after", DoubleType(), nullable=False),
+        StructField("weight", LongType(), nullable=False),
         StructField("table_id", StringType(), nullable=True),
     ]
 )

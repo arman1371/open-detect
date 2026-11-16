@@ -24,6 +24,9 @@ import math
 import weakref
 from typing import TYPE_CHECKING
 
+import pandas as pd
+from pyspark.sql.types import DoubleType, StringType, StructField, StructType
+
 from open_detect.algorithms.uni_detect.config import UniDetectConfig
 from open_detect.algorithms.uni_detect.core.enums import ErrorType
 from open_detect.algorithms.uni_detect.corpus.build_metadata import write_build_config
@@ -53,10 +56,58 @@ logger = get_logger(__name__)
 MIN_NUMERIC_FRACTION = 0.8
 
 
-def _stats_schema_without_error_type():
-    from pyspark.sql.types import StructType
+# Schema for the output of mapInPandas functions (without error_type, added later)
+_STATS_SCHEMA_WITHOUT_ERROR_TYPE = StructType(
+    [
+        StructField("feature_bucket", StringType(), nullable=False),
+        StructField("theta_before", DoubleType(), nullable=False),
+        StructField("theta_after", DoubleType(), nullable=False),
+        StructField("weight", DoubleType(), nullable=False),
+        StructField("table_id", StringType(), nullable=True),
+    ]
+)
 
-    return StructType([f for f in CORPUS_STATS_SCHEMA.fields if f.name != "error_type"])
+
+def _aggregate_scored_rows(rows: list[tuple]) -> pd.DataFrame:
+    """Aggregate scored rows by (feature_bucket, theta_before, theta_after, table_id)
+    and compute weight = count (number of original corpus rows in each group).
+
+    In batch_score, we sum weight for matching rows; sum(count) = original row count.
+
+    Returns an empty DataFrame with correct schema if rows is empty.
+    """
+    if not rows:
+        return pd.DataFrame(
+            {
+                "feature_bucket": pd.Series(dtype="string"),
+                "theta_before": pd.Series(dtype="float64"),
+                "theta_after": pd.Series(dtype="float64"),
+                "weight": pd.Series(dtype="int64"),
+                "table_id": pd.Series(dtype="string"),
+            }
+        )
+
+    # Aggregate by (feature_bucket, theta_before, theta_after, table_id)
+    # and compute weight = count (number of original corpus rows in this group).
+    # In batch_score, we sum weight for matching rows; sum(count) = original row count.
+    df = pd.DataFrame(
+        rows,
+        columns=["table_id", "feature_bucket", "theta_before", "theta_after"],
+    )
+    # Group and compute weight = count (as int64 for LongType compatibility)
+    grouped = (
+        df.groupby(["feature_bucket", "theta_before", "theta_after", "table_id"])
+        .size()
+        .reset_index(name="weight")
+    )
+    # Ensure weight is int64 (LongType)
+    grouped["weight"] = grouped["weight"].astype("int64")
+    # Select columns in the correct order
+    return grouped[["feature_bucket", "theta_before", "theta_after", "weight", "table_id"]]
+
+
+def _stats_schema_without_error_type():
+    return _STATS_SCHEMA_WITHOUT_ERROR_TYPE
 
 
 class CorpusStatsBuilder:
@@ -125,8 +176,6 @@ class CorpusStatsBuilder:
     def build_fd_stats(
         self, corpus_pairs: DataFrame, token_document_frequency: dict[str, int]
     ) -> DataFrame:
-        import pandas as pd
-
         cfg = self.config
         broadcast_tdf = self.spark.sparkContext.broadcast(token_document_frequency)
 
@@ -136,7 +185,8 @@ class CorpusStatsBuilder:
             tdf = broadcast_tdf.value
             for batch in batches:
                 counts = FailureCounts()
-                out_bucket, out_before, out_after, out_table = [], [], [], []
+                # Collect scored results first
+                rows = []
                 for tid, lhs_vals, rhs_vals, n, rhs_idx in zip(
                     batch["table_id"],
                     batch["lhs_values"],
@@ -157,20 +207,18 @@ class CorpusStatsBuilder:
                     if scored is None:
                         continue
                     bucket, outcome = scored
-                    out_table.append(tid)
-                    out_bucket.append(bucket.as_key())
-                    out_before.append(outcome.theta_before)
-                    out_after.append(outcome.theta_after)
+                    rows.append(
+                        (
+                            tid,
+                            bucket.as_key(),
+                            outcome.theta_before,
+                            outcome.theta_after,
+                        )
+                    )
 
                 tracker.flush(counts)
-                yield pd.DataFrame(
-                    {
-                        "feature_bucket": out_bucket,
-                        "theta_before": out_before,
-                        "theta_after": out_after,
-                        "table_id": out_table,
-                    }
-                )
+                # Use shared helper for aggregation and empty DataFrame construction
+                yield _aggregate_scored_rows(rows)
 
         result_schema = _stats_schema_without_error_type()
         with (
@@ -197,7 +245,6 @@ class CorpusStatsBuilder:
         error_type: ErrorType,
         token_document_frequency: dict[str, int],
     ) -> DataFrame:
-        import pandas as pd
         from pyspark.sql import functions as F
 
         cfg = self.config
@@ -209,7 +256,8 @@ class CorpusStatsBuilder:
             tdf = broadcast_tdf.value
             for batch in batches:
                 counts = FailureCounts()
-                out_bucket, out_before, out_after, out_table = [], [], [], []
+                # Collect scored results first
+                rows = []
                 for tid, vals, n, idx in zip(
                     batch["table_id"],
                     batch["values"],
@@ -223,20 +271,18 @@ class CorpusStatsBuilder:
                     if scored is None:
                         continue
                     bucket, outcome = scored
-                    out_table.append(tid)
-                    out_bucket.append(bucket.as_key())
-                    out_before.append(outcome.theta_before)
-                    out_after.append(outcome.theta_after)
+                    rows.append(
+                        (
+                            tid,
+                            bucket.as_key(),
+                            outcome.theta_before,
+                            outcome.theta_after,
+                        )
+                    )
 
                 tracker.flush(counts)
-                yield pd.DataFrame(
-                    {
-                        "feature_bucket": out_bucket,
-                        "theta_before": out_before,
-                        "theta_after": out_after,
-                        "table_id": out_table,
-                    }
-                )
+                # Use shared helper for aggregation and empty DataFrame construction
+                yield _aggregate_scored_rows(rows)
 
         result_schema = _stats_schema_without_error_type()
         # Keep Arrow limit active through the ENTIRE pipeline: mapInPandas, cache
