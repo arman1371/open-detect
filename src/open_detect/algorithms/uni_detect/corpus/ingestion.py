@@ -29,6 +29,7 @@ from open_detect.algorithms.uni_detect.corpus.schema import (
     CORPUS_PAIRS_SCHEMA,
     TOKEN_STATS_SCHEMA,
 )
+from open_detect.algorithms.uni_detect.text_utils import infer_column_data_type
 from open_detect.logging_utils import get_logger, log_duration
 
 if TYPE_CHECKING:
@@ -58,6 +59,22 @@ def select_fd_column_pairs(
 
     candidates = permutations(range(len(column_names)), 2)
     return heapq.nsmallest(max_pairs, candidates, key=sort_key)
+
+
+def balanced_union(frames: list[DataFrame]) -> DataFrame:
+    """Combine DataFrames with a balanced binary union tree.
+
+    A naive ``reduce(lambda a, b: a.unionByName(b), frames)`` produces a
+    left-deep plan whose depth equals the number of frames; on thousands of
+    tables that is a quadratic plan-blow-up risk. This halves the depth at
+    each level (``ceil(log2(N))`` total) by unioning the two halves of the
+    list recursively. Pair/column content is unchanged -- only the plan shape
+    differs.
+    """
+    if len(frames) == 1:
+        return frames[0]
+    mid = len(frames) // 2
+    return balanced_union(frames[:mid]).unionByName(balanced_union(frames[mid:]))
 
 
 class CorpusIngestor:
@@ -91,63 +108,90 @@ class CorpusIngestor:
     def ingest_columns(self, table_names: Sequence[str]) -> DataFrame:
         """Build the ``corpus_columns`` DataFrame from a list of UC table FQNs.
 
-        Each source table is scanned once for its row count and once (via a
-        bounded ``limit``) per column for its sampled values; all per-column
-        aggregations are lazy Spark transformations unioned together, so the
-        only action taken here (besides the row counts) is whatever the
-        caller triggers downstream (e.g. a Delta write).
+        Each source table is scanned ONCE: all per-column value arrays are
+        computed in a single ``agg(collect_list(...))`` call, and the column
+        rows are derived from that frame. This avoids O(columns) scans per table.
         """
-        from functools import reduce
-
-        per_column_frames: list[DataFrame] = []
+        per_table_frames: list[DataFrame] = []
         with log_duration(logger, f"ingest_columns({len(table_names)} tables)"):
             for fqn in table_names:
                 try:
-                    frames = self._per_table_column_frames(fqn)
+                    frame = self._per_table_column_frame(fqn)
                 except Exception:
                     logger.exception("Skipping table %s: failed to read/profile it", fqn)
                     continue
-                per_column_frames.extend(frames)
+                if frame is not None:
+                    per_table_frames.append(frame)
 
-        if not per_column_frames:
+        if not per_table_frames:
             return self.spark.createDataFrame([], schema=CORPUS_COLUMNS_SCHEMA)
-        return reduce(lambda a, b: a.unionByName(b), per_column_frames)
+        # Use balanced union to avoid left-deep reduce(unionByName) plan blow-up
+        return balanced_union(per_table_frames)
 
-    def _per_table_column_frames(self, fqn: str) -> list[DataFrame]:
+    def _per_table_column_frame(self, fqn: str) -> DataFrame | None:
         from pyspark.sql import functions as F
 
         df = self.spark.table(fqn)
+        fields = df.schema.fields
+        if not fields:
+            return None
+
+        # Single scan: collect every column's values in one ``agg`` call.
+        # ``array_sort(collect_list(...))`` + ``slice`` reproduces the baseline
+        # ``orderBy(value).limit(max_values_per_column)`` semantics (the N
+        # smallest stringified values, in sorted order) without a per-column
+        # scan, a window rank column, or a driver-side collect.
+        col_names = [f.name for f in fields]
+        cast_df = df.select(*[F.col(f"`{c}`").cast("string").alias(c) for c in col_names])
+        agg_exprs = [
+            F.slice(
+                F.array_sort(F.collect_list(F.col(c))),
+                1,
+                self.max_values_per_column,
+            ).alias(f"values_{idx}")
+            for idx, c in enumerate(col_names)
+        ]
+        all_values_row = cast_df.agg(*agg_exprs).first()
+        if all_values_row is None:
+            return None
+
         num_rows = df.count()
         if num_rows == 0:
-            return []
+            return None
 
-        frames: list[DataFrame] = []
-        for idx, field in enumerate(df.schema.fields):
-            col = field.name
-            # Order before limit: without an explicit orderBy, Spark's limit(n)
-            # returns an arbitrary n rows and collect_list preserves that order,
-            # so the per-column value list -- and therefore the row_ids derived
-            # from it -- can change between runs on identical input data. Ordering
-            # by value makes both the sampled set and the list order deterministic.
-            sampled = (
-                df.select(F.col(f"`{col}`").cast("string").alias("v"))
-                .orderBy(F.col("v"))
-                .limit(self.max_values_per_column)
+        # Build per-column rows from the single-scan result
+        rows = []
+        for idx, field in enumerate(fields):
+            col_name = field.name
+            values = all_values_row[f"values_{idx}"] or []
+            # Infer column data type for P-14 tagging
+            col_type = infer_column_data_type(values)
+            rows.append(
+                (
+                    fqn,  # table_id
+                    col_name,  # column_name
+                    idx,  # column_index
+                    num_rows,  # num_rows
+                    values,  # values
+                    col_type.value,  # column_data_type
+                )
             )
-            per_col = sampled.agg(F.collect_list("v").alias("values")).select(
-                F.lit(fqn).alias("table_id"),
-                F.lit(col).alias("column_name"),
-                F.lit(idx).alias("column_index"),
-                F.lit(num_rows).alias("num_rows"),
-                "values",
-            )
-            frames.append(per_col)
-        return frames
+
+        return self.spark.createDataFrame(rows, schema=CORPUS_COLUMNS_SCHEMA)
+
+    def _balanced_union(self, frames: list[DataFrame]) -> DataFrame:
+        """Combine DataFrames with a balanced union tree to avoid left-deep plans."""
+        return balanced_union(frames)
 
     def ingest_column_pairs(self, table_names: Sequence[str]) -> DataFrame:
-        """Build the ``corpus_column_pairs`` DataFrame used for FD statistics."""
-        from functools import reduce
+        """Build the ``corpus_column_pairs`` DataFrame used for FD statistics.
 
+        Builds one row per FD pair from the same table scan. Pair selection
+        (``select_fd_column_pairs``) and per-pair null alignment (collecting
+        ``(lhs, rhs)`` as a struct so both sides stay row-aligned) are preserved
+        exactly; only the final per-table merge uses the balanced union tree
+        instead of a left-deep ``reduce(unionByName)``.
+        """
         per_pair_frames: list[DataFrame] = []
         with log_duration(logger, f"ingest_column_pairs({len(table_names)} tables)"):
             for fqn in table_names:
@@ -160,7 +204,9 @@ class CorpusIngestor:
 
         if not per_pair_frames:
             return self.spark.createDataFrame([], schema=CORPUS_PAIRS_SCHEMA)
-        return reduce(lambda a, b: a.unionByName(b), per_pair_frames)
+        # Balanced union tree (not left-deep reduce) to avoid plan blow-up on
+        # many pairs/tables, matching ingest_columns. Pair content is unchanged.
+        return self._balanced_union(per_pair_frames)
 
     def _per_table_pair_frames(self, fqn: str) -> list[DataFrame]:
         from pyspark.sql import functions as F
@@ -169,11 +215,15 @@ class CorpusIngestor:
         columns = [f.name for f in df.schema.fields]
         if len(columns) < 2:
             return []
+
         num_rows = df.count()
         if num_rows == 0:
             return []
 
         pairs = select_fd_column_pairs(fqn, columns, self.max_fd_column_pairs_per_table)
+        if not pairs:
+            return []
+
         frames: list[DataFrame] = []
         for lhs_idx, rhs_idx in pairs:
             lhs_col, rhs_col = columns[lhs_idx], columns[rhs_idx]
@@ -187,7 +237,6 @@ class CorpusIngestor:
                     F.col(f"`{rhs_col}`").cast("string").alias("rhs"),
                 )
                 .where(F.col("lhs").isNotNull() & F.col("rhs").isNotNull())
-                .orderBy(F.col("lhs"), F.col("rhs"))
                 .limit(self.max_values_per_column)
             )
             per_pair = sampled.agg(F.collect_list(F.struct("lhs", "rhs")).alias("pairs")).select(

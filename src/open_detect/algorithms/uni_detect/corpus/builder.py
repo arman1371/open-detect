@@ -93,13 +93,33 @@ class CorpusStatsBuilder:
         )
 
     def build_spelling_stats(self, corpus_columns: DataFrame) -> DataFrame:
+        from pyspark.sql import functions as F
+
+        from open_detect.algorithms.uni_detect.core.enums import ColumnDataType
+
+        # P-14: spelling runs on non-numeric columns
+        numeric_types = {ColumnDataType.INTEGER, ColumnDataType.FLOAT}
+        filtered_columns = corpus_columns.where(
+            F.col("column_data_type").isin(
+                [t.value for t in ColumnDataType if t not in numeric_types]
+            )
+        )
         return self._build_single_column_stats(
-            corpus_columns, error_type=ErrorType.SPELLING, token_document_frequency={}
+            filtered_columns, error_type=ErrorType.SPELLING, token_document_frequency={}
         )
 
     def build_outlier_stats(self, corpus_columns: DataFrame) -> DataFrame:
+        from pyspark.sql import functions as F
+
+        from open_detect.algorithms.uni_detect.core.enums import ColumnDataType
+
+        # P-14: outlier runs on numeric columns only
+        numeric_types = {ColumnDataType.INTEGER, ColumnDataType.FLOAT}
+        filtered_columns = corpus_columns.where(
+            F.col("column_data_type").isin([t.value for t in numeric_types])
+        )
         return self._build_single_column_stats(
-            corpus_columns, error_type=ErrorType.NUMERIC_OUTLIER, token_document_frequency={}
+            filtered_columns, error_type=ErrorType.NUMERIC_OUTLIER, token_document_frequency={}
         )
 
     def build_fd_stats(

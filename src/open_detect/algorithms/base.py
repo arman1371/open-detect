@@ -39,6 +39,25 @@ CELL_RESULT_COLUMNS = (
 
 
 @dataclass(frozen=True, slots=True)
+class TooltipContent:
+    """Human-readable tooltip content for a flagged cell.
+
+    Provides a plain-language explanation of why a cell was flagged and
+    actionable guidance for fixing the data quality issue. Generated at
+    detection time and stored in ``CellResult.tooltip``.
+    """
+
+    title: str
+    severity: str  # "error" | "warning" | "info"
+    category: str  # e.g. "format", "spelling", "outlier", "functional_dependency"
+    expected_pattern: str  # Human-readable expected pattern
+    received_value: str  # The actual value that triggered the flag
+    suggestion: str  # Actionable fix suggestion
+    details: dict[str, Any]  # Detector-specific evidence (pattern, score, etc.)
+    actions: list[str]  # Available actions (copy_explanation, view_evidence, etc.)
+
+
+@dataclass(frozen=True, slots=True)
 class CellResult:
     """A single (row, column) cell's verdict from one algorithm.
 
@@ -60,6 +79,10 @@ class CellResult:
     is_error: bool
     score: float
     evidence: Mapping[str, Any] = field(default_factory=dict)
+    tooltip: TooltipContent | None = None
+
+    def __post_object__(self) -> None:
+        object.__setattr__(self, "evidence", MappingProxyType(copy.deepcopy(dict(self.evidence))))
 
     def __post_init__(self) -> None:
         object.__setattr__(self, "evidence", MappingProxyType(copy.deepcopy(dict(self.evidence))))
@@ -76,6 +99,7 @@ class CellResult:
                 self.is_error,
                 self.score,
                 dict(self.evidence),
+                self.tooltip,
             ),
         )
 
@@ -88,6 +112,7 @@ class CellResult:
             "is_error": self.is_error,
             "score": self.score,
             "evidence": copy.deepcopy(dict(self.evidence)),
+            "tooltip": self.tooltip,
         }
 
 

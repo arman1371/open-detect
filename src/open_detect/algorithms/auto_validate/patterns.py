@@ -18,7 +18,7 @@ from __future__ import annotations
 import heapq
 import itertools
 import logging
-from collections.abc import Iterator
+from collections.abc import Iterator, Sequence
 from functools import lru_cache
 
 from open_detect.algorithms.auto_validate.hierarchy import (
@@ -181,3 +181,104 @@ def matching_pattern(patterns: frozenset[str], value: str) -> str | None:
         if matches(pattern, value):
             return pattern
     return None
+
+
+def pattern_to_language(pattern: str | Sequence[str] | list[Sequence[str]], variant: str) -> str:
+    """Convert an FMDV pattern to a human-readable language description.
+
+    Translates the raw pattern string (e.g. ``<alphanum>+@<domain>+``) into
+    a plain-language description suitable for tooltips (e.g.
+    ``"name@domain.com"``).
+
+    Parameters
+    ----------
+    pattern:
+        The raw FMDV pattern string or groups.
+    variant:
+        The FMDV variant name (``"fmdv"``, ``"fmdv_h"``, ``"fmdv_v"``,
+        ``"fmdv_vh"``).
+    """
+    if isinstance(pattern, str):
+        # Single-pattern variants: fmdv, fmdv_h
+        if variant in ("fmdv", "fmdv_h"):
+            # Replace token placeholders with human-readable equivalents
+            result = pattern
+            result = result.replace("<alphanum>", "[a-zA-Z0-9]")
+            result = result.replace("<digit>", "[0-9]")
+            result = result.replace("<symbol>", "[!@#$%^&*()_+={}|:'\",.<>?/]")
+            result = result.replace("<letter>", "[a-zA-Z]")
+            # Normalize the pattern for display
+            result = result.replace("+", "")
+            result = result.replace("*", "")
+            return result
+        # fmdv_v: flat list of segments
+        elif variant == "fmdv_v":
+            segments = pattern.split("+") if "+" in pattern else [pattern]
+            readable = []
+            for seg in segments:
+                seg = seg.replace("<alphanum>", "[a-zA-Z0-9]")
+                seg = seg.replace("<digit>", "[0-9]")
+                seg = seg.replace("<symbol>", "[!@#$%^&*()_+={}|:'\",.<>?/]")
+                seg = seg.replace("<letter>", "[a-zA-Z]")
+                seg = seg.replace("+", "")
+                seg = seg.replace("*", "")
+                readable.append(seg)
+            return (
+                " + ".join(readable) if len(readable) > 1 else readable[0] if readable else pattern
+            )
+        # fmdv_vh: list of groups (pattern is a string here for single-segment case)
+        elif variant == "fmdv_vh":
+            result = pattern.replace("<alphanum>", "[a-zA-Z0-9]")
+            result = result.replace("<digit>", "[0-9]")
+            result = result.replace("<symbol>", "[!@#$%^&*()_+={}|:'\",.<>?/]")
+            result = result.replace("<letter>", "[a-zA-Z]")
+            result = result.replace("+", "")
+            result = result.replace("*", "")
+            return result
+        return pattern
+
+    # List-based patterns
+    if variant == "fmdv_v":
+        if isinstance(pattern, list):
+            pattern_list: list[str] = pattern  # type: ignore[assignment]
+        elif isinstance(pattern, str):
+            pattern_list = pattern.split("+")
+        else:
+            # For Sequence[str] that is not a list
+            pattern_list = list(pattern)
+        readable_list: list[str] = []
+        for seg in pattern_list:
+            seg_str: str = str(seg)
+            seg_str = seg_str.replace("<alphanum>", "[a-zA-Z0-9]")
+            seg_str = seg_str.replace("<digit>", "[0-9]")
+            seg_str = seg_str.replace("<symbol>", "[!@#$%^&*()_+={}|:'\",.<>?/]")
+            seg_str = seg_str.replace("<letter>", "[a-zA-Z]")
+            seg_str = seg_str.replace("+", "")
+            seg_str = seg_str.replace("*", "")
+            readable_list.append(seg_str)
+        return (
+            " and ".join(readable_list)
+            if len(readable_list) > 1
+            else (readable_list[0] if readable_list else str(pattern))
+        )
+
+    elif variant == "fmdv_vh":
+        # pattern is a list of groups, each group is a list of segments
+        if isinstance(pattern, list) and pattern and isinstance(pattern[0], list):
+            group_descriptions = []
+            for group in pattern:
+                seg_descs = []
+                for seg in group:
+                    seg = seg.replace("<alphanum>", "[a-zA-Z0-9]")
+                    seg = seg.replace("<digit>", "[0-9]")
+                    seg = seg.replace("<symbol>", "[!@#$%^&*()_+={}|:'\",.<>?/]")
+                    seg = seg.replace("<letter>", "[a-zA-Z]")
+                    seg = seg.replace("+", "")
+                    seg = seg.replace("*", "")
+                    seg_descs.append(seg)
+                group_descriptions.append(" and ".join(seg_descs))
+            return " or ".join(group_descriptions)
+        # Fallback: just convert the string pattern
+        return pattern_to_language(str(pattern), variant)
+
+    return str(pattern)
