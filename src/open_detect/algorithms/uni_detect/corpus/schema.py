@@ -60,9 +60,9 @@ TOKEN_STATS_SCHEMA = StructType(
 #:
 #: OPE-92: Added `weight` column to pre-aggregate corpus rows by
 #: (feature_bucket, theta_before, theta_after). Each row's weight is
-#: 1/count where count is the number of corpus rows in the same bucket with
+#: the count of original corpus rows in the same bucket with
 #: the same (theta_before, theta_after). This enables the online scorer to
-#: compute weighted sums instead of materializing cross-products.
+#: compute weighted sums (sum of weight) instead of materializing cross-products.
 CORPUS_STATS_SCHEMA = StructType(
     [
         StructField("error_type", StringType(), nullable=False),

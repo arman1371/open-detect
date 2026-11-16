@@ -131,8 +131,9 @@ class CorpusStatsStore:
         OPE-92: This method now uses the pre-aggregated ``weight`` column
         from the corpus stats table to compute weighted counts instead of
         materializing cross-products. The corpus is pre-aggregated by
-        ``(feature_bucket, theta_before, theta_after)`` with weight = 1/count,
-        so the weighted sum equals the original row count.
+        ``(feature_bucket, theta_before, theta_after)`` with weight = count
+        (the number of original corpus rows in that group), so the weighted
+        sum equals the original row count.
 
         OPE-92: Candidates are deduplicated by ``(feature_bucket, theta1, theta2)``
         before scoring to avoid redundant computation. The distinct triples are
@@ -186,7 +187,7 @@ class CorpusStatsStore:
                 denominator_cond = F.col("corpus_before") >= F.col("theta2")
 
             # OPE-92: Use weighted sum instead of count
-            # weight = 1/count where count is the number of corpus rows with same
+            # weight = count where count is the number of corpus rows with same
             # (feature_bucket, theta_before, theta_after). Summing weight gives
             # the same result as counting individual rows.
             counts = joined.groupBy(dedup_key).agg(

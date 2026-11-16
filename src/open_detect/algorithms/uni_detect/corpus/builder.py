@@ -182,18 +182,18 @@ class CorpusStatsBuilder:
                     continue
 
                 # Aggregate by (feature_bucket, theta_before, theta_after, table_id)
-                # and compute weight = 1/count
+                # and compute weight = count (number of original corpus rows in this group).
+                # In batch_score, we sum weight for matching rows; sum(count) = original row count.
                 df = pd.DataFrame(
                     rows,
                     columns=["table_id", "feature_bucket", "theta_before", "theta_after"],
                 )
-                # Group and compute weight
+                # Group and compute weight = count
                 grouped = (
                     df.groupby(["feature_bucket", "theta_before", "theta_after", "table_id"])
                     .size()
-                    .reset_index(name="count")
+                    .reset_index(name="weight")
                 )
-                grouped["weight"] = 1.0 / grouped["count"]
                 # Select columns in the correct order
                 yield grouped[
                     ["feature_bucket", "theta_before", "theta_after", "weight", "table_id"]
@@ -275,18 +275,18 @@ class CorpusStatsBuilder:
                     continue
 
                 # Aggregate by (feature_bucket, theta_before, theta_after, table_id)
-                # and compute weight = 1/count
+                # and compute weight = count (number of original corpus rows in this group).
+                # In batch_score, we sum weight for matching rows; sum(count) = original row count.
                 df = pd.DataFrame(
                     rows,
                     columns=["table_id", "feature_bucket", "theta_before", "theta_after"],
                 )
-                # Group and compute weight
+                # Group and compute weight = count
                 grouped = (
                     df.groupby(["feature_bucket", "theta_before", "theta_after", "table_id"])
                     .size()
-                    .reset_index(name="count")
+                    .reset_index(name="weight")
                 )
-                grouped["weight"] = 1.0 / grouped["count"]
                 # Select columns in the correct order
                 yield grouped[
                     ["feature_bucket", "theta_before", "theta_after", "weight", "table_id"]
