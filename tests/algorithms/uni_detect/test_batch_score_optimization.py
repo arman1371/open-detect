@@ -117,6 +117,17 @@ class TestBatchScoreOptimization:
             "overwriteSchema", "true"
         ).saveAsTable(fqn)
 
+    def _make_config_with_fqn(self, config: UniDetectConfig, fqn: str) -> UniDetectConfig:
+        """Create a config with corpus_stats_fqn set to the test table."""
+        # Create a new config with the test FQN
+        return UniDetectConfig(
+            location=config.location,
+            epsilon=config.epsilon,
+            alpha=config.alpha,
+            laplace_smoothing=config.laplace_smoothing,
+            corpus_stats_fqn=fqn,
+        )
+
     def test_weighted_sum_equivalence_increasing(self, spark: SparkSession, uc_location, config):
         """Verify weighted sum equals original per-row count for INCREASING direction."""
         catalog, schema = uc_location.catalog, uc_location.schema
@@ -154,15 +165,32 @@ class TestBatchScoreOptimization:
         ]
         self._write_corpus_stats(spark, fqn, corpus_rows)
 
-        store = CorpusStatsStore(spark, config)
+        test_config = self._make_config_with_fqn(config, fqn)
+        store = CorpusStatsStore(spark, test_config)
 
         # Candidates:
-        # cand1: theta1=0.2, theta2=0.6 -> should match corpus rows where corpus_before <= 0.2 and corpus_after >= 0.6
-        #   bucket1: (0.1, 0.5) -> 0.1 <= 0.2 ✓, 0.5 >= 0.6 ✗ -> NO
-        #   bucket1: (0.3, 0.7) -> 0.3 <= 0.2 ✗ -> NO
-        #   bucket2: (0.2, 0.6) -> 0.2 <= 0.2 ✓, 0.6 >= 0.6 ✓ -> YES (weight=4)
-        # cand2: theta1=0.0, theta2=0.8 -> should match corpus rows where corpus_before <= 0.0 (none)
-        #   -> numerator=0, denominator=0
+        # cand1: bucket1, theta1=0.2, theta2=0.6
+        #   numerator: corpus_before <= 0.2 AND corpus_after >= 0.6
+        #     (0.1, 0.5): 0.1 <= 0.2 ✓, 0.5 >= 0.6 ✗ -> NO
+        #     (0.3, 0.7): 0.3 <= 0.2 ✗ -> NO
+        #     -> numerator = 0
+        #   denominator: corpus_before <= 0.6 (theta2)
+        #     (0.1, 0.5): 0.1 <= 0.6 ✓ -> weight=3
+        #     (0.3, 0.7): 0.3 <= 0.6 ✓ -> weight=2
+        #     -> denominator = 5
+        #   lr_ratio = (0 + 1) / (5 + 1) = 1/6 ≈ 0.1667
+        # cand2: bucket1, theta1=0.0, theta2=0.8
+        #   numerator: corpus_before <= 0.0 AND corpus_after >= 0.8 -> none match
+        #     -> numerator = 0
+        #   denominator: corpus_before <= 0.8 (theta2)
+        #     (0.1, 0.5): 0.1 <= 0.8 ✓ -> weight=3
+        #     (0.3, 0.7): 0.3 <= 0.8 ✓ -> weight=2
+        #     -> denominator = 5
+        #   lr_ratio = (0 + 1) / (5 + 1) = 1/6 ≈ 0.1667
+        # cand3: bucket2, theta1=0.2, theta2=0.6
+        #   numerator: (0.2 <= 0.2) & (0.6 >= 0.6) -> YES, weight=4
+        #   denominator: 0.2 <= 0.6 -> YES, weight=4
+        #   lr_ratio = (4+1)/(4+1) = 1.0
 
         candidates_df = spark.createDataFrame(
             [
@@ -192,21 +220,21 @@ class TestBatchScoreOptimization:
         )
         result_pd = result.toPandas().set_index("candidate_id")
 
-        # cand1: numerator = weight of matching rows in bucket1 = 0 (no matches)
-        # denominator = weight of rows with corpus_before <= 0.2 in bucket1 = weight of (0.1, 0.5) = 3
-        # lr_ratio = (0 + 1) / (3 + 1) = 1/4 = 0.25
+        # cand1: numerator = 0, denominator = 5 (both bucket1 groups have corpus_before <= 0.6)
+        # lr_ratio = (0 + 1) / (5 + 1) = 1/6 ≈ 0.1667
         assert abs(result_pd.loc["cand1", "numerator_count"] - 0) < 0.001
-        assert abs(result_pd.loc["cand1", "denominator_count"] - 3) < 0.001
-        assert abs(result_pd.loc["cand1", "lr_ratio"] - 0.25) < 0.001
+        assert abs(result_pd.loc["cand1", "denominator_count"] - 5) < 0.001
+        assert abs(result_pd.loc["cand1", "lr_ratio"] - (1.0 / 6.0)) < 0.001
 
-        # cand2: numerator = 0, denominator = 0 -> lr_ratio = 1.0
+        # cand2: numerator = 0, denominator = 5 (both bucket1 groups have corpus_before <= 0.8)
+        # lr_ratio = (0 + 1) / (5 + 1) = 1/6 ≈ 0.1667
         assert abs(result_pd.loc["cand2", "numerator_count"] - 0) < 0.001
-        assert abs(result_pd.loc["cand2", "denominator_count"] - 0) < 0.001
-        assert abs(result_pd.loc["cand2", "lr_ratio"] - 1.0) < 0.001
+        assert abs(result_pd.loc["cand2", "denominator_count"] - 5) < 0.001
+        assert abs(result_pd.loc["cand2", "lr_ratio"] - (1.0 / 6.0)) < 0.001
 
         # cand3: bucket2, theta1=0.2, theta2=0.6
         # numerator: (0.2 <= 0.2) & (0.6 >= 0.6) -> YES, weight=4
-        # denominator: 0.2 <= 0.2 -> YES, weight=4
+        # denominator: 0.2 <= 0.6 -> YES, weight=4
         # lr_ratio = (4+1)/(4+1) = 1.0
         assert abs(result_pd.loc["cand3", "numerator_count"] - 4) < 0.001
         assert abs(result_pd.loc["cand3", "denominator_count"] - 4) < 0.001
@@ -248,7 +276,8 @@ class TestBatchScoreOptimization:
         ]
         self._write_corpus_stats(spark, fqn, corpus_rows)
 
-        store = CorpusStatsStore(spark, config)
+        test_config = self._make_config_with_fqn(config, fqn)
+        store = CorpusStatsStore(spark, test_config)
 
         candidates_df = spark.createDataFrame(
             [
@@ -308,7 +337,8 @@ class TestBatchScoreOptimization:
         ]
         self._write_corpus_stats(spark, fqn, corpus_rows)
 
-        store = CorpusStatsStore(spark, config)
+        test_config = self._make_config_with_fqn(config, fqn)
+        store = CorpusStatsStore(spark, test_config)
 
         candidates_df = spark.createDataFrame(
             [
@@ -350,7 +380,8 @@ class TestBatchScoreOptimization:
         ]
         self._write_corpus_stats(spark, fqn, corpus_rows)
 
-        store = CorpusStatsStore(spark, config)
+        test_config = self._make_config_with_fqn(config, fqn)
+        store = CorpusStatsStore(spark, test_config)
 
         # Two candidates with identical (bucket, theta1, theta2) but different candidate_id
         candidates_df = spark.createDataFrame(
@@ -412,7 +443,8 @@ class TestBatchScoreOptimization:
         ]
         self._write_corpus_stats(spark, fqn, corpus_rows)
 
-        store = CorpusStatsStore(spark, config)
+        test_config = self._make_config_with_fqn(config, fqn)
+        store = CorpusStatsStore(spark, test_config)
 
         # Candidate with bucket that doesn't exist in corpus
         candidates_df = spark.createDataFrame(
@@ -475,7 +507,8 @@ class TestBatchScoreOptimization:
             "overwriteSchema", "true"
         ).saveAsTable(fqn)
 
-        store = CorpusStatsStore(spark, config)
+        test_config = self._make_config_with_fqn(config, fqn)
+        store = CorpusStatsStore(spark, test_config)
 
         # Should not raise an error; weight should be added as 1
         loaded = store.load(ErrorType.UNIQUENESS)

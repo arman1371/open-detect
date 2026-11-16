@@ -25,7 +25,7 @@ import weakref
 from typing import TYPE_CHECKING
 
 import pandas as pd
-from pyspark.sql.types import DoubleType, StringType, StructField, StructType
+from pyspark.sql.types import DoubleType, LongType, StringType, StructField, StructType
 
 from open_detect.algorithms.uni_detect.config import UniDetectConfig
 from open_detect.algorithms.uni_detect.core.enums import ErrorType
@@ -57,12 +57,13 @@ MIN_NUMERIC_FRACTION = 0.8
 
 
 # Schema for the output of mapInPandas functions (without error_type, added later)
+# Uses LongType for weight to match CORPUS_STATS_SCHEMA and avoid float accumulation
 _STATS_SCHEMA_WITHOUT_ERROR_TYPE = StructType(
     [
         StructField("feature_bucket", StringType(), nullable=False),
         StructField("theta_before", DoubleType(), nullable=False),
         StructField("theta_after", DoubleType(), nullable=False),
-        StructField("weight", DoubleType(), nullable=False),
+        StructField("weight", LongType(), nullable=False),
         StructField("table_id", StringType(), nullable=True),
     ]
 )
@@ -369,6 +370,10 @@ class CorpusStatsBuilder:
                 stats.unpersist()
 
     def _write(self, stats: DataFrame, mode: str, error_types: Sequence[ErrorType] | None) -> None:
+        from pyspark.sql import functions as F
+
+        from open_detect.logging_utils import get_logger
+
         fqn = self.config.corpus_stats_fqn
         table_already_exists = self.spark.catalog.tableExists(fqn)
 
@@ -381,6 +386,35 @@ class CorpusStatsBuilder:
             error_types = [
                 ErrorType(r["error_type"]) for r in stats.select("error_type").distinct().collect()
             ]
+
+        # Write-side migration: if table exists and is missing weight column,
+        # initialize legacy partitions with weight=1 before writing new statistics.
+        if table_already_exists:
+            existing_table = self.spark.table(fqn)
+            if "weight" not in existing_table.columns:
+                logger = get_logger(__name__)
+                logger.warning(
+                    "Corpus statistics table %s is missing 'weight' column (built before OPE-92). "
+                    "Initializing legacy partitions with weight=1 before writing new statistics.",
+                    fqn,
+                )
+                # For each error_type being written, add weight=1 to existing rows
+                # that don't have it, then write with the new schema.
+                # We use replaceWhere to only update the partitions we're writing.
+                for et in error_types:
+                    et_str = et.value
+                    # Read existing partition
+                    existing_partition = existing_table.where(F.col("error_type") == et_str)
+                    if existing_partition.count() > 0:
+                        # Add weight column with default 1
+                        existing_partition = existing_partition.withColumn("weight", F.lit(1))
+                        # Write back to the same partition
+                        existing_partition.write.format("delta").mode("overwrite").option(
+                            "replaceWhere", f"error_type = '{et_str}'"
+                        ).saveAsTable(fqn)
+                # Reload table to get updated schema
+                existing_table = self.spark.table(fqn)
+
         writer = stats.write.format("delta").mode(mode)
         if table_already_exists:
             # Re-declaring `.partitionBy(...)` (and `overwriteSchema`) against
