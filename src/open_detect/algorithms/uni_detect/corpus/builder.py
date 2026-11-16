@@ -374,6 +374,7 @@ class CorpusStatsBuilder:
 
         from open_detect.logging_utils import get_logger
 
+        logger = get_logger(__name__)
         fqn = self.config.corpus_stats_fqn
         table_already_exists = self.spark.catalog.tableExists(fqn)
 
@@ -392,7 +393,6 @@ class CorpusStatsBuilder:
         if table_already_exists:
             existing_table = self.spark.table(fqn)
             if "weight" not in existing_table.columns:
-                logger = get_logger(__name__)
                 logger.warning(
                     "Corpus statistics table %s is missing 'weight' column (built before OPE-92). "
                     "Initializing legacy partitions with weight=1 before writing new statistics.",
