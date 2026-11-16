@@ -150,11 +150,17 @@ class TestUniDetectDetect:
             result.persist.assert_called_once()
             result.count.assert_called_once()
 
-            # Verify each detector was called
+            # Verify each detector was called - now with shared ingestion DataFrames
             for et in error_types:
-                ud._detectors[et].detect.assert_called_once_with(["t1", "t2"])
+                call_args, call_kwargs = ud._detectors[et].detect.call_args
+                assert call_args == (["t1", "t2"],)
+                assert call_kwargs["ingested_columns_df"] is not None
+                assert call_kwargs["ingested_pairs_df"] is None
 
-            # Verify release called on all detectors
+            # release() IS called automatically in the finally block to free per-detector
+            # caches (scored, joined, result frames) after the unioned result is
+            # materialized. The caller is responsible for releasing the UNIONED
+            # result frame (which has its own unpersist).
             for et in error_types:
                 ud._detectors[et].release.assert_called_once()
 
@@ -172,7 +178,14 @@ class TestUniDetectDetect:
             ud.detect(table_names=["t1"])
 
             for et in ErrorType:
-                ud._detectors[et].detect.assert_called_once_with(["t1"])
+                call_args, call_kwargs = ud._detectors[et].detect.call_args
+                assert call_args == (["t1"],)
+                # UNIQUENESS, NUMERIC_OUTLIER, SPELLING need columns
+                if et in (ErrorType.UNIQUENESS, ErrorType.NUMERIC_OUTLIER, ErrorType.SPELLING):
+                    assert call_kwargs["ingested_columns_df"] is not None
+                # FD needs pairs
+                if et == ErrorType.FUNCTIONAL_DEPENDENCY:
+                    assert call_kwargs["ingested_pairs_df"] is not None
 
     def test_detect_validation_error_propagates(self):
         """ValidationError from _validate_inputs should propagate."""
@@ -225,3 +238,38 @@ class TestUniDetectBuildCorpusStatistics:
         # Test that invalid error_types raises ValidationError
         with pytest.raises(ValidationError):
             ud.build_corpus_statistics(table_names=["t1"], error_types="not_a_list")
+
+
+class TestUniDetectRelease:
+    """Tests for release() method."""
+
+    def test_release_calls_detector_release(self):
+        """release() should call release() on all detectors."""
+        with _mock_spark_context():
+            spark = _mock_spark()
+            ud = UniDetect(_config(), spark=spark)
+
+            # Mock detectors
+            for et in ErrorType:
+                mock_detector = MagicMock()
+                ud._detectors[et] = mock_detector
+
+            ud.release()
+
+            # Each detector's release should be called once
+            for et in ErrorType:
+                ud._detectors[et].release.assert_called_once()
+
+    def test_release_safe_when_no_frames_tracked(self):
+        """release() should be safe when detectors have no tracked frames."""
+        mock_spark = _mock_spark()
+        ud = UniDetect(_config(), spark=mock_spark)
+
+        # Detectors with empty _persisted lists
+        for et in ErrorType:
+            mock_detector = MagicMock()
+            mock_detector._persisted = []
+            ud._detectors[et] = mock_detector
+
+        # Should not raise
+        ud.release()
