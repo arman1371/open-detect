@@ -29,12 +29,18 @@ from open_detect.algorithms.uni_detect.config import UniDetectConfig
 from open_detect.algorithms.uni_detect.core.enums import ComparisonDirection, ErrorType
 from open_detect.algorithms.uni_detect.corpus.build_metadata import verify_build_config
 from open_detect.algorithms.uni_detect.exceptions import CorpusNotFoundError
+from open_detect.algorithms.uni_detect.spark_utils import scoped_conf
 from open_detect.logging_utils import get_logger, log_duration
 
 if TYPE_CHECKING:
     from pyspark.sql import DataFrame, SparkSession
 
 logger = get_logger(__name__)
+
+# Disable automatic broadcast joins to avoid OOM on CI runners with small heaps.
+# Explicit F.broadcast() calls are still used where we know the data is small.
+# See: https://spark.apache.org/docs/latest/sql-performance-tuning.html#broadcast-join
+_AUTO_BROADCAST_DISABLED = {"spark.sql.autoBroadcastJoinThreshold": "-1"}
 
 
 class CorpusStatsStore:
@@ -162,7 +168,12 @@ class CorpusStatsStore:
         """
         from pyspark.sql import functions as F
 
-        with log_duration(logger, f"batch_score[{error_type.value}]"):
+        # Disable auto-broadcast joins to prevent OOM on CI runners with small heaps.
+        # We use explicit F.broadcast() where data is known to be small.
+        with (
+            log_duration(logger, f"batch_score[{error_type.value}]"),
+            scoped_conf(self.spark, **_AUTO_BROADCAST_DISABLED),
+        ):
             # Load corpus with weight column
             # Keep original column names for use in join conditions
             corpus = self.load(error_type).select(
