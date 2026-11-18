@@ -59,15 +59,23 @@ class TestAggregateScoredRows:
         assert result.iloc[0]["theta_after"] == 0.2
         assert result.iloc[0]["table_id"] == "table1"
 
-    def test_duplicate_rows_aggregated_with_weight_as_count(self):
+    def test_duplicate_rows_aggregated_with_weight_count(self):
+        """With new OPE-92 behavior, _aggregate_scored_rows aggregates duplicates.
+        Same rows are grouped and weight = count (number of original rows in group).
+        Global pre-aggregation in batch_score sums these weights."""
         rows = [
             ("table1", "bucket1", 0.1, 0.2),
             ("table1", "bucket1", 0.1, 0.2),
             ("table1", "bucket1", 0.1, 0.2),
         ]
         result = _aggregate_scored_rows(rows)
+        # 3 duplicate rows are aggregated into 1 row with weight=3
         assert len(result) == 1
-        assert result.iloc[0]["weight"] == 3  # count of duplicate rows
+        assert result.iloc[0]["weight"] == 3
+        assert result.iloc[0]["feature_bucket"] == "bucket1"
+        assert result.iloc[0]["theta_before"] == 0.1
+        assert result.iloc[0]["theta_after"] == 0.2
+        assert result.iloc[0]["table_id"] == "table1"
 
     def test_different_buckets_kept_separate(self):
         rows = [
@@ -520,6 +528,13 @@ class TestBatchScoreOptimization:
         # Should not raise an error; weight should be added as 1
         loaded = store.load(ErrorType.UNIQUENESS)
         assert "weight" in loaded.columns
+        # Verify weight column is LongType (not IntegerType) for type compatibility
+        weight_schema = loaded.schema["weight"]
+        from pyspark.sql.types import LongType
+
+        assert isinstance(
+            weight_schema.dataType, LongType
+        ), f"weight column should be LongType for compatibility, got {weight_schema.dataType}"
         # All weights should be 1
         weights = loaded.select("weight").collect()
         assert all(w["weight"] == 1 for w in weights)
@@ -554,12 +569,15 @@ class TestBuilderWeightOutput:
     """Test that builder produces LongType weight."""
 
     def test_aggregate_scored_rows_returns_int64_weight(self):
+        """Aggregated rows get int64 weight = count. Global pre-aggregation is in batch_score."""
         rows = [
             ("table1", "bucket1", 0.1, 0.2),
             ("table1", "bucket1", 0.1, 0.2),
         ]
         result = _aggregate_scored_rows(rows)
         assert result["weight"].dtype == "int64"
+        # 2 duplicate rows are aggregated into 1 row with weight=2
+        assert len(result) == 1
         assert result.iloc[0]["weight"] == 2
 
 

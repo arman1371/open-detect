@@ -91,9 +91,17 @@ def _cap_driver_memory(driver_memory: str) -> str:
 
     Spark derives its heap from the host total, but in a container the JVM is
     still constrained by the cgroup -- a heap bigger than the cgroup gets the
+<<<<<<< HEAD
+    process killed mid-run. Cap at 60% of the available memory (leaving room
+    for the Python driver, the OS, and the executor thread pools).
+    Raises ValueError when the available budget cannot support even a minimal
+    heap (512m), so callers never start a session that is guaranteed to be
+    OOM-killed.
+=======
     process killed mid-run. Cap at 50% of the available memory (leaving room
     for the Python driver, the OS, and the executor thread pools).
     Returns the capped value, or the original if no cap can be determined.
+>>>>>>> main
     """
     try:
         requested = int(driver_memory.rstrip("gGmM")) * (
@@ -104,12 +112,26 @@ def _cap_driver_memory(driver_memory: str) -> str:
     host = _host_memory_bytes()
     if host is None:
         return driver_memory
+<<<<<<< HEAD
+    cap = int(host * 0.6)
+    # Minimum usable heap is 512m, not 1g - the 1g floor can exceed
+    # small container budgets (e.g. 768 MiB cgroup -> 1g heap leaves no room
+    # for Python/OS and reproduces the OOM-kill this guard prevents).
+    MIN_DRIVER_MEMORY_BYTES = 512 * 1024 * 1024  # 512m
+    if cap < MIN_DRIVER_MEMORY_BYTES:
+        # The available memory cannot support even a minimal heap.
+        raise ValueError(
+            f"cannot start Spark: available memory {host} bytes cannot support the "
+            f"minimum {MIN_DRIVER_MEMORY_BYTES // (1024 * 1024)}m driver heap"
+        )
+=======
     cap = int(host * 0.5)
     # Minimum usable heap is 512m
     MIN_DRIVER_MEMORY_BYTES = 512 * 1024 * 1024  # 512m
     if cap < MIN_DRIVER_MEMORY_BYTES:
         # The available memory cannot support even a minimal heap.
         return driver_memory  # Let Spark fail with its own error if it must
+>>>>>>> main
     if requested <= cap:
         return driver_memory
     unit = "g" if cap % (1024 * 1024 * 1024) == 0 else "m"
@@ -189,12 +211,24 @@ def spark() -> Iterator[pyspark.sql.SparkSession]:  # noqa: F821
 
     warehouse_dir = tempfile.mkdtemp(prefix="open_detect-warehouse-")
     # Cap driver/executor memory to fit within the CI runner's memory limit.
+<<<<<<< HEAD
+    # The benchmark's spark_session.py uses the same dynamic approach (60% cap, 512m min).
+    # In local mode, executor runs in the same JVM as driver, so we only set driver memory
+    # and cap it to fit. executor.memory is ignored in local mode but we keep a safe value.
+    try:
+        driver_memory = _cap_driver_memory("2g")
+    except ValueError as exc:
+        pytest.skip(f"Could not start a local Delta-enabled Spark session: {exc}")
+        return
+    executor_memory = driver_memory  # local mode: same JVM
+=======
     # The benchmark's spark_session.py uses the same dynamic approach.
     driver_memory = _cap_driver_memory("2g")
     # Executor runs in the same JVM as driver for local[2], so we only set driver memory.
     # For local mode, executor.memory is ignored (same process), but we keep a conservative
     # value in case the config is used differently.
     executor_memory = _cap_driver_memory("3g")
+>>>>>>> main
     builder = (
         SparkSession.builder.master("local[2]")
         .appName("open_detect-tests")
@@ -210,6 +244,10 @@ def spark() -> Iterator[pyspark.sql.SparkSession]:  # noqa: F821
         # CI runners have limited memory (7GB total), so cap heaps to fit.
         .config("spark.driver.memory", driver_memory)
         .config("spark.executor.memory", executor_memory)
+<<<<<<< HEAD
+        .config("spark.driver.maxResultSize", "1g")
+=======
+>>>>>>> main
         # Delta replays its transaction log with this many partitions on every
         # snapshot load (default 50) -- pure overhead for tiny test tables.
         .config("spark.databricks.delta.snapshotPartitions", "2")

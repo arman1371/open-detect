@@ -29,12 +29,18 @@ from open_detect.algorithms.uni_detect.config import UniDetectConfig
 from open_detect.algorithms.uni_detect.core.enums import ComparisonDirection, ErrorType
 from open_detect.algorithms.uni_detect.corpus.build_metadata import verify_build_config
 from open_detect.algorithms.uni_detect.exceptions import CorpusNotFoundError
+from open_detect.algorithms.uni_detect.spark_utils import scoped_conf
 from open_detect.logging_utils import get_logger, log_duration
 
 if TYPE_CHECKING:
     from pyspark.sql import DataFrame, SparkSession
 
 logger = get_logger(__name__)
+
+# Disable automatic broadcast joins to avoid OOM on CI runners with small heaps.
+# Explicit F.broadcast() calls are still used where we know the data is small.
+# See: https://spark.apache.org/docs/latest/sql-performance-tuning.html#broadcast-join
+_AUTO_BROADCAST_DISABLED = {"spark.sql.autoBroadcastJoinThreshold": "-1"}
 
 
 class CorpusStatsStore:
@@ -95,7 +101,7 @@ class CorpusStatsStore:
                 "Adding weight=1 for backward compatibility; rebuild recommended for pre-aggregation benefits.",
                 self.config.corpus_stats_fqn,
             )
-            table = table.withColumn("weight", F.lit(1))
+            table = table.withColumn("weight", F.lit(1).cast("long"))
         return table
 
     def load_token_stats_map(self, max_tokens: int | None = 500_000) -> dict[str, int]:
@@ -149,12 +155,11 @@ class CorpusStatsStore:
             corpus support at all get ``lr_ratio == 1.0`` (maximally
             un-surprising), consistent with "assume clean absent evidence".
 
-        OPE-92: This method now uses the pre-aggregated ``weight`` column
-        from the corpus stats table to compute weighted counts instead of
-        materializing cross-products. The corpus is pre-aggregated by
-        ``(feature_bucket, theta_before, theta_after)`` with weight = count
-        (the number of original corpus rows in that group), so the weighted
-        sum equals the original row count.
+        OPE-92: This method uses the ``weight`` column from the corpus stats table
+        to compute weighted counts instead of materializing cross-products.
+        The builder outputs one row per corpus row with weight=1; this method
+        pre-aggregates by ``(feature_bucket, theta_before, theta_after)`` summing
+        weights across table_id, so the weighted sum equals the original row count.
 
         OPE-92: Candidates are deduplicated by ``(feature_bucket, theta1, theta2)``
         before scoring to avoid redundant computation. The distinct triples are
@@ -162,7 +167,12 @@ class CorpusStatsStore:
         """
         from pyspark.sql import functions as F
 
-        with log_duration(logger, f"batch_score[{error_type.value}]"):
+        # Disable auto-broadcast joins to prevent OOM on CI runners with small heaps.
+        # We use explicit F.broadcast() where data is known to be small.
+        with (
+            log_duration(logger, f"batch_score[{error_type.value}]"),
+            scoped_conf(self.spark, **_AUTO_BROADCAST_DISABLED),
+        ):
             # Load corpus with weight column
             # Keep original column names for use in join conditions
             corpus = self.load(error_type).select(
@@ -171,6 +181,16 @@ class CorpusStatsStore:
                 "theta_after",
                 "weight",
             )
+
+            # OPE-92: Pre-aggregate corpus by (feature_bucket, theta_before, theta_after)
+            # summing weights. The builder outputs one row per corpus row with weight=1.
+            # This global pre-aggregation collapses across table_id, drastically reducing
+            # corpus row count before the join and avoiding the cross-product explosion
+            # that caused StackOverflowError in CI.
+            corpus = corpus.groupBy("feature_bucket", "theta_before", "theta_after").agg(
+                F.sum("weight").alias("weight")
+            )
+
             cand = candidates.select(
                 "candidate_id",
                 "feature_bucket",
