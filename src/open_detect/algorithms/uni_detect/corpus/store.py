@@ -101,7 +101,7 @@ class CorpusStatsStore:
                 "Adding weight=1 for backward compatibility; rebuild recommended for pre-aggregation benefits.",
                 self.config.corpus_stats_fqn,
             )
-            table = table.withColumn("weight", F.lit(1))
+            table = table.withColumn("weight", F.lit(1).cast("long"))
         return table
 
     def load_token_stats_map(self, max_tokens: int | None = 500_000) -> dict[str, int]:
