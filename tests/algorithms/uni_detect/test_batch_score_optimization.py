@@ -528,6 +528,13 @@ class TestBatchScoreOptimization:
         # Should not raise an error; weight should be added as 1
         loaded = store.load(ErrorType.UNIQUENESS)
         assert "weight" in loaded.columns
+        # Verify weight column is LongType (not IntegerType) for type compatibility
+        weight_schema = loaded.schema["weight"]
+        from pyspark.sql.types import LongType
+
+        assert isinstance(weight_schema.dataType, LongType), (
+            f"weight column should be LongType for compatibility, got {weight_schema.dataType}"
+        )
         # All weights should be 1
         weights = loaded.select("weight").collect()
         assert all(w["weight"] == 1 for w in weights)
