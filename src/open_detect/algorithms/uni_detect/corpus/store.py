@@ -171,6 +171,16 @@ class CorpusStatsStore:
                 "theta_after",
                 "weight",
             )
+
+            # OPE-92: Pre-aggregate corpus by (feature_bucket, theta_before, theta_after)
+            # summing weights. The builder aggregates by (feature_bucket, theta_before,
+            # theta_after, table_id), so we need to collapse across table_id here.
+            # This drastically reduces corpus row count before the join, avoiding the
+            # cross-product explosion that caused StackOverflowError in CI.
+            corpus = corpus.groupBy("feature_bucket", "theta_before", "theta_after").agg(
+                F.sum("weight").alias("weight")
+            )
+
             cand = candidates.select(
                 "candidate_id",
                 "feature_bucket",
