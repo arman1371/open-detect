@@ -86,7 +86,8 @@ def _aggregate_scored_rows(rows: list[tuple]) -> pd.DataFrame:
         )
 
     # Aggregate by (feature_bucket, theta_before, theta_after, table_id)
-    # and compute weight = count (as int64 for LongType compatibility)
+    # and compute weight = count (number of original corpus rows in this group).
+    # In batch_score, we sum weight for matching rows; sum(count) = original row count.
     df = pd.DataFrame(
         rows,
         columns=["table_id", "feature_bucket", "theta_before", "theta_after"],
