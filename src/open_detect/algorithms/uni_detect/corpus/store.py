@@ -149,12 +149,11 @@ class CorpusStatsStore:
             corpus support at all get ``lr_ratio == 1.0`` (maximally
             un-surprising), consistent with "assume clean absent evidence".
 
-        OPE-92: This method now uses the pre-aggregated ``weight`` column
-        from the corpus stats table to compute weighted counts instead of
-        materializing cross-products. The corpus is pre-aggregated by
-        ``(feature_bucket, theta_before, theta_after)`` with weight = count
-        (the number of original corpus rows in that group), so the weighted
-        sum equals the original row count.
+        OPE-92: This method uses the ``weight`` column from the corpus stats table
+        to compute weighted counts instead of materializing cross-products.
+        The builder outputs one row per corpus row with weight=1; this method
+        pre-aggregates by ``(feature_bucket, theta_before, theta_after)`` summing
+        weights across table_id, so the weighted sum equals the original row count.
 
         OPE-92: Candidates are deduplicated by ``(feature_bucket, theta1, theta2)``
         before scoring to avoid redundant computation. The distinct triples are
@@ -173,10 +172,10 @@ class CorpusStatsStore:
             )
 
             # OPE-92: Pre-aggregate corpus by (feature_bucket, theta_before, theta_after)
-            # summing weights. The builder aggregates by (feature_bucket, theta_before,
-            # theta_after, table_id), so we need to collapse across table_id here.
-            # This drastically reduces corpus row count before the join, avoiding the
-            # cross-product explosion that caused StackOverflowError in CI.
+            # summing weights. The builder outputs one row per corpus row with weight=1.
+            # This global pre-aggregation collapses across table_id, drastically reducing
+            # corpus row count before the join and avoiding the cross-product explosion
+            # that caused StackOverflowError in CI.
             corpus = corpus.groupBy("feature_bucket", "theta_before", "theta_after").agg(
                 F.sum("weight").alias("weight")
             )

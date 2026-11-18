@@ -67,10 +67,11 @@ def _stats_schema_without_error_type() -> StructType:
 
 
 def _aggregate_scored_rows(rows: list[tuple]) -> pd.DataFrame:
-    """Aggregate scored rows by (feature_bucket, theta_before, theta_after, table_id)
-    and compute weight = count (number of original corpus rows in each group).
+    """Convert scored rows to DataFrame with weight=1 per row.
 
-    In batch_score, we sum weight for matching rows; sum(count) = original row count.
+    Each input row corresponds to one corpus row (column or FD pair). Weight=1
+    means each row represents one original corpus row. The global pre-aggregation
+    across table_id happens in batch_score (OPE-92), not here.
 
     Returns an empty DataFrame with correct schema if rows is empty.
     """
@@ -85,23 +86,15 @@ def _aggregate_scored_rows(rows: list[tuple]) -> pd.DataFrame:
             }
         )
 
-    # Aggregate by (feature_bucket, theta_before, theta_after, table_id)
-    # and compute weight = count (number of original corpus rows in this group).
-    # In batch_score, we sum weight for matching rows; sum(count) = original row count.
+    # Each scored row = one corpus row, weight = 1 (int64 for LongType compatibility)
     df = pd.DataFrame(
         rows,
         columns=["table_id", "feature_bucket", "theta_before", "theta_after"],
     )
-    # Group and compute weight = count (as int64 for LongType compatibility)
-    grouped = (
-        df.groupby(["feature_bucket", "theta_before", "theta_after", "table_id"])
-        .size()
-        .reset_index(name="weight")
-    )
-    # Ensure weight is int64 (LongType)
-    grouped["weight"] = grouped["weight"].astype("int64")
+    df["weight"] = 1
+    df["weight"] = df["weight"].astype("int64")
     # Select columns in the correct order
-    return grouped[["feature_bucket", "theta_before", "theta_after", "weight", "table_id"]]
+    return df[["feature_bucket", "theta_before", "theta_after", "weight", "table_id"]]
 
 
 class CorpusStatsBuilder:
