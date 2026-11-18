@@ -59,22 +59,23 @@ class TestAggregateScoredRows:
         assert result.iloc[0]["theta_after"] == 0.2
         assert result.iloc[0]["table_id"] == "table1"
 
-    def test_duplicate_rows_are_kept_separate_with_weight_1(self):
-        """With new OPE-92 behavior, builder outputs one row per corpus row with weight=1.
-        Global pre-aggregation happens in batch_score, not here."""
+    def test_duplicate_rows_aggregated_with_weight_count(self):
+        """With new OPE-92 behavior, _aggregate_scored_rows aggregates duplicates.
+        Same rows are grouped and weight = count (number of original rows in group).
+        Global pre-aggregation in batch_score sums these weights."""
         rows = [
             ("table1", "bucket1", 0.1, 0.2),
             ("table1", "bucket1", 0.1, 0.2),
             ("table1", "bucket1", 0.1, 0.2),
         ]
         result = _aggregate_scored_rows(rows)
-        # Each corpus row becomes one row with weight=1
-        assert len(result) == 3
-        assert all(result["weight"] == 1)
-        assert all(result["feature_bucket"] == "bucket1")
-        assert all(result["theta_before"] == 0.1)
-        assert all(result["theta_after"] == 0.2)
-        assert all(result["table_id"] == "table1")
+        # 3 duplicate rows are aggregated into 1 row with weight=3
+        assert len(result) == 1
+        assert result.iloc[0]["weight"] == 3
+        assert result.iloc[0]["feature_bucket"] == "bucket1"
+        assert result.iloc[0]["theta_before"] == 0.1
+        assert result.iloc[0]["theta_after"] == 0.2
+        assert result.iloc[0]["table_id"] == "table1"
 
     def test_different_buckets_kept_separate(self):
         rows = [
@@ -561,16 +562,16 @@ class TestBuilderWeightOutput:
     """Test that builder produces LongType weight."""
 
     def test_aggregate_scored_rows_returns_int64_weight(self):
-        """Each corpus row gets weight=1 (int64). Global pre-aggregation is in batch_score."""
+        """Aggregated rows get int64 weight = count. Global pre-aggregation is in batch_score."""
         rows = [
             ("table1", "bucket1", 0.1, 0.2),
             ("table1", "bucket1", 0.1, 0.2),
         ]
         result = _aggregate_scored_rows(rows)
         assert result["weight"].dtype == "int64"
-        # Each row gets weight=1 (not aggregated in builder anymore)
-        assert len(result) == 2
-        assert all(result["weight"] == 1)
+        # 2 duplicate rows are aggregated into 1 row with weight=2
+        assert len(result) == 1
+        assert result.iloc[0]["weight"] == 2
 
 
 class TestCorpusStatsSchemaWeightType:
