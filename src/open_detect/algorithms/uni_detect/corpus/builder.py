@@ -385,6 +385,8 @@ class CorpusStatsBuilder:
         # backfill ALL legacy partitions with weight=1 before writing new statistics.
         # This must happen as a single schema evolution step to avoid leaving
         # other partitions with null weights (which would break load() fallback).
+        # Use additive schema evolution (overwriteSchema=True) to add the column
+        # to the entire table atomically, ensuring no rows have null weights.
         if table_already_exists:
             existing_table = self.spark.table(fqn)
             if "weight" not in existing_table.columns:
@@ -393,11 +395,12 @@ class CorpusStatsBuilder:
                     "Backfilling ALL legacy partitions with weight=1 (LongType) before writing new statistics.",
                     fqn,
                 )
-                # Add weight column with default 1 cast to LongType to match
-                # CORPUS_STATS_SCHEMA and builder output. Write with additive
-                # schema evolution (overwriteSchema=true, no replaceWhere) to
-                # add the column to the entire table atomically.
-                existing_table = existing_table.withColumn("weight", F.lit(1).cast("long"))
+                # Add weight column with default 1 explicitly cast to LongType
+                # to match CORPUS_STATS_SCHEMA and builder output
+                weight_default = F.lit(1).cast("long")
+                existing_table = existing_table.withColumn("weight", weight_default)
+                # Use overwriteSchema for additive schema evolution (adding new column)
+                # This is safe here: we're adding a column with a default value to ALL rows
                 existing_table.write.format("delta").mode("overwrite").option(
                     "overwriteSchema", "true"
                 ).saveAsTable(fqn)
