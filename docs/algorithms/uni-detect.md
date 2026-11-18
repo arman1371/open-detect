@@ -26,6 +26,24 @@ Work is split into two phases:
 2. **Online.** `detect` scores target tables by looking those statistics up. It is fast enough
    for interactive use.
 
+### Corpus Statistics Schema (OPE-92)
+
+The materialized corpus statistics table (`open_detect_corpus_stats`) contains one row per corpus
+column (or column-pair for FD) per error type, with the following schema:
+
+| Column | Type | Description |
+|---|---|---|
+| `error_type` | string | `uniqueness`, `functional_dependency`, `numeric_outlier`, or `spelling` |
+| `feature_bucket` | string | Composite key from featurization (data type, row-count bucket, prevalence bucket, token-length bucket) |
+| `theta_before` | double | Perturbation outcome before removing suspicious values |
+| `theta_after` | double | Perturbation outcome after removing suspicious values |
+| `weight` | long | **OPE-92:** Count of original corpus rows in this group. Pre-aggregation key is `(feature_bucket, theta_before, theta_after, table_id)`. Summing `weight` across groups equals the original corpus row count. |
+| `table_id` | string | Source corpus table identifier (nullable) |
+
+The `weight` column enables the online scorer to compute weighted sums instead of materializing
+cross-products. For corpora built before this optimization, `load()` falls back to `weight=1` with
+a warning; a rebuild is recommended to benefit from pre-aggregation.
+
 !!! info "What is the corpus?"
     The paper's corpus is 100M+ web tables. Here it is the tables your organization already has
     in Unity Catalog: a whole catalog, a few schemas, or an allow-list. Governed tables play the
@@ -159,3 +177,7 @@ python examples/quickstart.py
 - **Functional dependencies are the hardest case.** The paper itself reports lower precision for
   FD errors; so does the [benchmark](../benchmarks.md).
 - **Missing statistics.** Scanning before building the corpus raises `CorpusNotFoundError`.
+- **Corpus rebuild for OPE-92.** Corpora built before the OPE-92 optimization lack the `weight`
+  column. The `load()` method automatically adds `weight=1` with a warning, but a full rebuild
+  via `build_corpus_statistics()` is recommended to benefit from pre-aggregation and correct
+  `support` semantics.
