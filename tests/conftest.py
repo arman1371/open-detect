@@ -43,6 +43,80 @@ _MAVEN_BASE = "https://repo1.maven.org/maven2"
 _SCALA_VERSION = "2.13"
 
 
+# Known cgroup-v1 unlimited sentinels (max signed 64-bit, page-aligned variants)
+_UNLIMITED_SENTINELS = {
+    9223372036854771712,  # 2^63 - 2^26
+    9223372036854775807,  # 2^63 - 1
+    18446744073709551615,  # 2^64 - 1
+}
+
+
+def _host_memory_bytes() -> int | None:
+    """Best-effort read of the RAM the JVM will actually be allowed to use.
+
+    Prefers the cgroup limit (containers) over the host total, since the JVM
+    sizes its heap from the host total and gets OOM-killed when the container
+    limit is smaller. On cgroup-v1 systems without an enforced limit,
+    ``memory.limit_in_bytes`` commonly holds a huge unlimited sentinel, so we
+    detect and ignore such sentinels. The returned value is the **minimum**
+    of the physical RAM and the cgroup limit.
+    """
+    physical: int | None = None
+    cgroup: int | None = None
+    for path in ("/sys/fs/cgroup/memory.max", "/sys/fs/cgroup/memory/memory.limit_in_bytes"):
+        try:
+            raw = Path(path).read_text().strip()
+        except OSError:
+            continue
+        if raw in ("max", ""):
+            continue
+        try:
+            value = int(raw)
+        except ValueError:
+            continue
+        if value > 0 and value not in _UNLIMITED_SENTINELS:
+            cgroup = value
+            break
+    try:
+        physical = int(Path("/proc/meminfo").read_text().splitlines()[0].split()[1]) * 1024
+    except (OSError, IndexError, ValueError):
+        physical = None
+    if physical is not None and cgroup is not None:
+        return min(physical, cgroup)
+    return physical if physical is not None else cgroup
+
+
+def _cap_driver_memory(driver_memory: str) -> str:
+    """Clamp ``driver_memory`` so the JVM fits inside the host/cgroup RAM.
+
+    Spark derives its heap from the host total, but in a container the JVM is
+    still constrained by the cgroup -- a heap bigger than the cgroup gets the
+    process killed mid-run. Cap at 50% of the available memory (leaving room
+    for the Python driver, the OS, and the executor thread pools).
+    Returns the capped value, or the original if no cap can be determined.
+    """
+    try:
+        requested = int(driver_memory.rstrip("gGmM")) * (
+            1024 * 1024 * 1024 if driver_memory[-1] in "gG" else 1024 * 1024
+        )
+    except (ValueError, IndexError):
+        return driver_memory
+    host = _host_memory_bytes()
+    if host is None:
+        return driver_memory
+    cap = int(host * 0.5)
+    # Minimum usable heap is 512m
+    MIN_DRIVER_MEMORY_BYTES = 512 * 1024 * 1024  # 512m
+    if cap < MIN_DRIVER_MEMORY_BYTES:
+        # The available memory cannot support even a minimal heap.
+        return driver_memory  # Let Spark fail with its own error if it must
+    if requested <= cap:
+        return driver_memory
+    unit = "g" if cap % (1024 * 1024 * 1024) == 0 else "m"
+    value = cap // (1024 * 1024 * 1024) if unit == "g" else cap // (1024 * 1024)
+    return f"{value}{unit}"
+
+
 def _download(url: str, dest: Path) -> None:
     if dest.exists():
         return
@@ -114,6 +188,13 @@ def spark() -> Iterator[pyspark.sql.SparkSession]:  # noqa: F821
     from pyspark.sql import SparkSession
 
     warehouse_dir = tempfile.mkdtemp(prefix="open_detect-warehouse-")
+    # Cap driver/executor memory to fit within the CI runner's memory limit.
+    # The benchmark's spark_session.py uses the same dynamic approach.
+    driver_memory = _cap_driver_memory("2g")
+    # Executor runs in the same JVM as driver for local[2], so we only set driver memory.
+    # For local mode, executor.memory is ignored (same process), but we keep a conservative
+    # value in case the config is used differently.
+    executor_memory = _cap_driver_memory("3g")
     builder = (
         SparkSession.builder.master("local[2]")
         .appName("open_detect-tests")
@@ -126,9 +207,9 @@ def spark() -> Iterator[pyspark.sql.SparkSession]:  # noqa: F821
         # Mirrors benchmarks/common/spark_session.py, which bumped this for the
         # same reason (corpus/store.py's load_token_stats_map() pre-sizes an
         # ordering buffer proportional to max_tokens; default 500k fits in 4g).
-        # CI runners have limited memory (7GB total), so use smaller heaps to fit.
-        .config("spark.driver.memory", "2g")
-        .config("spark.executor.memory", "3g")
+        # CI runners have limited memory (7GB total), so cap heaps to fit.
+        .config("spark.driver.memory", driver_memory)
+        .config("spark.executor.memory", executor_memory)
         # Delta replays its transaction log with this many partitions on every
         # snapshot load (default 50) -- pure overhead for tiny test tables.
         .config("spark.databricks.delta.snapshotPartitions", "2")
