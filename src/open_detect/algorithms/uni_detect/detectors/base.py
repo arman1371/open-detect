@@ -28,7 +28,10 @@ from pyspark import StorageLevel
 from open_detect.algorithms.uni_detect.config import UniDetectConfig
 from open_detect.algorithms.uni_detect.core.enums import ErrorType
 from open_detect.algorithms.uni_detect.corpus.ingestion import CorpusIngestor
-from open_detect.algorithms.uni_detect.corpus.store import CorpusStatsStore
+from open_detect.algorithms.uni_detect.corpus.store import (
+    _AUTO_BROADCAST_DISABLED,
+    CorpusStatsStore,
+)
 from open_detect.algorithms.uni_detect.failures import FailureTracker
 from open_detect.algorithms.uni_detect.spark_utils import (
     ARROW_MAX_RECORDS_PER_BATCH,
@@ -164,11 +167,15 @@ class BaseDetector(ABC):
             # scoring (batch_score join), and result materialization.
             # This protects against OOM on array-heavy workloads where a single
             # Arrow batch can balloon to ~10^9 strings.
+            # Also disable auto broadcast joins to prevent OOM on CI runners with small heaps.
             with (
                 log_duration(logger, f"detect[{self.error_type.value}]"),
                 scoped_conf(
                     self.spark,
-                    **{ARROW_MAX_RECORDS_PER_BATCH_KEY: str(ARROW_MAX_RECORDS_PER_BATCH)},
+                    **{
+                        ARROW_MAX_RECORDS_PER_BATCH_KEY: str(ARROW_MAX_RECORDS_PER_BATCH),
+                        **_AUTO_BROADCAST_DISABLED,
+                    },
                 ),
             ):
                 candidates = self.extract_candidates(
