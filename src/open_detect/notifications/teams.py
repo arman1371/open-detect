@@ -60,13 +60,20 @@ class TeamsNotifier:
         last_sent = self._last_sent.get(event_type, 0)
         max_per_hour = self.rate_limit.get("max_per_hour", float("inf"))
 
+        # Guard against division by zero or invalid rate limit values
+        if max_per_hour <= 0:
+            max_per_hour = float("inf")
+
         # Calculate how long since last send in hours
         elapsed_hours = (now - last_sent) / 3600
 
-        if elapsed_hours < 1 / max_per_hour:
+        # Avoid division by zero when max_per_hour is effectively infinite
+        min_interval_hours = 0.0 if max_per_hour == float("inf") else 1 / max_per_hour
+
+        if elapsed_hours < min_interval_hours:
             logger.debug(
                 f"Rate limiting: skipping {event_type} notification, "
-                f"last sent {elapsed_hours:.2f}h ago, need at least {1 / max_per_hour:.2f}h"
+                f"last sent {elapsed_hours:.2f}h ago, need at least {min_interval_hours:.2f}h"
             )
             return False
 
@@ -82,6 +89,8 @@ class TeamsNotifier:
         description: str | None = None,
     ) -> dict[str, Any]:
         # Build the adaptive card with proper type hints
+        # Keep deprecated 'title' property for backward compatibility
+        # and use activityTitle in sections as recommended
         card: dict[str, Any] = {
             "type": "message",
             "attachments": [
@@ -91,12 +100,12 @@ class TeamsNotifier:
                         "$schema": "http://adaptivecards.io/schemas/adaptive-card.json",
                         "type": "AdaptiveCard",
                         "version": "1.5",
+                        "title": ":alert: Scan Context Detection",  # deprecated but kept for compatibility
                         "fallbackText": f":alert: Scan Context Detection - {event_type}",
                         "themeColor": "yellow",  # placeholder, will be updated
-                        "title": ":alert: Scan Context Detection",
                         "sections": [
                             {
-                                "activityTitle": f":alert: {event_type.replace('_', ' ').title()}",
+                                "activityTitle": f":alert: Scan Context Detection - {event_type.replace('_', ' ').title()}",
                                 "activitySubtitle": f"Severity: {severity.title()}",
                                 "facts": [
                                     {
@@ -142,7 +151,7 @@ class TeamsNotifier:
                     "activityTitle": "Description",
                     "facts": [
                         {
-                            "title": "",
+                            "title": "Description",
                             "value": description,
                         }
                     ],
@@ -184,7 +193,15 @@ class TeamsNotifier:
         severity_order = {"low": 0, "medium": 1, "high": 2, "critical": 3}
         threshold_order = {"low": 0, "medium": 1, "high": 2, "critical": 3}
 
-        if severity_order.get(severity, 0) < threshold_order.get(self.severity_threshold, 1):
+        # Validate severity threshold; raise error for invalid configuration
+        if self.severity_threshold not in threshold_order:
+            raise ValueError(
+                f"Invalid severity_threshold: '{self.severity_threshold}'. "
+                f"Must be one of: low, medium, high, critical"
+            )
+        effective_threshold = threshold_order[self.severity_threshold]
+
+        if severity_order.get(severity, 0) < effective_threshold:
             logger.debug(
                 f"Severity {severity} below threshold {self.severity_threshold}, "
                 f"skipping notification"
@@ -195,6 +212,7 @@ class TeamsNotifier:
         payload = self._build_message(event_type, severity, affected, timestamp, description)
 
         # Send with retries
+        backoff = BASE_BACKOFF_SECONDS  # Reset backoff at start
         for attempt in range(MAX_RETRIES + 1):
             try:
                 response = requests.post(
@@ -204,6 +222,8 @@ class TeamsNotifier:
                 )
 
                 if response.status_code == 200:
+                    # Update last sent timestamp to reflect actual delivery time
+                    self._last_sent[event_type] = time.time()
                     logger.info(f"Teams notification sent: {event_type} ({severity})")
                     return True
                 else:
