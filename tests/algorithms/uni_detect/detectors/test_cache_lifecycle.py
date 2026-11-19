@@ -197,6 +197,7 @@ def _spark_available() -> bool:
         # session-scoped ``spark`` fixture created later by conftest.py.
         import delta  # noqa: F401
         import pyspark  # noqa: F401
+
         return True
     except Exception:
         return False
