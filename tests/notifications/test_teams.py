@@ -228,9 +228,7 @@ class TestSend:
         mock_post.assert_not_called()
 
     def test_returns_true_for_severity_below_threshold(self):
-        notifier = TeamsNotifier(
-            webhook_url="https://test.url", severity_threshold="high"
-        )
+        notifier = TeamsNotifier(webhook_url="https://test.url", severity_threshold="high")
         # medium is below high threshold
         result = notifier.send(
             event_type="test_event",
@@ -242,9 +240,7 @@ class TestSend:
         assert result is True  # Not an error, just suppressed
 
     def test_sends_when_severity_meets_threshold(self):
-        notifier = TeamsNotifier(
-            webhook_url="https://test.url", severity_threshold="medium"
-        )
+        notifier = TeamsNotifier(webhook_url="https://test.url", severity_threshold="medium")
         # high meets medium threshold
         with patch("open_detect.notifications.teams.requests.post") as mock_post:
             mock_response = MagicMock()
@@ -262,9 +258,7 @@ class TestSend:
             mock_post.assert_called_once()
 
     def test_sends_when_severity_equals_threshold(self):
-        notifier = TeamsNotifier(
-            webhook_url="https://test.url", severity_threshold="high"
-        )
+        notifier = TeamsNotifier(webhook_url="https://test.url", severity_threshold="high")
         # high equals high threshold
         with patch("open_detect.notifications.teams.requests.post") as mock_post:
             mock_response = MagicMock()
@@ -369,8 +363,7 @@ class TestSeverityOrdering:
             severity_order = {"low": 0, "medium": 1, "high": 2, "critical": 3}
             threshold_order = {"low": 0, "medium": 1, "high": 2, "critical": 3}
 
-            allowed = (
-                severity_order.get(severity, 0)
-                >= threshold_order.get(notifier.severity_threshold, 1)
+            allowed = severity_order.get(severity, 0) >= threshold_order.get(
+                notifier.severity_threshold, 1
             )
             assert allowed == expected_allowed

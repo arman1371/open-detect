@@ -204,9 +204,7 @@ class TeamsNotifier:
                 )
 
                 if response.status_code == 200:
-                    logger.info(
-                        f"Teams notification sent: {event_type} ({severity})"
-                    )
+                    logger.info(f"Teams notification sent: {event_type} ({severity})")
                     return True
                 else:
                     logger.warning(
@@ -221,7 +219,7 @@ class TeamsNotifier:
 
             # Exponential backoff before retry
             if attempt < MAX_RETRIES:
-                backoff = BASE_BACKOFF_SECONDS * (2 ** attempt)
+                backoff = BASE_BACKOFF_SECONDS * (2**attempt)
                 logger.info(f"Retrying in {backoff}s...")
                 time.sleep(backoff)
 

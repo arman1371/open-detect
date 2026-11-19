@@ -147,7 +147,7 @@ def _send_teams_notification(
     logger = get_logger(__name__)
 
     # Build adaptive card payload
-    color_map = {
+    color_map: dict[str, str] = {
         "low": "green",
         "medium": "yellow",
         "high": "orange",
@@ -155,7 +155,7 @@ def _send_teams_notification(
     }
     color = color_map.get(severity, "yellow")
 
-    card = {
+    card: dict[str, Any] = {
         "type": "message",
         "attachments": [
             {
@@ -209,8 +209,7 @@ def _send_teams_notification(
             return True
         else:
             logger.warning(
-                f"Teams webhook returned status {response.status_code}: "
-                f"{response.text[:200]}"
+                f"Teams webhook returned status {response.status_code}: " f"{response.text[:200]}"
             )
             return False
 
