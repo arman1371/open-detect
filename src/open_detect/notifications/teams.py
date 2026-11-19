@@ -69,11 +69,9 @@ class TeamsNotifier:
 
         # Avoid division by zero when max_per_hour is effectively infinite
         # min_interval_hours is the minimum hours between notifications
-        if max_per_hour == float("inf"):
-            min_interval_hours = 0.0
-        else:
-            # Ensure max_per_hour is at least 1 to prevent division by zero
-            min_interval_hours = 1 / max(max_per_hour, 1)
+        min_interval_hours = (
+            0.0 if max_per_hour == float("inf") else 1 / max(max_per_hour, 1)
+        )
 
         if elapsed_hours < min_interval_hours:
             logger.debug(
