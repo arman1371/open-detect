@@ -35,6 +35,7 @@ class FakeSpark:
         self.properties = dict(properties or {})
         self.statements: list[str] = []
         self.conf = FakeConf()
+        self.tables = {}
 
     def sql(self, statement: str):
         self.statements.append(statement)
@@ -50,6 +51,22 @@ class FakeSpark:
                 self.properties[key] = value.rstrip("'")
             return MagicMock()
         raise AssertionError(statement)
+
+    def table(self, fqn: str):
+        if fqn not in self.tables:
+            mock_table = MagicMock()
+            mock_table.columns = ["weight", "error_type"]  # Include weight to skip migration
+            mock_table.where.return_value = MagicMock()
+            mock_table.where.return_value.count.return_value = 0
+            mock_table.where.return_value.withColumn.return_value = MagicMock()
+            mock_table.where.return_value.withColumn.return_value.write.format.return_value.mode.return_value.option.return_value.saveAsTable = (
+                MagicMock()
+            )
+            self.tables[fqn] = mock_table
+        return self.tables[fqn]
+
+    def catalog(self):
+        return MagicMock()
 
 
 class FakeConf:

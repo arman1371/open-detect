@@ -53,7 +53,10 @@ class TestCorpusBuilderFailureGate:
         assert len(warnings) == 1
         assert "skipped 1 of 8" in warnings[0].getMessage()
         assert "ValidationError=1" in warnings[0].getMessage()
-        assert spark.table(config.corpus_stats_fqn).count() == 7
+        # OPE-92: Pre-aggregation collapses 7 identical FD pairs into 1 row with weight=7
+        table = spark.table(config.corpus_stats_fqn)
+        assert table.count() == 1
+        assert table.select("weight").collect()[0]["weight"] == 7
 
     def test_breach_raises_and_nothing_is_written(self, spark, uc_location):
         config = _config(uc_location, "exec_fail_over_threshold", max_failure_ratio=0.05)
@@ -73,7 +76,10 @@ class TestCorpusBuilderFailureGate:
             builder.write(stats)
 
         assert not caplog.records
-        assert spark.table(config.corpus_stats_fqn).count() == 4
+        # OPE-92: Pre-aggregation collapses 4 identical FD pairs into 1 row with weight=4
+        table = spark.table(config.corpus_stats_fqn)
+        assert table.count() == 1
+        assert table.select("weight").collect()[0]["weight"] == 4
 
     def test_non_numeric_columns_are_not_failures(self, spark, uc_location, caplog):
         config = _config(uc_location, "exec_fail_not_applicable", max_failure_ratio=0.0)
