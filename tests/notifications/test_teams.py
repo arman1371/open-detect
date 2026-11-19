@@ -2,12 +2,10 @@
 
 from __future__ import annotations
 
-import json
 import time
 from unittest.mock import MagicMock, patch
 
 import pytest
-import requests
 
 from open_detect.notifications.teams import TeamsNotificationError, TeamsNotifier
 

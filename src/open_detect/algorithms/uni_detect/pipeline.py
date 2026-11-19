@@ -33,7 +33,6 @@ from open_detect.algorithms.uni_detect.spark_utils import get_spark
 from open_detect.exceptions import ConfigurationError, ValidationError
 from open_detect.logging_utils import get_logger, log_duration
 from open_detect.notifications.config import get_notification_config
-from open_detect.notifications.teams import TeamsNotifier
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
@@ -140,10 +139,10 @@ def _send_teams_notification(
     Returns:
         True if notification was sent successfully, False otherwise
     """
-    import json
+
+    import requests
 
     from open_detect.logging_utils import get_logger
-    import requests
 
     logger = get_logger(__name__)
 
@@ -520,7 +519,6 @@ class UniDetect:
                 - description: Optional description for the notification
                 - affected_summary: Optional affected summary
         """
-        from open_detect.algorithms.uni_detect.corpus.store import _AUTO_BROADCAST_DISABLED
 
         # Get notification configuration
         config = get_notification_config()
@@ -531,7 +529,7 @@ class UniDetect:
 
         # Determine severity from kwargs or default
         severity = kwargs.get("severity", "medium")
-        description = kwargs.get("description", None)
+        description = kwargs.get("description")
 
         # Check if we should notify based on severity threshold
         if not _should_notify_severity(severity, config["severity_threshold"]):

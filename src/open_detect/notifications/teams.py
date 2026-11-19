@@ -6,9 +6,8 @@ Supports severity filtering, rate limiting, and error handling with retries.
 
 from __future__ import annotations
 
-import json
 import time
-from typing import Any, Dict, Optional
+from typing import Any
 
 import requests
 
@@ -38,7 +37,7 @@ class TeamsNotifier:
         self,
         webhook_url: str,
         severity_threshold: str = DEFAULT_SEVERITY_THRESHOLD,
-        rate_limit: Optional[Dict[str, int]] = None,
+        rate_limit: dict[str, int] | None = None,
     ) -> None:
         """Initialize the Teams notifier.
 
@@ -50,7 +49,7 @@ class TeamsNotifier:
         self.webhook_url = webhook_url
         self.severity_threshold = severity_threshold
         self.rate_limit = rate_limit or DEFAULT_RATE_LIMIT
-        self._last_sent: Dict[str, float] = {}  # event_type -> timestamp
+        self._last_sent: dict[str, float] = {}  # event_type -> timestamp
 
     def _check_rate_limit(self, event_type: str) -> bool:
         """Check if we should respect rate limiting for this event type.
@@ -80,38 +79,10 @@ class TeamsNotifier:
         severity: str,
         affected: str,
         timestamp: str,
-        description: Optional[str] = None,
-    ) -> Dict[str, Any]:
-        """Build the adaptive card payload for Teams.
-
-        Args:
-            event_type: Type of detection event
-            severity: Severity level (low, medium, high, critical)
-            affected: Description of affected nodes/patterns
-            timestamp: When the event occurred
-            description: Optional additional description
-
-        Returns:
-            Adaptive card payload dictionary
-        """
-        # Map severity to Teams theme color
-        color_map = {
-            "low": "green",
-            "medium": "yellow",
-            "high": "orange",
-            "critical": "red",
-        }
-        color = color_map.get(severity, "yellow")
-
-        # Format timestamp
-        timestamp_str = (
-            timestamp
-            if timestamp
-            else "just now"
-        )
-
-        # Build the adaptive card
-        card = {
+        description: str | None = None,
+    ) -> dict[str, Any]:
+        # Build the adaptive card with proper type hints
+        card: dict[str, Any] = {
             "type": "message",
             "attachments": [
                 {
@@ -121,7 +92,7 @@ class TeamsNotifier:
                         "type": "AdaptiveCard",
                         "version": "1.5",
                         "fallbackText": f":alert: Scan Context Detection - {event_type}",
-                        "themeColor": color,
+                        "themeColor": "yellow",  # placeholder, will be updated
                         "title": ":alert: Scan Context Detection",
                         "sections": [
                             {
@@ -142,7 +113,7 @@ class TeamsNotifier:
                                     },
                                     {
                                         "title": "Timestamp",
-                                        "value": timestamp_str,
+                                        "value": timestamp if timestamp else "just now",
                                     },
                                 ],
                                 "markdown": True,
@@ -153,9 +124,20 @@ class TeamsNotifier:
             ],
         }
 
+        # Map severity to Teams theme color
+        color_map = {
+            "low": "green",
+            "medium": "yellow",
+            "high": "orange",
+            "critical": "red",
+        }
+        color = color_map.get(severity, "yellow")
+        card["attachments"][0]["content"]["themeColor"] = color
+
         if description:
             # Add description as an additional section
-            card["attachments"][0]["content"]["sections"].append(
+            sections = card["attachments"][0]["content"]["sections"]
+            sections.append(
                 {
                     "activityTitle": "Description",
                     "facts": [
@@ -176,7 +158,7 @@ class TeamsNotifier:
         severity: str,
         affected: str,
         timestamp: str,
-        description: Optional[str] = None,
+        description: str | None = None,
     ) -> bool:
         """Send a Teams notification.
 
@@ -254,7 +236,7 @@ class TeamsNotifier:
         severity: str,
         affected: str,
         timestamp: str,
-        description: Optional[str] = None,
+        description: str | None = None,
     ) -> bool:
         """Send a Teams notification safely, catching and logging errors.
 

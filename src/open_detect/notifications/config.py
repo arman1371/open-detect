@@ -7,10 +7,9 @@ for the Teams notification integration.
 from __future__ import annotations
 
 import os
-from typing import Optional
 
 
-def get_teams_webhook_url() -> Optional[str]:
+def get_teams_webhook_url() -> str | None:
     """Get the Teams webhook URL from environment variables.
 
     Returns:
