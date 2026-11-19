@@ -13,6 +13,7 @@ This is the single entry point most users need:
 
 from __future__ import annotations
 
+import time
 from contextlib import suppress
 from typing import TYPE_CHECKING, Any
 
@@ -32,6 +33,8 @@ from open_detect.algorithms.uni_detect.detectors import (
 from open_detect.algorithms.uni_detect.spark_utils import get_spark
 from open_detect.exceptions import ConfigurationError, ValidationError
 from open_detect.logging_utils import get_logger, log_duration
+from open_detect.notifications.config import get_notification_config
+from open_detect.notifications.teams import TeamsNotifier
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
@@ -46,6 +49,14 @@ _TOKEN_DEPENDENT_TYPES = (ErrorType.UNIQUENESS, ErrorType.FUNCTIONAL_DEPENDENCY)
 _NUMERIC_ONLY_TYPES = (ErrorType.NUMERIC_OUTLIER,)
 # Types that need non-numeric columns only (spelling)
 _NON_NUMERIC_ONLY_TYPES = (ErrorType.SPELLING,)
+
+# Type name mapping for Teams notifications
+_TYPE_NAMES = {
+    "uniqueness": "Uniqueness",
+    "numeric_outlier": "Numeric Outlier",
+    "spelling": "Spelling",
+    "functional_dependency": "Functional Dependency",
+}
 
 
 def _require_columns(columns_df: DataFrame | None) -> DataFrame:
@@ -236,6 +247,7 @@ class UniDetect:
 
         from pyspark.sql import functions as F
 
+        from open_detect.algorithms.uni_detect.corpus.store import _AUTO_BROADCAST_DISABLED
         from open_detect.algorithms.uni_detect.spark_utils import (
             ARROW_MAX_RECORDS_PER_BATCH,
             ARROW_MAX_RECORDS_PER_BATCH_KEY,
@@ -252,9 +264,13 @@ class UniDetect:
             # Keep Arrow limit active through ALL detector operations:
             # extract_candidates (mapInPandas), candidate materialization (count),
             # scoring (batch_score join), and result materialization.
+            # Also disable auto broadcast joins to prevent OOM on CI runners with small heaps.
             with scoped_conf(
                 self.spark,
-                **{ARROW_MAX_RECORDS_PER_BATCH_KEY: str(ARROW_MAX_RECORDS_PER_BATCH)},
+                **{
+                    ARROW_MAX_RECORDS_PER_BATCH_KEY: str(ARROW_MAX_RECORDS_PER_BATCH),
+                    **_AUTO_BROADCAST_DISABLED,
+                },
             ):
                 # Ingest once and share across detectors if not provided
                 shared_columns_df = None
@@ -306,6 +322,14 @@ class UniDetect:
                         ingested_pairs_df=shared_pairs_df,
                     )
                     frames.append(frame)
+
+                    # Send Teams notification after each detector runs
+                    self._send_teams_notification_after_detection(
+                        et,
+                        frame,
+                        kwargs,
+                    )
+
                 # Balanced union (not left-deep reduce) so the final merge plan is
                 # ceil(log2(N)) deep regardless of how many detectors are enabled.
                 result = balanced_union(frames)
@@ -342,6 +366,98 @@ class UniDetect:
             if shared_pairs_df is not None and ingested_pairs_df is None:
                 with suppress(Exception):
                     shared_pairs_df.unpersist()
+
+    def _build_affected_summary(
+        self,
+        error_type: ErrorType,
+        candidates_count: int,
+        description: str | None = None,
+    ) -> str:
+        """Build a human-readable summary of affected areas for Teams notification."""
+        type_name = _TYPE_NAMES.get(error_type.value, error_type.value.title())
+
+        if candidates_count == 0:
+            return f"{type_name} detection - no specific anomalies found"
+
+        if description:
+            return f"{type_name} detection: {description}"
+
+        return f"{type_name} detection - {candidates_count} anomaly(ies) detected"
+
+    def _send_teams_notification_after_detection(
+        self,
+        error_type: ErrorType,
+        detection_frame: DataFrame,
+        kwargs: dict[str, Any],
+    ) -> None:
+        """Send a Teams notification after a detector runs.
+
+        This is called after each detector's ``detect()`` method completes.
+        It respects severity thresholds, rate limiting, and configuration.
+
+        Args:
+            error_type: The error type that was detected
+            detection_frame: The detection result DataFrame
+            kwargs: Keyword arguments passed to detect(), including:
+                - severity: Override default severity (low, medium, high, critical)
+                - description: Optional description for the notification
+                - affected_summary: Optional affected summary
+        """
+
+        # Get notification configuration
+        config = get_notification_config()
+
+        if not config["enabled"]:
+            logger.debug("Teams notifications disabled, skipping notification")
+            return
+
+        # Determine severity from kwargs or default
+        severity = kwargs.get("severity", "medium")
+        description = kwargs.get("description")
+
+        # Check if we should notify based on severity threshold
+        severity_order = {"low": 0, "medium": 1, "high": 2, "critical": 3}
+        threshold_order = {"low": 0, "medium": 1, "high": 2, "critical": 3}
+        if severity_order.get(severity, 0) < threshold_order.get(config["severity_threshold"], 1):
+            logger.debug(
+                f"Severity {severity} below threshold {config['severity_threshold']}, "
+                "skipping notification"
+            )
+            return
+
+        # Initialize Teams notifier if webhook is configured
+        webhook_url = config["webhook_url"]
+        if not webhook_url:
+            logger.debug("Teams webhook URL not configured, skipping notification")
+            return
+
+        # Get affected summary from the detection results
+        candidates_count = detection_frame.count() if detection_frame is not None else 0
+        affected = self._build_affected_summary(error_type, candidates_count, description)
+
+        # Get timestamp
+        timestamp = time.strftime("%Y-%m-%dT%H:%M:%SZ")
+
+        # Create Teams notifier and send notification with retry logic
+        notifier = TeamsNotifier(
+            webhook_url=webhook_url,
+            severity_threshold=config["severity_threshold"],
+            rate_limit=config["rate_limit"],
+        )
+
+        try:
+            notifier.send_safe(
+                event_type=f"scan_context_{error_type.name.lower()}",
+                severity=severity,
+                affected=affected,
+                timestamp=timestamp,
+                description=description,
+            )
+            logger.info(
+                f"Teams notification dispatched: {error_type.name} ({severity}) - {affected}"
+            )
+        except Exception as e:
+            logger.warning(f"Failed to send Teams notification: {e}")
 
     def release(self) -> None:
         """Release all cached detector resources.
