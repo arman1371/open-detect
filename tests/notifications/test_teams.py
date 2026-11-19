@@ -85,7 +85,10 @@ class TestBuildMessage:
         assert content["version"] == "1.5"
         assert content["themeColor"] == "orange"  # high severity
         # Title is now in activityTitle of first section (Teams Adaptive Card schema)
-        assert content["sections"][0]["activityTitle"] == ":alert: Scan Context Detection - Community Structure Change"
+        assert (
+            content["sections"][0]["activityTitle"]
+            == ":alert: Scan Context Detection - Community Structure Change"
+        )
 
     def test_theme_colors_for_all_severities(self):
         notifier = TeamsNotifier(webhook_url="https://test.url")
