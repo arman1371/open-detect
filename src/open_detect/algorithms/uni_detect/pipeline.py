@@ -418,9 +418,7 @@ class UniDetect:
         # Check if we should notify based on severity threshold
         severity_order = {"low": 0, "medium": 1, "high": 2, "critical": 3}
         threshold_order = {"low": 0, "medium": 1, "high": 2, "critical": 3}
-        if severity_order.get(severity, 0) < threshold_order.get(
-            config["severity_threshold"], 1
-        ):
+        if severity_order.get(severity, 0) < threshold_order.get(config["severity_threshold"], 1):
             logger.debug(
                 f"Severity {severity} below threshold {config['severity_threshold']}, "
                 "skipping notification"
