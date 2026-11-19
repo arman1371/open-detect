@@ -84,7 +84,8 @@ class TestBuildMessage:
         assert content["type"] == "AdaptiveCard"
         assert content["version"] == "1.5"
         assert content["themeColor"] == "orange"  # high severity
-        assert content["title"] == ":alert: Scan Context Detection"
+        # Title is now in activityTitle of first section (Teams Adaptive Card schema)
+        assert content["sections"][0]["activityTitle"] == ":alert: Scan Context Detection - Community Structure Change"
 
     def test_theme_colors_for_all_severities(self):
         notifier = TeamsNotifier(webhook_url="https://test.url")
@@ -133,7 +134,7 @@ class TestBuildMessage:
         sections = card["attachments"][0]["content"]["sections"]
         assert len(sections) == 2
         assert sections[1]["activityTitle"] == "Description"
-        assert sections[1]["facts"][0]["value"] == "Test description"
+        assert sections[1]["text"] == "Test description"
 
     def test_excludes_description_section_when_none(self):
         notifier = TeamsNotifier(webhook_url="https://test.url")

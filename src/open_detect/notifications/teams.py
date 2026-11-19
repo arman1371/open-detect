@@ -60,15 +60,20 @@ class TeamsNotifier:
         last_sent = self._last_sent.get(event_type, 0)
         max_per_hour = self.rate_limit.get("max_per_hour", float("inf"))
 
-        # Guard against division by zero or invalid rate limit values
-        if max_per_hour <= 0:
+        # Validate rate limit value - must be positive integer or infinity
+        if not isinstance(max_per_hour, (int, float)) or max_per_hour <= 0:
             max_per_hour = float("inf")
 
         # Calculate how long since last send in hours
         elapsed_hours = (now - last_sent) / 3600
 
         # Avoid division by zero when max_per_hour is effectively infinite
-        min_interval_hours = 0.0 if max_per_hour == float("inf") else 1 / max_per_hour
+        # min_interval_hours is the minimum hours between notifications
+        if max_per_hour == float("inf"):
+            min_interval_hours = 0.0
+        else:
+            # Ensure max_per_hour is at least 1 to prevent division by zero
+            min_interval_hours = 1 / max(max_per_hour, 1)
 
         if elapsed_hours < min_interval_hours:
             logger.debug(
@@ -89,8 +94,8 @@ class TeamsNotifier:
         description: str | None = None,
     ) -> dict[str, Any]:
         # Build the adaptive card with proper type hints
-        # Keep deprecated 'title' property for backward compatibility
-        # and use activityTitle in sections as recommended
+        # Remove deprecated 'title' property from root - it breaks Teams rendering.
+        # Use activityTitle in sections as recommended by Teams Adaptive Card schema.
         card: dict[str, Any] = {
             "type": "message",
             "attachments": [
@@ -100,7 +105,6 @@ class TeamsNotifier:
                         "$schema": "http://adaptivecards.io/schemas/adaptive-card.json",
                         "type": "AdaptiveCard",
                         "version": "1.5",
-                        "title": ":alert: Scan Context Detection",  # deprecated but kept for compatibility
                         "fallbackText": f":alert: Scan Context Detection - {event_type}",
                         "themeColor": "yellow",  # placeholder, will be updated
                         "sections": [
@@ -144,17 +148,13 @@ class TeamsNotifier:
         card["attachments"][0]["content"]["themeColor"] = color
 
         if description:
-            # Add description as an additional section
+            # Add description as an additional section only if description has content
+            # Use text property instead of facts to avoid redundant title
             sections = card["attachments"][0]["content"]["sections"]
             sections.append(
                 {
                     "activityTitle": "Description",
-                    "facts": [
-                        {
-                            "title": "Description",
-                            "value": description,
-                        }
-                    ],
+                    "text": description,
                     "markdown": True,
                 }
             )
@@ -191,15 +191,15 @@ class TeamsNotifier:
 
         # Check severity threshold
         severity_order = {"low": 0, "medium": 1, "high": 2, "critical": 3}
-        threshold_order = {"low": 0, "medium": 1, "high": 2, "critical": 3}
 
-        # Validate severity threshold; raise error for invalid configuration
-        if self.severity_threshold not in threshold_order:
-            raise ValueError(
-                f"Invalid severity_threshold: '{self.severity_threshold}'. "
-                f"Must be one of: low, medium, high, critical"
+        # Validate severity threshold; default to medium for invalid configuration
+        if self.severity_threshold not in severity_order:
+            logger.warning(
+                f"Invalid severity_threshold: '{self.severity_threshold}', "
+                f"defaulting to 'medium'"
             )
-        effective_threshold = threshold_order[self.severity_threshold]
+            self.severity_threshold = "medium"
+        effective_threshold = severity_order[self.severity_threshold]
 
         if severity_order.get(severity, 0) < effective_threshold:
             logger.debug(
@@ -212,7 +212,6 @@ class TeamsNotifier:
         payload = self._build_message(event_type, severity, affected, timestamp, description)
 
         # Send with retries
-        backoff = BASE_BACKOFF_SECONDS  # Reset backoff at start
         for attempt in range(MAX_RETRIES + 1):
             try:
                 response = requests.post(
