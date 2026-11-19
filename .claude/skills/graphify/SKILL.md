@@ -1,41 +1,31 @@
-# Graphify Tool
+---
+name: graphify
+description: Graphify tool for knowledge graph queries
+---
 
-This tool provides access to the project's knowledge graph for codebase exploration and navigation.
+# Graphify
 
-## Usage
+Graphify provides three main query types for exploring the codebase knowledge graph:
 
-### Querying the Knowledge Graph
+## `graphify query "<question>"`
+Scopes the search to answer a specific question about the codebase. Returns a focused subgraph usually much smaller than GRAPH_REPORT.md or raw grep output. Best for:
+- Finding relationships between specific concepts
+- Understanding how code changes propagate
+- Exploring community structure and cross-file dependencies
 
-When investigating code architecture, use `graphify query "<your question>"` to search the knowledge graph. This returns a focused subgraph relevant to your inquiry, which is typically much smaller and more manageable than a full grep search or the entire GRAPH_REPORT.md file.
+## `graphify path "<A>" "<B>"`
+Finds and displays the shortest path between two nodes A and B in the graph. Useful for:
+- Tracing how a change in one module affects another
+- Understanding dependency chains
+- Code navigation and refactoring planning
 
-### Exploring Relationships
+## `graphify explain "<concept>"`
+Provides a focused explanation of a specific concept, drawing from the knowledge graph. Useful for:
+- Understanding architectural decisions
+- Learning about a particular component
+- Getting context on how things work together
 
-For understanding connections between code components, use `graphify path "<component A>" "<component B>"` to find the relationship path between two code elements.
+After modifying code, run `graphify update .` to keep the graph current (AST-only, no API cost).
+"""
 
-### Getting Concept Explanations
-
-For deep understanding of specific concepts, use `graphify explain "<concept>"` to get a focused explanation of a particular technical concept or pattern in the codebase.
-
-### Navigation
-
-If the project has a wiki (`graphify-out/wiki/index.md`), use it for broad navigation through the codebase architecture and concepts instead of raw source code browsing.
-
-### Updating the Graph
-
-After making code changes, run `graphify update .` to keep the knowledge graph current. This updates the graph's AST (Abstract Syntax Tree) representation without any API costs.
-
-## Important Rules
-
-1. **Always prioritize the knowledge graph** for codebase questions - it's the most efficient way to explore the project's architecture
-2. **Use focused queries** rather than broad searches to get manageable, relevant results
-3. **Check the wiki** (`graphify-out/wiki/index.md`) first for high-level navigation and understanding
-4. **Only read GRAPH_REPORT.md** when query/path/explain don't provide enough context for your needs
-5. **Run `graphify update .`** after code modifications to keep the graph current with the latest AST
-
-## When to Use
-
-- Code architecture questions and patterns
-- Understanding component relationships
-- Finding connections between different parts of the codebase
-- Getting explanations of technical concepts
-- Navigating the project's structure efficiently
+Use `/graphify` before doing any codebase exploration to leverage the installed graphify skill.

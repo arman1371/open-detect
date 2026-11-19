@@ -236,6 +236,7 @@ class UniDetect:
 
         from pyspark.sql import functions as F
 
+        from open_detect.algorithms.uni_detect.corpus.store import _AUTO_BROADCAST_DISABLED
         from open_detect.algorithms.uni_detect.spark_utils import (
             ARROW_MAX_RECORDS_PER_BATCH,
             ARROW_MAX_RECORDS_PER_BATCH_KEY,
@@ -252,9 +253,13 @@ class UniDetect:
             # Keep Arrow limit active through ALL detector operations:
             # extract_candidates (mapInPandas), candidate materialization (count),
             # scoring (batch_score join), and result materialization.
+            # Also disable auto broadcast joins to prevent OOM on CI runners with small heaps.
             with scoped_conf(
                 self.spark,
-                **{ARROW_MAX_RECORDS_PER_BATCH_KEY: str(ARROW_MAX_RECORDS_PER_BATCH)},
+                **{
+                    ARROW_MAX_RECORDS_PER_BATCH_KEY: str(ARROW_MAX_RECORDS_PER_BATCH),
+                    **_AUTO_BROADCAST_DISABLED,
+                },
             ):
                 # Ingest once and share across detectors if not provided
                 shared_columns_df = None
