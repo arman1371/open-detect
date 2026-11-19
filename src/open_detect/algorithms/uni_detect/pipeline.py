@@ -13,6 +13,7 @@ This is the single entry point most users need:
 
 from __future__ import annotations
 
+import time
 from contextlib import suppress
 from typing import TYPE_CHECKING, Any
 
@@ -33,6 +34,7 @@ from open_detect.algorithms.uni_detect.spark_utils import get_spark
 from open_detect.exceptions import ConfigurationError, ValidationError
 from open_detect.logging_utils import get_logger, log_duration
 from open_detect.notifications.config import get_notification_config
+from open_detect.notifications.teams import TeamsNotifier
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
@@ -47,6 +49,14 @@ _TOKEN_DEPENDENT_TYPES = (ErrorType.UNIQUENESS, ErrorType.FUNCTIONAL_DEPENDENCY)
 _NUMERIC_ONLY_TYPES = (ErrorType.NUMERIC_OUTLIER,)
 # Types that need non-numeric columns only (spelling)
 _NON_NUMERIC_ONLY_TYPES = (ErrorType.SPELLING,)
+
+# Type name mapping for Teams notifications
+_TYPE_NAMES = {
+    "uniqueness": "Uniqueness",
+    "numeric_outlier": "Numeric Outlier",
+    "spelling": "Spelling",
+    "functional_dependency": "Functional Dependency",
+}
 
 
 def _require_columns(columns_df: DataFrame | None) -> DataFrame:
@@ -74,148 +84,6 @@ def _filter_by_column_type(columns_df: DataFrame, error_type: ErrorType) -> Data
         return columns_df.where(~F.col("column_data_type").isin([t.value for t in numeric_types]))
     # Uniqueness and FD: all types
     return columns_df
-
-
-def _should_notify_severity(severity: str, threshold: str) -> bool:
-    """Check if a severity level meets the notification threshold."""
-    severity_order = {"low": 0, "medium": 1, "high": 2, "critical": 3}
-    threshold_order = {"low": 0, "medium": 1, "high": 2, "critical": 3}
-    return severity_order.get(severity, 0) >= threshold_order.get(threshold, 1)
-
-
-def _build_teams_affected_summary(
-    error_type: ErrorType,
-    candidates_count: int,
-    description: str | None = None,
-) -> str:
-    """Build a human-readable summary of affected areas for Teams notification.
-
-    Args:
-        error_type: The type of detection error
-        candidates_count: Number of candidates found
-        description: Optional additional description
-
-    Returns:
-        Human-readable summary string
-    """
-    type_names = {
-        "uniqueness": "Uniqueness",
-        "numeric_outlier": "Numeric Outlier",
-        "spelling": "Spelling",
-        "functional_dependency": "Functional Dependency",
-    }
-    type_name = type_names.get(error_type.value, error_type.value.title())
-
-    if candidates_count == 0:
-        return f"{type_name} detection - no specific anomalies found"
-
-    if description:
-        return f"{type_name} detection: {description}"
-
-    return f"{type_name} detection - {candidates_count} anomaly(ies) detected"
-
-
-def _send_teams_notification(
-    webhook_url: str,
-    event_type: str,
-    severity: str,
-    affected: str,
-    timestamp: str,
-    description: str | None = None,
-) -> bool:
-    """Send a Teams notification, returning True if successful.
-
-    This function is designed to be non-blocking - it should be called from
-    a background thread or the caller is responsible for handling it appropriately.
-
-    Args:
-        webhook_url: Microsoft Teams webhook URL
-        event_type: Type of detection event
-        severity: Severity level (low, medium, high, critical)
-        affected: Description of affected nodes/patterns
-        timestamp: When the event occurred
-        description: Optional additional description
-
-    Returns:
-        True if notification was sent successfully, False otherwise
-    """
-
-    import requests
-
-    from open_detect.logging_utils import get_logger
-
-    logger = get_logger(__name__)
-
-    # Build adaptive card payload
-    color_map: dict[str, str] = {
-        "low": "green",
-        "medium": "yellow",
-        "high": "orange",
-        "critical": "red",
-    }
-    color = color_map.get(severity, "yellow")
-
-    card: dict[str, Any] = {
-        "type": "message",
-        "attachments": [
-            {
-                "contentType": "application/vnd.microsoft.card.adaptive",
-                "content": {
-                    "$schema": "http://adaptivecards.io/schemas/adaptive-card.json",
-                    "type": "AdaptiveCard",
-                    "version": "1.5",
-                    "fallbackText": f":alert: Scan Context Detection - {event_type}",
-                    "themeColor": color,
-                    "title": ":alert: Scan Context Detection",
-                    "sections": [
-                        {
-                            "activityTitle": f":alert: {event_type.replace('_', ' ').title()}",
-                            "activitySubtitle": f"Severity: {severity.title()}",
-                            "facts": [
-                                {
-                                    "title": "Event Type",
-                                    "value": event_type.replace("_", " ").title(),
-                                },
-                                {
-                                    "title": "Severity",
-                                    "value": severity.title(),
-                                },
-                                {
-                                    "title": "Affected",
-                                    "value": affected,
-                                },
-                                {
-                                    "title": "Timestamp",
-                                    "value": timestamp,
-                                },
-                            ],
-                            "markdown": True,
-                        }
-                    ],
-                },
-            }
-        ],
-    }
-
-    try:
-        response = requests.post(
-            webhook_url,
-            json=card,
-            timeout=10,
-        )
-
-        if response.status_code == 200:
-            logger.info(f"Teams notification sent: {event_type} ({severity})")
-            return True
-        else:
-            logger.warning(
-                f"Teams webhook returned status {response.status_code}: " f"{response.text[:200]}"
-            )
-            return False
-
-    except Exception as e:
-        logger.error(f"Failed to send Teams notification: {e}")
-        return False
 
 
 class UniDetect:
@@ -499,6 +367,23 @@ class UniDetect:
                 with suppress(Exception):
                     shared_pairs_df.unpersist()
 
+    def _build_affected_summary(
+        self,
+        error_type: ErrorType,
+        candidates_count: int,
+        description: str | None = None,
+    ) -> str:
+        """Build a human-readable summary of affected areas for Teams notification."""
+        type_name = _TYPE_NAMES.get(error_type.value, error_type.value.title())
+
+        if candidates_count == 0:
+            return f"{type_name} detection - no specific anomalies found"
+
+        if description:
+            return f"{type_name} detection: {description}"
+
+        return f"{type_name} detection - {candidates_count} anomaly(ies) detected"
+
     def _send_teams_notification_after_detection(
         self,
         error_type: ErrorType,
@@ -531,7 +416,11 @@ class UniDetect:
         description = kwargs.get("description")
 
         # Check if we should notify based on severity threshold
-        if not _should_notify_severity(severity, config["severity_threshold"]):
+        severity_order = {"low": 0, "medium": 1, "high": 2, "critical": 3}
+        threshold_order = {"low": 0, "medium": 1, "high": 2, "critical": 3}
+        if severity_order.get(severity, 0) < threshold_order.get(
+            config["severity_threshold"], 1
+        ):
             logger.debug(
                 f"Severity {severity} below threshold {config['severity_threshold']}, "
                 "skipping notification"
@@ -546,24 +435,20 @@ class UniDetect:
 
         # Get affected summary from the detection results
         candidates_count = detection_frame.count() if detection_frame is not None else 0
-        affected = _build_teams_affected_summary(
-            error_type,
-            candidates_count,
-            description,
-        )
+        affected = self._build_affected_summary(error_type, candidates_count, description)
 
         # Get timestamp
-        import time as _time
+        timestamp = time.strftime("%Y-%m-%dT%H:%M:%SZ")
 
-        timestamp = _time.strftime("%Y-%m-%dT%H:%M:%SZ")
+        # Create Teams notifier and send notification with retry logic
+        notifier = TeamsNotifier(
+            webhook_url=webhook_url,
+            severity_threshold=config["severity_threshold"],
+            rate_limit=config["rate_limit"],
+        )
 
-        # Send the notification (non-blocking - just log for now,
-        # in production this would be dispatched to a background worker)
         try:
-            # For now, we log what would be sent
-            # In production, this would be sent via a background worker
-            _send_teams_notification(
-                webhook_url=webhook_url,
+            notifier.send_safe(
                 event_type=f"scan_context_{error_type.name.lower()}",
                 severity=severity,
                 affected=affected,
