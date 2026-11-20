@@ -2,6 +2,19 @@
 
 <!-- version list -->
 
+## v0.3.3 (2026-11-20)
+
+### Bug Fixes
+
+- OPE-92 replace replaceWhere with overwriteSchema for legacy corpus migration
+  ([#117](https://github.com/arman1371/open-detect/pull/117),
+  [`def94f1`](https://github.com/arman1371/open-detect/commit/def94f1a48f702bb28ea15c822ea558c311dce47))
+
+---
+
+**Full Changelog**: [v0.3.2...v0.3.3](https://github.com/arman1371/open-detect/compare/v0.3.2...v0.3.3)
+
+
 ## v0.3.2 (2026-11-20)
 
 ### Bug Fixes
