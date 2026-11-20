@@ -417,8 +417,9 @@ class CorpusStatsBuilder:
             # internal catalog-sync assertion. Unity Catalog is unaffected,
             # but omitting the redundant options is correct everywhere.
             if mode == "overwrite" and error_types:
-                predicate = " OR ".join(f"error_type = '{et.value}'" for et in error_types)
-                writer = writer.option("replaceWhere", predicate)
+                # Legacy corpus migration is handled atomically via backfill
+                # (overwriteSchema=true on the entire table). No replaceWhere needed.
+                pass
         else:
             writer = writer.partitionBy("error_type").option("overwriteSchema", "true")
         writer.saveAsTable(fqn)
