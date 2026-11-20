@@ -2,6 +2,19 @@
 
 <!-- version list -->
 
+## v0.3.2 (2026-11-20)
+
+### Bug Fixes
+
+- Correct weight computation for equivalence (weight = count, not 1/count)
+  ([#115](https://github.com/arman1371/open-detect/pull/115),
+  [`9308c4a`](https://github.com/arman1371/open-detect/commit/9308c4afa3d551e074b31eb32f68707c75881bcb))
+
+---
+
+**Full Changelog**: [v0.3.1...v0.3.2](https://github.com/arman1371/open-detect/compare/v0.3.1...v0.3.2)
+
+
 ## v0.3.1 (2026-11-19)
 
 ### Bug Fixes
