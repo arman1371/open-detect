@@ -2,6 +2,22 @@
 
 <!-- version list -->
 
+## v0.3.1 (2026-11-19)
+
+### Bug Fixes
+
+- **ope-90**: Single-scan ingestion with shared DataFrames across detectors
+  ([#104](https://github.com/arman1371/open-detect/pull/104),
+  [`55392f1`](https://github.com/arman1371/open-detect/commit/55392f119d7007000d95b46747f7ef50632dd524))
+
+- **ope-92**: Correct weight computation for equivalence (weight = count, not 1/count)
+  ([`6a46b10`](https://github.com/arman1371/open-detect/commit/6a46b108a92ac53224867949113a68e73d5b0f47))
+
+---
+
+**Full Changelog**: [v0.3.0...v0.3.1](https://github.com/arman1371/open-detect/compare/v0.3.0...v0.3.1)
+
+
 ## v0.3.0 (2026-11-14)
 
 ### Features
