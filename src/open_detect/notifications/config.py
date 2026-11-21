@@ -8,6 +8,17 @@ from __future__ import annotations
 
 import os
 
+from open_detect.logging_utils import get_logger
+
+logger = get_logger(__name__)
+
+# Valid severity levels
+VALID_SEVERITIES = {"low", "medium", "high", "critical"}
+
+# Default values
+DEFAULT_SEVERITY_THRESHOLD = "medium"
+DEFAULT_RATE_LIMIT = {"max_per_hour": 5}
+
 
 def get_teams_webhook_url() -> str | None:
     """Get the Teams webhook URL from environment variables.
@@ -15,7 +26,12 @@ def get_teams_webhook_url() -> str | None:
     Returns:
         Webhook URL if set, None otherwise
     """
-    return os.environ.get("TEAMS_WEBHOOK_URL")
+    url = os.environ.get("TEAMS_WEBHOOK_URL")
+    if url and not url.startswith("https://"):
+        logger.warning(
+            f"TEAMS_WEBHOOK_URL does not start with https://, this may be insecure: {url}"
+        )
+    return url
 
 
 def get_teams_enabled() -> bool:
@@ -34,7 +50,15 @@ def get_severity_threshold() -> str:
     Returns:
         One of: low, medium, high, critical
     """
-    return os.environ.get("TEAMS_SEVERITY_THRESHOLD", "medium")
+    val = os.environ.get("TEAMS_SEVERITY_THRESHOLD", DEFAULT_SEVERITY_THRESHOLD).lower()
+    if val not in VALID_SEVERITIES:
+        logger.warning(
+            f"Invalid TEAMS_SEVERITY_THRESHOLD '{val}', "
+            f"valid values: {sorted(VALID_SEVERITIES)}, "
+            f"defaulting to '{DEFAULT_SEVERITY_THRESHOLD}'"
+        )
+        return DEFAULT_SEVERITY_THRESHOLD
+    return val
 
 
 def get_rate_limit() -> dict:
@@ -45,8 +69,22 @@ def get_rate_limit() -> dict:
     """
     val = os.environ.get("TEAMS_RATE_LIMIT_MAX_PER_HOUR")
     if val:
-        return {"max_per_hour": int(val)}
-    return {"max_per_hour": 5}
+        try:
+            max_per_hour = int(val)
+            if max_per_hour <= 0:
+                logger.warning(
+                    f"TEAMS_RATE_LIMIT_MAX_PER_HOUR must be positive, got {max_per_hour}, "
+                    f"defaulting to {DEFAULT_RATE_LIMIT['max_per_hour']}"
+                )
+                return DEFAULT_RATE_LIMIT.copy()
+            return {"max_per_hour": max_per_hour}
+        except ValueError:
+            logger.warning(
+                f"Invalid TEAMS_RATE_LIMIT_MAX_PER_HOUR '{val}', must be integer, "
+                f"defaulting to {DEFAULT_RATE_LIMIT['max_per_hour']}"
+            )
+            return DEFAULT_RATE_LIMIT.copy()
+    return DEFAULT_RATE_LIMIT.copy()
 
 
 def get_notification_config() -> dict:

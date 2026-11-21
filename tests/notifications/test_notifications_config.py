@@ -75,12 +75,10 @@ class TestGetRateLimit:
             assert get_rate_limit() == {"max_per_hour": 5}
 
     def test_returns_default_when_invalid(self):
-        """Test that invalid rate limit value raises ValueError."""
-        with (
-            patch.dict(os.environ, {"TEAMS_RATE_LIMIT_MAX_PER_HOUR": "not_a_number"}),
-            pytest.raises(ValueError),
-        ):
-            get_rate_limit()
+        """Test that invalid rate limit value returns default gracefully."""
+        with patch.dict(os.environ, {"TEAMS_RATE_LIMIT_MAX_PER_HOUR": "not_a_number"}):
+            result = get_rate_limit()
+            assert result == {"max_per_hour": 5}
 
 
 class TestGetNotificationConfig:
