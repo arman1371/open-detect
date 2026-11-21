@@ -434,6 +434,36 @@ class TestEdgeCases:
         # Should always allow with empty rate limit
         assert notifier._check_rate_limit("event_a") is True
 
+    def test_rate_limit_with_zero_max_per_hour(self):
+        """Zero max_per_hour should be guarded against (division by zero prevention)."""
+        notifier = TeamsNotifier(
+            webhook_url="https://test.url",
+            rate_limit={"max_per_hour": 0},
+        )
+
+        # Should always allow when max_per_hour is 0 (guard clause prevents division by zero)
+        assert notifier._check_rate_limit("event_a") is True
+
+    def test_rate_limit_with_negative_max_per_hour(self):
+        """Negative max_per_hour should be guarded against."""
+        notifier = TeamsNotifier(
+            webhook_url="https://test.url",
+            rate_limit={"max_per_hour": -5},
+        )
+
+        # Should always allow when max_per_hour is negative (treated as invalid)
+        assert notifier._check_rate_limit("event_a") is True
+
+    def test_rate_limit_with_non_numeric_max_per_hour(self):
+        """Non-numeric max_per_hour should be guarded against."""
+        notifier = TeamsNotifier(
+            webhook_url="https://test.url",
+            rate_limit={"max_per_hour": "invalid"},
+        )
+
+        # Should always allow when max_per_hour is non-numeric (treated as invalid)
+        assert notifier._check_rate_limit("event_a") is True
+
     @patch("open_detect.notifications.teams.requests.post")
     def test_send_with_404_status_code(self, mock_post):
         """404 status code should trigger retries."""

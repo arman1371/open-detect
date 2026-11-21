@@ -60,6 +60,14 @@ class TeamsNotifier:
         last_sent = self._last_sent.get(event_type, 0)
         max_per_hour = self.rate_limit.get("max_per_hour", float("inf"))
 
+        # Guard against invalid rate limit values
+        if not isinstance(max_per_hour, (int, float)) or max_per_hour <= 0:
+            logger.warning(
+                f"Invalid rate_limit max_per_hour value: {max_per_hour}, "
+                "using no rate limiting"
+            )
+            max_per_hour = float("inf")
+
         # Calculate how long since last send in hours
         elapsed_hours = (now - last_sent) / 3600
 
@@ -112,7 +120,7 @@ class TeamsNotifier:
                 {
                     "contentType": "application/vnd.microsoft.card.adaptive",
                     "content": {
-                        "$schema": "http://adaptivecards.io/schemas/adaptive-card.json",
+                        "$schema": "https://adaptivecards.io/schemas/adaptive-card.json",
                         "type": "AdaptiveCard",
                         "version": "1.5",
                         "fallbackText": f":alert: Scan Context Detection - {event_type}",
