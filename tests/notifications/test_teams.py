@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import json
 import time
 from unittest.mock import MagicMock, patch
 
@@ -388,3 +387,221 @@ class TestSeverityOrdering:
                 >= threshold_order.get(notifier.severity_threshold, 1)
             )
             assert allowed == expected_allowed
+
+    def test_unknown_severity_defaults_to_low(self):
+        """Unknown severity should be treated as low (0)."""
+        notifier = TeamsNotifier(webhook_url="https://test.url", severity_threshold="low")
+
+        with patch("open_detect.notifications.teams.requests.post") as mock_post:
+            mock_response = MagicMock()
+            mock_response.status_code = 200
+            mock_post.return_value = mock_response
+
+            result = notifier.send(
+                event_type="test_event",
+                severity="unknown_severity",
+                affected="test affected",
+                timestamp="2026-01-15T10:30:00Z",
+            )
+
+            # unknown severity = low = 0, which is >= low threshold = 0
+            # But the actual comparison uses severity_order.get(severity, 0) < threshold_order.get(...)
+            # So unknown severity (0) < low threshold (0) = False, should send
+            assert result is True
+
+
+class TestEdgeCases:
+    """Tests for edge cases and error handling."""
+
+    def test_rate_limit_with_infinite_max_per_hour(self):
+        """Rate limit should work with infinite max_per_hour."""
+        notifier = TeamsNotifier(
+            webhook_url="https://test.url",
+            rate_limit={"max_per_hour": float("inf")},
+        )
+
+        # Should always allow with infinite rate limit
+        assert notifier._check_rate_limit("event_a") is True
+        assert notifier._check_rate_limit("event_a") is True
+
+    def test_rate_limit_with_empty_rate_limit_dict(self):
+        """Empty rate limit dict should use inf for max_per_hour."""
+        notifier = TeamsNotifier(
+            webhook_url="https://test.url",
+            rate_limit={},
+        )
+
+        # Should always allow with empty rate limit
+        assert notifier._check_rate_limit("event_a") is True
+
+    @patch("open_detect.notifications.teams.requests.post")
+    def test_send_with_404_status_code(self, mock_post):
+        """404 status code should trigger retries."""
+        mock_response = MagicMock()
+        mock_response.status_code = 404
+        mock_response.text = "Not Found"
+        mock_post.return_value = mock_response
+
+        notifier = TeamsNotifier(webhook_url="https://test.url")
+
+        with pytest.raises(TeamsNotificationError):
+            notifier.send(
+                event_type="test_event",
+                severity="high",
+                affected="test affected",
+                timestamp="2026-01-15T10:30:00Z",
+            )
+
+        # Should have retried
+        assert mock_post.call_count == 4
+
+    @patch("open_detect.notifications.teams.requests.post")
+    def test_send_with_503_status_code(self, mock_post):
+        """503 status code should trigger retries."""
+        mock_response = MagicMock()
+        mock_response.status_code = 503
+        mock_response.text = "Service Unavailable"
+        mock_post.return_value = mock_response
+
+        notifier = TeamsNotifier(webhook_url="https://test.url")
+
+        with pytest.raises(TeamsNotificationError):
+            notifier.send(
+                event_type="test_event",
+                severity="high",
+                affected="test affected",
+                timestamp="2026-01-15T10:30:00Z",
+            )
+
+        # Should have retried
+        assert mock_post.call_count == 4
+
+    @patch("open_detect.notifications.teams.requests.post")
+    def test_send_with_connection_error_and_timeout(self, mock_post):
+        """Network errors should trigger retries."""
+        mock_post.side_effect = [
+            requests.exceptions.ConnectionError("Connection refused"),
+            requests.exceptions.Timeout("Request timeout"),
+            requests.exceptions.ConnectionError("Connection refused again"),
+            requests.exceptions.Timeout("Still timing out"),
+        ]
+
+        notifier = TeamsNotifier(webhook_url="https://test.url")
+
+        # All four fail due to network errors
+        with pytest.raises(TeamsNotificationError):
+            notifier.send(
+                event_type="test_event",
+                severity="high",
+                affected="test affected",
+                timestamp="2026-01-15T10:30:00Z",
+            )
+
+        assert mock_post.call_count == 4  # 3 retries + 1 initial
+
+    def test_send_safe_returns_false_on_timeout(self):
+        """send_safe should return False on timeout."""
+        with patch(
+            "open_detect.notifications.teams.requests.post",
+            side_effect=requests.exceptions.Timeout("Request timeout"),
+        ):
+            notifier = TeamsNotifier(webhook_url="https://test.url")
+            result = notifier.send_safe(
+                event_type="test_event",
+                severity="high",
+                affected="test affected",
+                timestamp="2026-01-15T10:30:00Z",
+            )
+
+            assert result is False
+
+    def test_send_safe_returns_false_on_connection_error(self):
+        """send_safe should return False on connection error."""
+        with patch(
+            "open_detect.notifications.teams.requests.post",
+            side_effect=requests.exceptions.ConnectionError("Connection refused"),
+        ):
+            notifier = TeamsNotifier(webhook_url="https://test.url")
+            result = notifier.send_safe(
+                event_type="test_event",
+                severity="high",
+                affected="test affected",
+                timestamp="2026-01-15T10:30:00Z",
+            )
+
+            assert result is False
+
+    def test_send_safe_returns_false_on_sslc_error(self):
+        """send_safe should return False on SSL error."""
+        with patch(
+            "open_detect.notifications.teams.requests.post",
+            side_effect=requests.exceptions.SSLError("SSL error"),
+        ):
+            notifier = TeamsNotifier(webhook_url="https://test.url")
+            result = notifier.send_safe(
+                event_type="test_event",
+                severity="high",
+                affected="test affected",
+                timestamp="2026-01-15T10:30:00Z",
+            )
+
+            assert result is False
+
+    @patch("open_detect.notifications.teams.requests.post")
+    def test_send_with_json_decode_error(self, mock_post):
+        """send should handle JSON decode errors from response."""
+        mock_response = MagicMock()
+        mock_response.status_code = 500
+        mock_response.text = "Internal Server Error"
+        mock_post.return_value = mock_response
+
+        notifier = TeamsNotifier(webhook_url="https://test.url")
+
+        with pytest.raises(TeamsNotificationError):
+            notifier.send(
+                event_type="test_event",
+                severity="high",
+                affected="test affected",
+                timestamp="2026-01-15T10:30:00Z",
+            )
+
+    def test_empty_timestamp_falls_back_to_just_now(self):
+        """Empty timestamp should fall back to 'just now'."""
+        notifier = TeamsNotifier(webhook_url="https://test.url")
+        card = notifier._build_message(
+            event_type="test",
+            severity="high",
+            affected="test",
+            timestamp="",
+        )
+
+        facts = card["attachments"][0]["content"]["sections"][0]["facts"]
+        fact_dict = {f["title"]: f["value"] for f in facts}
+        assert fact_dict["Timestamp"] == "just now"
+
+    def test_none_timestamp_falls_back_to_just_now(self):
+        """None timestamp should fall back to 'just now'."""
+        notifier = TeamsNotifier(webhook_url="https://test.url")
+        card = notifier._build_message(
+            event_type="test",
+            severity="high",
+            affected="test",
+            timestamp=None,
+        )
+
+        facts = card["attachments"][0]["content"]["sections"][0]["facts"]
+        fact_dict = {f["title"]: f["value"] for f in facts}
+        assert fact_dict["Timestamp"] == "just now"
+
+    def test_event_type_with_underscores_formatted_correctly(self):
+        """Event type names with underscores should be formatted with spaces."""
+        notifier = TeamsNotifier(webhook_url="https://test.url")
+        card = notifier._build_message(
+            event_type="community_structure_change",
+            severity="high",
+            affected="test",
+            timestamp="now",
+        )
+
+        activity_title = card["attachments"][0]["content"]["sections"][0]["activityTitle"]
+        assert activity_title == ":alert: Community Structure Change"

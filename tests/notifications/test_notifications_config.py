@@ -75,11 +75,12 @@ class TestGetRateLimit:
             assert get_rate_limit() == {"max_per_hour": 5}
 
     def test_returns_default_when_invalid(self):
-        with patch.dict(os.environ, {"TEAMS_RATE_LIMIT_MAX_PER_HOUR": "not_a_number"}):
-            # Should raise ValueError or return default
-            # Current implementation would raise, so let's test the default behavior
-            with pytest.raises(ValueError):
-                get_rate_limit()
+        """Test that invalid rate limit value raises ValueError."""
+        with (
+            patch.dict(os.environ, {"TEAMS_RATE_LIMIT_MAX_PER_HOUR": "not_a_number"}),
+            pytest.raises(ValueError),
+        ):
+            get_rate_limit()
 
 
 class TestGetNotificationConfig:
@@ -108,3 +109,21 @@ class TestGetNotificationConfig:
             assert config["enabled"] is False
             assert config["severity_threshold"] == "medium"
             assert config["rate_limit"] == {"max_per_hour": 5}
+
+    def test_mixed_env_values(self):
+        """Test with mixed explicit and default values."""
+        with patch.dict(
+            os.environ,
+            {
+                "TEAMS_WEBHOOK_URL": "https://custom.webhook.url",
+                "TEAMS_NOTIFICATION_ENABLED": "false",
+                # TEAMS_SEVERITY_THRESHOLD not set - should use default
+                # TEAMS_RATE_LIMIT_MAX_PER_HOUR not set - should use default
+            },
+            clear=True,
+        ):
+            config = get_notification_config()
+            assert config["webhook_url"] == "https://custom.webhook.url"
+            assert config["enabled"] is False
+            assert config["severity_threshold"] == "medium"  # default
+            assert config["rate_limit"] == {"max_per_hour": 5}  # default
