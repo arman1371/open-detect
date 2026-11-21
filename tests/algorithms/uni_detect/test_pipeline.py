@@ -121,9 +121,7 @@ class TestUniDetectValidateInputs:
     def test_accepts_severity_kwarg(self):
         """severity kwarg should be accepted."""
         ud = UniDetect(_config(), spark=_mock_spark())
-        ud._validate_inputs(
-            table_names=["t1"], error_types=[ErrorType.UNIQUENESS], severity="high"
-        )
+        ud._validate_inputs(table_names=["t1"], error_types=[ErrorType.UNIQUENESS], severity="high")
 
     def test_accepts_description_kwarg(self):
         """description kwarg should be accepted."""
@@ -617,9 +615,7 @@ class TestSendTeamsNotificationAfterAllDetections:
 
     @patch("open_detect.algorithms.uni_detect.pipeline.TeamsNotifier")
     @patch("open_detect.algorithms.uni_detect.pipeline.get_notification_config")
-    def test_notification_failure_does_not_break_detection(
-        self, mock_config, mock_notifier_class
-    ):
+    def test_notification_failure_does_not_break_detection(self, mock_config, mock_notifier_class):
         """Notification failure should not break detection - best effort."""
         with _mock_spark_context():
             spark = _mock_spark()
@@ -778,10 +774,14 @@ class TestConfigParsingErrors:
                 "enabled": True,
                 "webhook_url": "https://test.url",
                 "severity_threshold": "medium",
-                "rate_limit": {"max_per_hour": "abc"},  # invalid - should be handled by TeamsNotifier
+                "rate_limit": {
+                    "max_per_hour": "abc"
+                },  # invalid - should be handled by TeamsNotifier
             }
 
-            with patch("open_detect.algorithms.uni_detect.pipeline.TeamsNotifier") as mock_notifier_class:
+            with patch(
+                "open_detect.algorithms.uni_detect.pipeline.TeamsNotifier"
+            ) as mock_notifier_class:
                 mock_notifier = MagicMock()
                 mock_notifier.send_safe.return_value = True
                 mock_notifier_class.return_value = mock_notifier

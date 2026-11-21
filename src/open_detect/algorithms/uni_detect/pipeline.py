@@ -501,9 +501,7 @@ class UniDetect:
                 timestamp=timestamp,
                 description=description,
             )
-            logger.info(
-                f"Teams notification dispatched: {event_type} ({severity}) - {affected}"
-            )
+            logger.info(f"Teams notification dispatched: {event_type} ({severity}) - {affected}")
 
         except Exception as e:
             # Notifications are best-effort side effects and must never fail detection

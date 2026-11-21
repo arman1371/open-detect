@@ -433,15 +433,16 @@ class TestTeamsNotifierSend:
         mock_post.return_value = mock_response
 
         notifier = TeamsNotifier(webhook_url="https://webhook.url")
-        with patch("open_detect.notifications.teams.time.sleep"), pytest.raises(
-            TeamsNotificationError, match="after 4 attempts"
+        with (
+            patch("open_detect.notifications.teams.time.sleep"),
+            pytest.raises(TeamsNotificationError, match="after 4 attempts"),
         ):
             notifier.send(
-                    event_type="test_event",
-                    severity="high",
-                    affected="Test affected",
-                    timestamp="2024-01-01T12:00:00Z",
-                )
+                event_type="test_event",
+                severity="high",
+                affected="Test affected",
+                timestamp="2024-01-01T12:00:00Z",
+            )
 
         assert mock_post.call_count == MAX_RETRIES + 1  # Initial + retries
 
