@@ -103,11 +103,7 @@ class TeamsNotifier:
         color = color_map.get(severity, "yellow")
 
         # Format timestamp
-        timestamp_str = (
-            timestamp
-            if timestamp
-            else "just now"
-        )
+        timestamp_str = timestamp if timestamp else "just now"
 
         # Build the adaptive card
         card: dict[str, Any] = {
@@ -221,9 +217,7 @@ class TeamsNotifier:
                 )
 
                 if response.status_code == 200:
-                    logger.info(
-                        f"Teams notification sent: {event_type} ({severity})"
-                    )
+                    logger.info(f"Teams notification sent: {event_type} ({severity})")
                     return True
                 else:
                     logger.warning(
@@ -238,7 +232,7 @@ class TeamsNotifier:
 
             # Exponential backoff before retry
             if attempt < MAX_RETRIES:
-                backoff = BASE_BACKOFF_SECONDS * (2 ** attempt)
+                backoff = BASE_BACKOFF_SECONDS * (2**attempt)
                 logger.info(f"Retrying in {backoff}s...")
                 time.sleep(backoff)
 
