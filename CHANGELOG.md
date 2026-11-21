@@ -2,6 +2,19 @@
 
 <!-- version list -->
 
+## v0.3.4 (2026-11-21)
+
+### Bug Fixes
+
+- **notifications**: Address CodeReviewer feedback on Teams notification implementation
+  ([#118](https://github.com/arman1371/open-detect/pull/118),
+  [`a76fd9d`](https://github.com/arman1371/open-detect/commit/a76fd9da3ed84eefdeae801f33ce3b62579f9296))
+
+---
+
+**Full Changelog**: [v0.3.3...v0.3.4](https://github.com/arman1371/open-detect/compare/v0.3.3...v0.3.4)
+
+
 ## v0.3.3 (2026-11-20)
 
 ### Bug Fixes
