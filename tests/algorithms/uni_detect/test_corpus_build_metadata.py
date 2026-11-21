@@ -59,9 +59,7 @@ class FakeSpark:
             mock_table.where.return_value = MagicMock()
             mock_table.where.return_value.count.return_value = 0
             mock_table.where.return_value.withColumn.return_value = MagicMock()
-            mock_table.where.return_value.withColumn.return_value.write.format.return_value.mode.return_value.option.return_value.saveAsTable = (
-                MagicMock()
-            )
+            mock_table.where.return_value.withColumn.return_value.write.format.return_value.mode.return_value.option.return_value.saveAsTable = MagicMock()
             self.tables[fqn] = mock_table
         return self.tables[fqn]
 

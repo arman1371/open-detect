@@ -63,8 +63,7 @@ class TeamsNotifier:
         # Guard against invalid rate limit values
         if not isinstance(max_per_hour, (int, float)) or max_per_hour <= 0:
             logger.warning(
-                f"Invalid rate_limit max_per_hour value: {max_per_hour}, "
-                "using no rate limiting"
+                f"Invalid rate_limit max_per_hour value: {max_per_hour}, using no rate limiting"
             )
             max_per_hour = float("inf")
 

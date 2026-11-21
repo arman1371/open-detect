@@ -142,9 +142,9 @@ class TestUniDetectDetect:
             # We verify that orderBy was called on a unioned result frame, which becomes the
             # sorted result after orderBy returns a new mock.
             first_detector_frame = ud._detectors[ErrorType.UNIQUENESS].detect.return_value
-            assert (
-                first_detector_frame.orderBy.call_count == 1
-            ), "orderBy should be called on the unioned result frame"
+            assert first_detector_frame.orderBy.call_count == 1, (
+                "orderBy should be called on the unioned result frame"
+            )
 
             # result is the sorted frame that should be persisted
             result.persist.assert_called_once()
@@ -395,7 +395,9 @@ class TestSendTeamsNotificationAfterDetection:
                 }
 
                 ud._send_teams_notification_after_detection(
-                    ErrorType.UNIQUENESS, mock_df, {"severity": "medium"}  # medium severity
+                    ErrorType.UNIQUENESS,
+                    mock_df,
+                    {"severity": "medium"},  # medium severity
                 )
 
                 # Should return early without sending
