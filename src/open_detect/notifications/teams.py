@@ -47,6 +47,13 @@ class TeamsNotifier:
             rate_limit: Rate limit configuration, e.g. {"max_per_hour": 5}
         """
         self.webhook_url = webhook_url
+        # Validate severity threshold
+        valid_thresholds = {"low", "medium", "high", "critical"}
+        if severity_threshold not in valid_thresholds:
+            logger.warning(
+                f"Invalid severity_threshold '{severity_threshold}', default to 'medium'"
+            )
+            severity_threshold = DEFAULT_SEVERITY_THRESHOLD
         self.severity_threshold = severity_threshold
         self.rate_limit = rate_limit or DEFAULT_RATE_LIMIT
         self._last_sent: dict[str, float] = {}  # event_type -> timestamp
@@ -85,7 +92,7 @@ class TeamsNotifier:
         event_type: str,
         severity: str,
         affected: str,
-        timestamp: str,
+        timestamp: str | None,
         description: str | None = None,
     ) -> dict[str, Any]:
         """Build the adaptive card payload for Teams.
@@ -177,7 +184,7 @@ class TeamsNotifier:
         event_type: str,
         severity: str,
         affected: str,
-        timestamp: str,
+        timestamp: str | None,
         description: str | None = None,
     ) -> bool:
         """Send a Teams notification.
@@ -186,7 +193,7 @@ class TeamsNotifier:
             event_type: Type of detection event
             severity: Severity level (low, medium, high, critical)
             affected: Description of affected nodes/patterns
-            timestamp: When the event occurred
+            timestamp: When the event occurred (can be None, defaults to "just now")
             description: Optional additional description
 
         Returns:
@@ -253,7 +260,7 @@ class TeamsNotifier:
         event_type: str,
         severity: str,
         affected: str,
-        timestamp: str,
+        timestamp: str | None,
         description: str | None = None,
     ) -> bool:
         """Send a Teams notification safely, catching and logging errors.
@@ -262,7 +269,7 @@ class TeamsNotifier:
             event_type: Type of detection event
             severity: Severity level (low, medium, high, critical)
             affected: Description of affected nodes/patterns
-            timestamp: When the event occurred
+            timestamp: When the event occurred (can be None, defaults to "just now")
             description: Optional additional description
 
         Returns:
