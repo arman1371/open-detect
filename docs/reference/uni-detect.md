@@ -37,3 +37,7 @@
       heading_level: 3
       show_root_heading: false
       show_root_toc_entry: false
+
+## Teams Notifications
+
+See [Notifications](notifications.md) for Teams webhook integration setup and usage.

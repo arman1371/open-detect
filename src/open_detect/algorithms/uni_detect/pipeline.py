@@ -13,6 +13,7 @@ This is the single entry point most users need:
 
 from __future__ import annotations
 
+import time
 from contextlib import suppress
 from typing import TYPE_CHECKING, Any
 
@@ -32,6 +33,8 @@ from open_detect.algorithms.uni_detect.detectors import (
 from open_detect.algorithms.uni_detect.spark_utils import get_spark
 from open_detect.exceptions import ConfigurationError, ValidationError
 from open_detect.logging_utils import get_logger, log_duration
+from open_detect.notifications.config import get_notification_config
+from open_detect.notifications.teams import TeamsNotifier
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
@@ -46,6 +49,17 @@ _TOKEN_DEPENDENT_TYPES = (ErrorType.UNIQUENESS, ErrorType.FUNCTIONAL_DEPENDENCY)
 _NUMERIC_ONLY_TYPES = (ErrorType.NUMERIC_OUTLIER,)
 # Types that need non-numeric columns only (spelling)
 _NON_NUMERIC_ONLY_TYPES = (ErrorType.SPELLING,)
+
+# Type name mapping for Teams notifications
+_TYPE_NAMES = {
+    "uniqueness": "Uniqueness",
+    "numeric_outlier": "Numeric Outlier",
+    "spelling": "Spelling",
+    "functional_dependency": "Functional Dependency",
+}
+
+# Shared severity ordering - single source of truth
+SEVERITY_ORDER = {"low": 0, "medium": 1, "high": 2, "critical": 3}
 
 
 def _require_columns(columns_df: DataFrame | None) -> DataFrame:
@@ -87,25 +101,40 @@ class UniDetect:
             ErrorType.SPELLING: SpellingDetector(self.spark, config),
             ErrorType.FUNCTIONAL_DEPENDENCY: FunctionalDependencyDetector(self.spark, config),
         }
+        # Shared notifier instance for rate limiting across all detectors
+        self._notifier: TeamsNotifier | None = None
 
     def _validate_inputs(
         self,
         table_names: Sequence[str] | None = None,
         error_types: Sequence[ErrorType] | None = None,
+        severity: str | None = None,
+        description: str | None = None,
+        affected_summary: str | None = None,
         **kwargs: Any,
     ) -> None:
-        """Run shared validation before the online detection phase."""
+        """Run shared validation before the online detection phase.
+
+        Allowed kwargs:
+            - severity: Override default severity (low, medium, high, critical)
+            - description: Optional description for the notification
+            - affected_summary: Optional affected summary override
+        """
         from open_detect.validation import _ensure_sequence_of_str, _reject_unknown_kwargs
 
         _reject_unknown_kwargs(
             kwargs,
-            allowed={"table_names", "error_types"},
+            allowed={"table_names", "error_types", "severity", "description", "affected_summary"},
             param_name="detect",
         )
         if table_names is not None:
             _ensure_sequence_of_str(table_names, "table_names")
         if error_types is not None:
             _ensure_sequence_of_str(error_types, "error_types")
+        if severity is not None and severity not in SEVERITY_ORDER:
+            raise ValidationError(
+                f"Invalid severity '{severity}', must be one of: {sorted(SEVERITY_ORDER.keys())}"
+            )
 
     # ------------------------------------------------------------------
     # Offline: "learning" phase (paper Sec. 2.2.3)
@@ -232,6 +261,7 @@ class UniDetect:
             If ``kwargs`` contains unrecognised parameters, or if
             ``table_names`` / ``error_types`` are not a sequence of ``str``.
         """
+        # Allow severity, description, affected_summary as valid kwargs
         self._validate_inputs(table_names=table_names, error_types=error_types, **kwargs)
 
         from pyspark.sql import functions as F
@@ -249,6 +279,12 @@ class UniDetect:
         error_types = tuple(error_types) if error_types else tuple(ErrorType)
         frames = []
         result = None
+
+        # Extract notification parameters once
+        severity = kwargs.get("severity", "medium")
+        description = kwargs.get("description")
+        affected_summary_override = kwargs.get("affected_summary")
+
         try:
             # Keep Arrow limit active through ALL detector operations:
             # extract_candidates (mapInPandas), candidate materialization (count),
@@ -311,6 +347,7 @@ class UniDetect:
                         ingested_pairs_df=shared_pairs_df,
                     )
                     frames.append(frame)
+
                 # Balanced union (not left-deep reduce) so the final merge plan is
                 # ceil(log2(N)) deep regardless of how many detectors are enabled.
                 result = balanced_union(frames)
@@ -322,6 +359,17 @@ class UniDetect:
                 result = result.orderBy(F.col("lr_ratio").asc())
                 result = result.persist(StorageLevel.MEMORY_AND_DISK)
                 result.count()
+
+                # Send notification ONCE after all detectors finish, using the final result
+                # This avoids extra count() actions and duplicate notifications
+                self._send_teams_notification_after_all_detections(
+                    error_types,
+                    result,
+                    severity=severity,
+                    description=description,
+                    affected_summary_override=affected_summary_override,
+                )
+
                 return result
         except Exception:
             # Clean up detector results on failure - this includes any frames
@@ -347,6 +395,119 @@ class UniDetect:
             if shared_pairs_df is not None and ingested_pairs_df is None:
                 with suppress(Exception):
                     shared_pairs_df.unpersist()
+
+    def _build_affected_summary(
+        self,
+        error_type: ErrorType,
+        candidates_count: int,
+        description: str | None = None,
+    ) -> str:
+        """Build a human-readable summary of affected areas for Teams notification."""
+        type_name = _TYPE_NAMES.get(error_type.value, error_type.value.title())
+
+        if candidates_count == 0:
+            return f"{type_name} detection - no specific anomalies found"
+
+        if description:
+            return f"{type_name} detection: {description}"
+
+        return f"{type_name} detection - {candidates_count} anomaly(ies) detected"
+
+    def _send_teams_notification_after_all_detections(
+        self,
+        error_types: tuple[ErrorType, ...],
+        final_result: DataFrame,
+        severity: str = "medium",
+        description: str | None = None,
+        affected_summary_override: str | None = None,
+    ) -> None:
+        """Send a single Teams notification after all detectors complete.
+
+        This is called once at the end of detect() with the final combined result.
+        It respects severity thresholds, rate limiting, and configuration.
+
+        Args:
+            error_types: The error types that were detected
+            final_result: The final combined detection result DataFrame
+            severity: Severity level (low, medium, high, critical)
+            description: Optional description for the notification
+            affected_summary_override: Optional override for affected summary
+        """
+        try:
+            # Get notification configuration
+            config = get_notification_config()
+
+            if not config["enabled"]:
+                logger.debug("Teams notifications disabled, skipping notification")
+                return
+
+            # Check if we should notify based on severity threshold
+            threshold = config["severity_threshold"]
+            if threshold not in SEVERITY_ORDER:
+                logger.warning(
+                    f"Invalid severity_threshold '{threshold}' from config, defaulting to 'medium'"
+                )
+                threshold = "medium"
+
+            if SEVERITY_ORDER.get(severity, 0) < SEVERITY_ORDER[threshold]:
+                logger.debug(
+                    f"Severity {severity} below threshold {threshold}, skipping notification"
+                )
+                return
+
+            # Initialize Teams notifier if webhook is configured
+            webhook_url = config["webhook_url"]
+            if not webhook_url:
+                logger.debug("Teams webhook URL not configured, skipping notification")
+                return
+
+            # Get total candidates count from final result (already materialized)
+            candidates_count = final_result.count()
+
+            # Skip notification if no anomalies detected (unless explicitly overridden)
+            if candidates_count == 0 and not affected_summary_override:
+                logger.debug("No anomalies detected, skipping notification")
+                return
+
+            # Build affected summary
+            if affected_summary_override:
+                affected = affected_summary_override
+            else:
+                # Summarize across all error types
+                affected_parts = []
+                for et in error_types:
+                    # We could filter by error_type but for simplicity, summarize all
+                    type_name = _TYPE_NAMES.get(et.value, et.value.title())
+                    affected_parts.append(type_name)
+                affected = f"Detection complete for: {', '.join(affected_parts)} - {candidates_count} total anomaly(ies)"
+
+            # Get timestamp in UTC
+            timestamp = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+
+            # Create or reuse shared Teams notifier
+            if self._notifier is None:
+                self._notifier = TeamsNotifier(
+                    webhook_url=webhook_url,
+                    severity_threshold=threshold,
+                    rate_limit=config["rate_limit"],
+                )
+
+            # Send notification
+            event_type = f"scan_context_{'_'.join(et.name.lower() for et in error_types)}"
+            self._notifier.send_safe(
+                event_type=event_type,
+                severity=severity,
+                affected=affected,
+                timestamp=timestamp,
+                description=description,
+            )
+            logger.info(
+                f"Teams notification dispatched: {event_type} ({severity}) - {affected}"
+            )
+
+        except Exception as e:
+            # Notifications are best-effort side effects and must never fail detection
+            logger.warning(f"Failed to send Teams notification: {type(e).__name__}")
 
     def release(self) -> None:
         """Release all cached detector resources.

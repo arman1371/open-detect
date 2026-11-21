@@ -110,6 +110,7 @@ nav:
       - Raha: reference/raha.md
       - Auto-Validate: reference/auto-validate.md
       - Uni-Detect: reference/uni-detect.md
+      - Notifications: reference/notifications.md
       - Errors: reference/exceptions.md
   - Project:
       - Benchmarks: benchmarks.md
