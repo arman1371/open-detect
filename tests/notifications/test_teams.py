@@ -332,6 +332,18 @@ class TestSendSafe:
 
         assert result is False
 
+    @patch("open_detect.notifications.teams.requests.post", side_effect=requests.RequestException("Connection error"))
+    def test_returns_false_on_request_exception(self, mock_post):
+        notifier = TeamsNotifier(webhook_url="https://test.url")
+        result = notifier.send_safe(
+            event_type="test_event",
+            severity="high",
+            affected="test affected",
+            timestamp="2026-01-15T10:30:00Z",
+        )
+
+        assert result is False
+
 
 class TestSeverityOrdering:
     """Tests for severity threshold comparison logic."""
