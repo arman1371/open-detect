@@ -131,7 +131,6 @@ class TeamsNotifier:
                         "version": "1.5",
                         "fallbackText": f":alert: Scan Context Detection - {event_type}",
                         "themeColor": color,
-                        "title": ":alert: Scan Context Detection",
                         "sections": [
                             {
                                 "activityTitle": f":alert: {event_type.replace('_', ' ').title()}",
@@ -163,18 +162,9 @@ class TeamsNotifier:
         }
 
         if description:
-            # Add description as an additional section
+            # Add description as an additional section using text property
             card["attachments"][0]["content"]["sections"].append(
-                {
-                    "activityTitle": "Description",
-                    "facts": [
-                        {
-                            "title": "",
-                            "value": description,
-                        }
-                    ],
-                    "markdown": True,
-                }
+                {"text": description, "markdown": True}
             )
 
         return card
