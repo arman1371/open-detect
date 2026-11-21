@@ -1,6 +1,10 @@
 # Keeps graphify-out/ current by pushing straight to main over SSH with the repo deploy key
 # (RELEASE_DEPLOY_KEY), which is a bypass actor on the main ruleset. GITHUB_TOKEN cannot bypass
 # the ruleset. See docs/contributing.md "Knowledge graph automation".
+#
+# The deploy key is exposed ONLY to the final push step. Checkout does not persist credentials,
+# and graphify is installed from a hash-pinned requirements file, so third-party code never runs
+# in a step that can see the key.
 name: Update Knowledge Graph
 
 on:
@@ -10,6 +14,9 @@ on:
       - "graphify-out/**"
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 concurrency:
   group: update-knowledge-graph
   cancel-in-progress: false
@@ -18,6 +25,7 @@ jobs:
   update-graph:
     if: "github.event_name == 'workflow_dispatch' || !startsWith(github.event.head_commit.message, 'chore: update knowledge graph')"
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     permissions:
       contents: read
     steps:
@@ -25,27 +33,47 @@ jobs:
         with:
           ref: main
           fetch-depth: 0
-          ssh-key: ${{ secrets.RELEASE_DEPLOY_KEY }}
+          persist-credentials: false
 
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
 
       - name: Install graphify
-        run: pip install --quiet graphifyy
+        # Exact version + hashes of every transitive dependency (.github/requirements/graphify.txt).
+        run: python -m pip install --quiet --require-hashes -r .github/requirements/graphify.txt
 
       - name: Update knowledge graph
         run: graphify update .
 
       - name: Commit and push updated graph
+        env:
+          DEPLOY_KEY: ${{ secrets.RELEASE_DEPLOY_KEY }}
+          REPO: ${{ github.repository }}
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          # Neutralise any hook the previous steps could have dropped before the key is in use.
+          git config core.hooksPath /dev/null
           git add graphify-out/graph.json graphify-out/graph.html graphify-out/GRAPH_REPORT.md
           if git diff --cached --quiet; then
             echo "No graph changes to commit."
-          else
-            git commit -m "chore: update knowledge graph [skip ci]"
-            git pull --rebase origin main
-            git push origin HEAD:main
+            exit 0
           fi
+          git commit -m "chore: update knowledge graph [skip ci]"
+
+          # Key lives in a private temp dir for the duration of this step only.
+          keydir=$(mktemp -d)
+          trap 'rm -rf "$keydir"' EXIT
+          umask 077
+          printf '%s\n' "$DEPLOY_KEY" > "$keydir/key"
+          # GitHub's published SSH host keys (https://api.github.com/meta), so no trust-on-first-use.
+          cat > "$keydir/known_hosts" <<'KNOWN_HOSTS'
+          github.com ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOMqqnkVzrm0SdG6UOoqKLsabgH5C9okWi0dh2l9GKJl
+          github.com ecdsa-sha2-nistp256 AAAAE2VjZHNhLXNoYTItbmlzdHAyNTYAAAAIbmlzdHAyNTYAAABBBEmKSENjQEezOmxkZMy7opKgwFB9nkt5YRrYMjNuG5N87uRgg6CLrbo5wAdT/y6v0mKV0U2w0WZ2YB/++Tpockg=
+          KNOWN_HOSTS
+          export GIT_SSH_COMMAND="ssh -i $keydir/key -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes -o UserKnownHostsFile=$keydir/known_hosts"
+          remote="git@github.com:${REPO}.git"
+
+          git pull --rebase "$remote" main
+          git push "$remote" HEAD:main
