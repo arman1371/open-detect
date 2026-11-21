@@ -8,6 +8,7 @@ Generated from the docstrings in the source. Pages are grouped by area.
 | [Raha](raha.md) | `RahaDetector`, `RahaConfig`, labelers |
 | [Auto-Validate](auto-validate.md) | `AutoValidateAlgorithm`, `AutoValidateConfig`, index and pattern helpers |
 | [Uni-Detect](uni-detect.md) | `UniDetect`, `UniDetectConfig`, `UnityCatalogLocation`, `ErrorType` |
+| [Notifications](notifications.md) | Teams webhook integration, `TeamsNotifier`, configuration |
 | [Errors](exceptions.md) | The exception hierarchy |
 
 Docstrings follow the NumPy style. Some use Sphinx-style roles such as `` :class:`Foo` ``; read
