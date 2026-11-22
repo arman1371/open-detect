@@ -106,19 +106,18 @@ class CellResult:
 
     def to_dict(self) -> dict[str, Any]:
         tooltip = self.tooltip
-        if tooltip is not None:
-            # Convert TooltipContent to plain dict for JSON serialization if it's not already a dict
-            if isinstance(tooltip, TooltipContent):
-                tooltip = {
-                    "title": tooltip.title,
-                    "severity": tooltip.severity,
-                    "category": tooltip.category,
-                    "expected_pattern": tooltip.expected_pattern,
-                    "received_value": tooltip.received_value,
-                    "suggestion": tooltip.suggestion,
-                    "details": copy.deepcopy(tooltip.details),
-                    "actions": list(tooltip.actions),
-                }
+        if tooltip is not None and isinstance(tooltip, TooltipContent):
+            # Convert TooltipContent to plain dict for JSON serialization
+            tooltip = {
+                "title": tooltip.title,
+                "severity": tooltip.severity,
+                "category": tooltip.category,
+                "expected_pattern": tooltip.expected_pattern,
+                "received_value": tooltip.received_value,
+                "suggestion": tooltip.suggestion,
+                "details": copy.deepcopy(tooltip.details),
+                "actions": list(tooltip.actions),
+            }
         return {
             "table_id": self.table_id,
             "row_index": self.row_index,
