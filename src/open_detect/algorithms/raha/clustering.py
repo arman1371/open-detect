@@ -9,17 +9,53 @@ of Equation (3).
 from __future__ import annotations
 
 import numpy as np
-from scipy.cluster.hierarchy import fcluster, linkage
+from scipy.cluster.hierarchy import fcluster, linkage as _linkage
 from scipy.spatial.distance import pdist
 
 
-def cluster_column(matrix: np.ndarray, k: int) -> np.ndarray:
+def compute_linkage(matrix: np.ndarray) -> np.ndarray:
+    """Compute the linkage matrix for a column feature matrix.
+
+    Returns the minimal linkage needed so ``fcluster`` still behaves
+    correctly downstream.  Edge cases (empty, single-row, all-zero features)
+    return a degenerate linkage matrix.
+    """
+    n = matrix.shape[0]
+    if n == 0:
+        return np.array([]).reshape(0, 3)
+    if n == 1 or matrix.shape[1] == 0:
+        return np.array([[0.0, 1.0, 0.0, 1.0]])
+
+    augmented = np.hstack([matrix, np.ones((n, 1))])
+    distances = pdist(augmented, metric="cosine")
+    linkage_matrix = _linkage(distances, method="average")
+    return linkage_matrix
+
+
+def cluster_column(
+    matrix: np.ndarray,
+    k: int,
+    *,
+    linkage_matrix: np.ndarray | None = None,
+) -> np.ndarray:
     """Cut a column's feature matrix into (up to) ``k`` clusters.
 
     Uses cosine-distance, average-linkage hierarchical agglomerative
     clustering, "as the choice of the similarity metric and the linkage
     method does not affect Raha's performance" (Section 4.3). Returns a
     0-indexed cluster id per row.
+
+    Parameters
+    ----------
+    matrix : np.ndarray
+        The feature matrix for one column (rows=tuples).
+    k : int
+        Desired number of clusters.
+    linkage_matrix : np.ndarray, optional
+        Precomputed linkage matrix (from :func:`compute_linkage`).
+        When supplied, ``pdist`` and ``linkage`` are skipped and only
+        ``fcluster`` is invoked -- this is the fast path used inside the
+        labeling loop where ``k`` grows but the matrix does not.
     """
     n = matrix.shape[0]
     if n == 0:
@@ -28,14 +64,16 @@ def cluster_column(matrix: np.ndarray, k: int) -> np.ndarray:
         return np.zeros(n, dtype=int)
 
     k = max(1, min(k, n))
-    # Append a constant column so no row is the all-zero vector: cosine
-    # distance is undefined (0/0) between two all-zero rows -- a real
-    # possibility here, since a "clean-looking" cell fires no strategy at
-    # all -- and this keeps every pairwise distance finite while only
-    # slightly damping separation between rows that do carry real signal.
-    augmented = np.hstack([matrix, np.ones((n, 1))])
-    distances = pdist(augmented, metric="cosine")
-    linkage_matrix = linkage(distances, method="average")
+    if linkage_matrix is None:
+        # Append a constant column so no row is the all-zero vector: cosine
+        # distance is undefined (0/0) between two all-zero rows -- a real
+        # possibility here, since a "clean-looking" cell fires no strategy at
+        # all -- and this keeps every pairwise distance finite while only
+        # slightly damping separation between rows that do carry real signal.
+        augmented = np.hstack([matrix, np.ones((n, 1))])
+        distances = pdist(augmented, metric="cosine")
+        linkage_matrix = _linkage(distances, method="average")
+
     labels = fcluster(linkage_matrix, t=k, criterion="maxclust")
     return labels - 1
 
@@ -57,17 +95,24 @@ def sample_tuple(
 
     Returns ``None`` if every row is already in ``excluded_rows``.
     """
-    columns = list(cluster_ids_by_column.values())
-    if not columns:
+    if not cluster_ids_by_column:
         return None
-    n = len(columns[0])
+    n = len(next(iter(cluster_ids_by_column.values())))
 
-    scores = np.zeros(n)
-    for column_name, cluster_ids in cluster_ids_by_column.items():
-        counts = np.array(
-            [label_counts_by_cluster.get((column_name, cid), 0) for cid in cluster_ids]
-        )
-        scores += np.exp(-counts)
+    # Vectorised: for each column, build a fast lookup array from the
+    # sparse label_counts dict (most entries are 0), then index into it
+    # with that column's cluster_ids. Summing exp(-count) across columns
+    # gives the unnormalised log-probability per tuple.
+    scores = np.zeros(n, dtype=float)
+    for col_name, cluster_ids in cluster_ids_by_column.items():
+        if cluster_ids.size == 0:
+            continue
+        max_cid = int(cluster_ids.max())
+        lookup = np.zeros(max_cid + 1, dtype=float)
+        for cid in range(max_cid + 1):
+            lookup[cid] = label_counts_by_cluster.get((col_name, cid), 0)
+        col_counts = lookup[cluster_ids]
+        scores += np.exp(-col_counts)
 
     candidates = np.array([i for i in range(n) if i not in excluded_rows])
     if candidates.size == 0:
