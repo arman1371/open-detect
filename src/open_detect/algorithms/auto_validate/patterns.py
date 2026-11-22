@@ -18,7 +18,7 @@ from __future__ import annotations
 import heapq
 import itertools
 import logging
-from collections.abc import Iterator
+from collections.abc import Iterator, Sequence
 from functools import lru_cache
 
 from open_detect.algorithms.auto_validate.hierarchy import (
@@ -181,3 +181,90 @@ def matching_pattern(patterns: frozenset[str], value: str) -> str | None:
         if matches(pattern, value):
             return pattern
     return None
+
+
+def pattern_to_language(pattern: str | Sequence[str] | list[Sequence[str]], variant: str) -> str:
+    """Convert an FMDV pattern to a human-readable language description.
+
+    Translates the raw pattern string (e.g. ``<alphanum>+@<domain>+``) into
+    a plain-language description suitable for tooltips (e.g.
+    ``"name@domain.com"``).
+
+    Parameters
+    ----------
+    pattern:
+        The raw FMDV pattern string or groups.
+    variant:
+        The FMDV variant name (``"fmdv"``, ``"fmdv_h"``, ``"fmdv_v"``,
+        ``"fmdv_vh"``).
+    """
+    def _translate_token(seg: str) -> str:
+        """Replace token placeholders with human-readable equivalents, preserving quantifiers."""
+        seg = seg.replace("<alphanum>", "[a-zA-Z0-9]")
+        seg = seg.replace("<digit>", "[0-9]")
+        seg = seg.replace("<symbol>", "[!@#$%^&*()_+={}|:'\",.<>?/]")
+        seg = seg.replace("<letter>", "[a-zA-Z]")
+        # Keep + and * as quantifiers
+        return seg
+
+    if isinstance(pattern, str):
+        # Single-pattern variants: fmdv, fmdv_h
+        if variant in ("fmdv", "fmdv_h"):
+            # Replace token placeholders with human-readable equivalents
+            result = pattern
+            result = result.replace("<alphanum>", "[a-zA-Z0-9]")
+            result = result.replace("<digit>", "[0-9]")
+            result = result.replace("<symbol>", "[!@#$%^&*()_+={}|:'\",.<>?/]")
+            result = result.replace("<letter>", "[a-zA-Z]")
+            # Keep + and * as quantifiers in human-readable form
+            return result
+        # fmdv_v: flat list of segments
+        elif variant == "fmdv_v":
+            # The pattern string for fmdv_v could be a single segment or multiple segments joined by +
+            # Check if this is a composite pattern with multiple segments
+            if "+" in pattern and not pattern.startswith("<"):
+                # This is a flat list of segments joined by +
+                segments = pattern.split("+")
+                readable = [_translate_token(seg) for seg in segments]
+                return " and ".join(readable) if len(readable) > 1 else (readable[0] if readable else pattern)
+            else:
+                # Single segment
+                return _translate_token(pattern)
+        # fmdv_vh: single segment string
+        elif variant == "fmdv_vh":
+            return _translate_token(pattern)
+        return pattern
+
+    # List-based patterns
+    if variant == "fmdv_v":
+        if isinstance(pattern, list):
+            pattern_list: list[str] = pattern  # type: ignore[assignment]
+        elif isinstance(pattern, str):
+            pattern_list = pattern.split("+")
+        else:
+            # For Sequence[str] that is not a list
+            pattern_list = list(pattern)
+        readable_list: list[str] = []
+        for seg in pattern_list:
+            seg_str: str = str(seg)
+            readable_list.append(_translate_token(seg_str))
+        return (
+            " and ".join(readable_list)
+            if len(readable_list) > 1
+            else (readable_list[0] if readable_list else str(pattern))
+        )
+
+    elif variant == "fmdv_vh":
+        # pattern is a list of groups, each group is a list of segments
+        if isinstance(pattern, list) and pattern and isinstance(pattern[0], list):
+            group_descriptions = []
+            for group in pattern:
+                seg_descs = []
+                for seg in group:
+                    seg_descs.append(_translate_token(seg))
+                group_descriptions.append(" and ".join(seg_descs))
+            return " or ".join(group_descriptions)
+        # Fallback: just convert the string pattern
+        return pattern_to_language(str(pattern), variant)
+
+    return str(pattern)

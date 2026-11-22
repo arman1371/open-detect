@@ -126,7 +126,8 @@ def spark() -> Iterator[pyspark.sql.SparkSession]:  # noqa: F821
         # Mirrors benchmarks/common/spark_session.py, which bumped this for the
         # same reason (corpus/store.py's load_token_stats_map() pre-sizes an
         # ordering buffer proportional to max_tokens; default 500k fits in 4g).
-        .config("spark.driver.memory", "3g")
+        # CI runners have limited memory (7GB total), so use smaller heaps to fit.
+        .config("spark.driver.memory", "4g")
         .config("spark.executor.memory", "4g")
         # Delta replays its transaction log with this many partitions on every
         # snapshot load (default 50) -- pure overhead for tiny test tables.

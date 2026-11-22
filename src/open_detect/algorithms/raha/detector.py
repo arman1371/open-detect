@@ -46,7 +46,6 @@ class RahaDetector(ErrorDetectionAlgorithm):
         *,
         table_id: str = "table",
         conflict_resolution: Literal["homogeneity", "majority"] | None = None,
-        variant: Literal["A", "B"] | None = None,
         labeler: Labeler | None = None,
         **kwargs: Any,
     ) -> AlgorithmResult:
@@ -63,10 +62,8 @@ class RahaDetector(ErrorDetectionAlgorithm):
         conflict_resolution:
             Rule for resolving contradicting user labels when propagating them
             (Section 4.4): ``"homogeneity"`` or ``"majority"``. If not supplied,
-            the config default is used.
-        variant:
-            Variant label for the column being scanned. Must be one of ``"A"``
-            or ``"B"``. If not supplied, the config default is used.
+            the config default is used. This per-call value overrides the config
+            setting for this detection run.
         labeler:
             Answers "is this cell dirty?" for the tuples Raha samples
             (Section 4.3). Defaults to :class:`~open_detect.algorithms.raha.labeling.HeuristicLabeler`,
@@ -75,15 +72,19 @@ class RahaDetector(ErrorDetectionAlgorithm):
             (evaluation) or :class:`~open_detect.algorithms.raha.labeling.CallableLabeler`
             (a real human/UI) for results matching the paper.
         """
-        from open_detect.validation import _ensure_dataframe_is_spark, _validate_literal_value
+        from open_detect.validation import (
+            _check_unknown_kwargs,
+            _ensure_dataframe_is_spark,
+            _validate_literal_value,
+        )
+
+        _check_unknown_kwargs(kwargs, {"table_id", "conflict_resolution", "labeler"}, "detect")
 
         _ensure_dataframe_is_spark(data, "data")
         if conflict_resolution is not None:
             _validate_literal_value(
                 conflict_resolution, {"homogeneity", "majority"}, "conflict_resolution"
             )
-        if variant is not None:
-            _validate_literal_value(variant, {"A", "B"}, "variant")
 
         df = data
         n = len(df)
@@ -92,7 +93,9 @@ class RahaDetector(ErrorDetectionAlgorithm):
 
         with log_duration(logger, "raha.detect"):
             rng = np.random.default_rng(self.config.random_state)
-            column_features = build_all_features(df, self.config)
+            # Use config's variant (per-call variant parameter removed - it was not implemented)
+            effective_config = self.config
+            column_features = build_all_features(df, effective_config)
             active_labeler = labeler or HeuristicLabeler(column_features)
 
             per_column_labels: dict[str, dict[int, bool]] = {col: {} for col in df.columns}
@@ -128,11 +131,12 @@ class RahaDetector(ErrorDetectionAlgorithm):
             evidence_cache: dict[tuple[str, tuple[str, ...]], dict[str, str | list[str]]] = {}
 
             cells: list[CellResult] = []
+            effective_conflict_resolution = conflict_resolution or self.config.conflict_resolution
             for col in df.columns:
                 propagated = propagate_labels(
                     cluster_ids_by_column[col],
                     per_column_labels[col],
-                    self.config.conflict_resolution,
+                    effective_conflict_resolution,
                 )
                 predictions = train_and_predict(column_features[col], propagated, self.config)
                 feature_names = column_features[col].feature_names

@@ -35,9 +35,16 @@ from open_detect.algorithms.auto_validate.patterns import patterns_of, sorted_pa
 
 @dataclass(frozen=True, slots=True)
 class InferredPattern:
-    """Result of running FMDV (any variant) on a single column."""
+    """Result of running FMDV (any variant) on a single column.
 
-    pattern: str | Sequence[str]
+    ``pattern`` varies by variant:
+    - fmdv / fmdv_h: a single ``str`` pattern
+    - fmdv_v: a ``Sequence[str]`` of ordered segments (AND logic within group)
+    - fmdv_vh: a ``list[Sequence[str]]`` where each inner sequence is the
+      ordered segments for one coarse-signature group (OR logic across groups)
+    """
+
+    pattern: str | Sequence[str] | list[Sequence[str]]
     fpr_t: float
     cov_t: int
     theta_c: float

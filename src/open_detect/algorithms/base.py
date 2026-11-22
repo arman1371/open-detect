@@ -18,7 +18,7 @@ from __future__ import annotations
 
 import copy
 from abc import ABC, abstractmethod
-from collections.abc import Mapping
+from collections.abc import Iterator, Mapping
 from dataclasses import dataclass, field
 from types import MappingProxyType
 from typing import TYPE_CHECKING, Any, ClassVar
@@ -35,7 +35,27 @@ CELL_RESULT_COLUMNS = (
     "is_error",
     "score",
     "evidence",
+    "tooltip",
 )
+
+
+@dataclass(frozen=True, slots=True)
+class TooltipContent:
+    """Human-readable tooltip content for a flagged cell.
+
+    Provides a plain-language explanation of why a cell was flagged and
+    actionable guidance for fixing the data quality issue. Generated at
+    detection time and stored in ``CellResult.tooltip``.
+    """
+
+    title: str
+    severity: str  # "error" | "warning" | "info"
+    category: str  # e.g. "format", "spelling", "outlier", "functional_dependency"
+    expected_pattern: str  # Human-readable expected pattern
+    received_value: str  # The actual value that triggered the flag
+    suggestion: str  # Actionable fix suggestion
+    details: dict[str, Any]  # Detector-specific evidence (pattern, score, etc.)
+    actions: list[str]  # Available actions (copy_explanation, view_evidence, etc.)
 
 
 @dataclass(frozen=True, slots=True)
@@ -60,6 +80,10 @@ class CellResult:
     is_error: bool
     score: float
     evidence: Mapping[str, Any] = field(default_factory=dict)
+    tooltip: dict[str, Any] | None = None
+
+    def __post_object__(self) -> None:
+        object.__setattr__(self, "evidence", MappingProxyType(copy.deepcopy(dict(self.evidence))))
 
     def __post_init__(self) -> None:
         object.__setattr__(self, "evidence", MappingProxyType(copy.deepcopy(dict(self.evidence))))
@@ -76,10 +100,24 @@ class CellResult:
                 self.is_error,
                 self.score,
                 dict(self.evidence),
+                self.tooltip,
             ),
         )
 
     def to_dict(self) -> dict[str, Any]:
+        tooltip = self.tooltip
+        if tooltip is not None and isinstance(tooltip, TooltipContent):
+            # Convert TooltipContent to plain dict for JSON serialization
+            tooltip = {
+                "title": tooltip.title,
+                "severity": tooltip.severity,
+                "category": tooltip.category,
+                "expected_pattern": tooltip.expected_pattern,
+                "received_value": tooltip.received_value,
+                "suggestion": tooltip.suggestion,
+                "details": copy.deepcopy(tooltip.details),
+                "actions": list(tooltip.actions),
+            }
         return {
             "table_id": self.table_id,
             "row_index": self.row_index,
@@ -88,6 +126,7 @@ class CellResult:
             "is_error": self.is_error,
             "score": self.score,
             "evidence": copy.deepcopy(dict(self.evidence)),
+            "tooltip": tooltip,
         }
 
 
@@ -101,7 +140,7 @@ class AlgorithmResult:
     def __len__(self) -> int:
         return len(self.cells)
 
-    def __iter__(self):
+    def __iter__(self) -> Iterator[CellResult]:
         return iter(self.cells)
 
     def errors(self) -> tuple[CellResult, ...]:

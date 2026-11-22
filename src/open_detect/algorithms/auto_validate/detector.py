@@ -24,6 +24,7 @@ compare against when scanning a single table. See the fidelity notes in
 
 from __future__ import annotations
 
+import copy
 from collections.abc import Iterable, Sequence
 from typing import Any
 
@@ -35,7 +36,11 @@ from open_detect.algorithms.auto_validate.fmdv import InferredPattern, fmdv, fmd
 from open_detect.algorithms.auto_validate.fmdv_v import fmdv_v, fmdv_vh
 from open_detect.algorithms.auto_validate.hierarchy import matches
 from open_detect.algorithms.auto_validate.index import PatternIndex, build_pattern_index
-from open_detect.algorithms.base import AlgorithmResult, CellResult, ErrorDetectionAlgorithm
+from open_detect.algorithms.base import (
+    AlgorithmResult,
+    CellResult,
+    ErrorDetectionAlgorithm,
+)
 from open_detect.exceptions import ValidationError
 from open_detect.validation import _check_unknown_kwargs
 
@@ -169,30 +174,35 @@ class AutoValidateAlgorithm(ErrorDetectionAlgorithm):
                     )
                 )
                 continue
-            pattern = inferred.pattern
+            # Convert the inferred pattern to groups of ordered segments to preserve
+            # the FMDV-VH structure (groups of segments). This prevents flattening
+            # valid composite patterns like "a-b" with segments ["a-", "b"].
+            groups = _infer_pattern_to_groups(inferred)
             fpr_t, cov_t, theta_c = inferred.fpr_t, inferred.cov_t, inferred.theta_c
             n_total = len(series) - sum(1 for v in series if _is_null(v))
             score = 1.0 - fpr_t if n_total > 0 else 0.0
-            # Compute verdict once per distinct non-null value (including empty strings).
-            # Empty strings are NOT null - they are valid text values that should be
-            # checked against patterns (and will fail to match, getting flagged).
-            obj_series = series.astype(object)
-            text_values = obj_series.map(
-                lambda v: v if isinstance(v, str) else str(v), na_action="ignore"
-            )
-            # Null mask
-            is_null_mask = obj_series.map(_is_null)
-            # Non-null mask (includes empty strings)
-            non_null_mask = ~is_null_mask
-            distinct_texts = text_values[non_null_mask].unique()
-            verdicts = {t: not _value_matches(pattern, t) for t in distinct_texts}
-            verdict_series = text_values.map(verdicts, na_action="ignore").fillna(False)
-            verdict_map = verdict_series.where(non_null_mask, False)
-            for idx, is_error, is_null in zip(
-                series.index, verdict_map, is_null_mask, strict=False
-            ):
-                if is_null:
+            # Verdict cache: compute the pattern verdict once per distinct text
+            # representation and broadcast it, instead of re-running
+            # ``_value_matches`` for every cell. Unhashable values (lists,
+            # dicts, numpy arrays) are resolved per cell below.
+            verdicts = _distinct_value_verdicts_groups(series, groups)
+            # Use _is_null for the null mask to match the behavior of pattern
+            # inference and n_total (which both use _is_null).
+            is_null_mask = series.map(_is_null)
+            # Get the integer position for iloc access since idx might be any hashable
+            for pos, (idx, value) in enumerate(series.items()):
+                if is_null_mask.iloc[pos]:
                     continue
+                text = _value_text(value)
+                if text is not None and text in verdicts:
+                    is_error = verdicts[text]
+                else:
+                    # Unhashable value or empty text: resolve per cell
+                    is_error = False if text is None else not _value_matches_groups(groups, text)
+                if is_error:
+                    tooltip = _make_tooltip(value, inferred, fpr_t, cov_t, theta_c, self.config)
+                else:
+                    tooltip = None
                 cells.append(
                     CellResult(
                         table_id=table_id,
@@ -201,10 +211,85 @@ class AutoValidateAlgorithm(ErrorDetectionAlgorithm):
                         algorithm=self.name,
                         is_error=is_error,
                         score=score if is_error else 0.0,
-                        evidence=_feasible_evidence(self.config, pattern, fpr_t, cov_t, theta_c),
+                        evidence=_feasible_evidence(
+                            self.config, inferred.pattern, fpr_t, cov_t, theta_c
+                        ),
+                        tooltip=tooltip,
                     )
                 )
         return AlgorithmResult(algorithm=self.name, cells=tuple(cells))
+
+
+def _make_tooltip(
+    value: Any,
+    inferred: InferredPattern,
+    fpr_t: float,
+    cov_t: int,
+    theta_c: float,
+    config: AutoValidateConfig,
+) -> dict[str, Any]:
+    """Generate tooltip content for a flagged cell as a plain dictionary.
+
+    Translates the inferred pattern and cell value into a human-readable
+    explanation with an actionable suggestion.
+    """
+    from open_detect.algorithms.auto_validate.patterns import pattern_to_language
+
+    # Get human-readable pattern description
+    pattern_lang = pattern_to_language(inferred.pattern, config.variant)
+
+    # Format the received value (truncate if too long)
+    received = str(value)
+    if len(received) > 80:
+        received = received[:77] + "..."
+
+    # Build suggestion based on pattern type and value
+    suggestion = _build_suggestion(pattern_lang, received, fpr_t, cov_t)
+
+    # Determine severity and category
+    severity = "error" if fpr_t < 0.1 else "warning"
+    category = "format"
+
+    # Gather details for the tooltip
+    details = {
+        "inferred_pattern": pattern_lang,
+        "fpr_t": fpr_t,
+        "cov_t": cov_t,
+        "theta_c": theta_c,
+        "variant": config.variant,
+        "r": config.r,
+        "m": config.m,
+        "tau": config.tau,
+    }
+
+    # Available actions
+    actions = ["copy_explanation", "view_evidence"]
+
+    return _tooltip_content(
+        title=f"Invalid {category}: {pattern_lang}",
+        severity=severity,
+        category=category,
+        expected_pattern=pattern_lang,
+        received_value=received,
+        suggestion=suggestion,
+        details=details,
+        actions=actions,
+    )
+
+
+def _build_suggestion(
+    pattern_lang: str,
+    received: str,
+    fpr_t: float,
+    cov_t: int,
+) -> str:
+    """Build an actionable suggestion for the tooltip."""
+    # Provide generic, non-prescriptive guidance based on the inferred pattern
+    if fpr_t < 0.01:
+        return "Value is a strong outlier — verify data entry"
+    if cov_t < 3:
+        return "Pattern has low coverage in corpus — verify this is expected"
+    return "Check value against expected format"
 
 
 def _is_null(value: Any) -> bool:
@@ -217,23 +302,167 @@ def _is_null(value: Any) -> bool:
         return False
 
 
-def _value_matches(pattern: str | Sequence[str], value: Any) -> bool:
+def _value_text(value: Any) -> str | None:
+    """Return the text representation used by ``_value_matches`` for caching.
+
+    Returns ``None`` for null values only. This is the canonical key for the
+    verdict cache to ensure values like ``1``, ``1.0``, and ``True`` get
+    distinct verdicts (they have different string representations).  The empty
+    string is a valid cache key -- a feasible column emits blank strings as
+    error cells, and blank is a distinct value worth caching -- so it is
+    preserved here and only ``None`` is reserved for actual nulls.
+    """
+    if _is_null(value):
+        return None
+    return value if isinstance(value, str) else str(value)
+
+
+def _matches_segments(segments: Sequence[str], text: str) -> bool:
+    """Whether ``text`` matches a composite pattern of ordered segments.
+
+    For nested FMDV-VH groups, each segment pattern is matched against the
+    *entire* value, so valid composite values are incorrectly rejected -- e.g.
+    ``["<letter>+", "<symbol>+"]`` rejects ``abc-123`` because ``matches()``
+    requires a complete token-for-token match.  Use :func:`_conforms_segments`
+    to match consecutive token slices, as drift testing does, so detection
+    and drift testing preserve the same segment semantics. This avoids the bug
+    where joining segments like ``["<letter>", "+"]`` produces ``"<letter>+"``
+    which interprets the literal plus as a quantifier.
+    """
+    from open_detect.algorithms.auto_validate.drift import _conforms_segments
+
+    return _conforms_segments(segments, text)
+
+
+def _value_matches(pattern: str | Sequence[str] | list[Sequence[str]], value: Any) -> bool:
     """Whether ``value`` matches ``pattern`` (nulls return False).
 
-    ``pattern`` is the inferred validation pattern: a single string for the
-    single-pattern FMDV variants, or a disjunction of one pattern per coarse
-    signature group for ``fmdv_v``/``fmdv_vh``.  A value is valid if it matches
-    **any** of them -- the groups are a partition of the column, so each value
-    belongs to exactly one group and must satisfy that group's pattern.
+    ``pattern`` is the inferred validation pattern:
+    - A single string for single-pattern FMDV variants (``fmdv``, ``fmdv_h``)
+    - A list of strings for ``fmdv_v``: ordered segments (AND logic)
+    - A list of sequences for ``fmdv_vh``: one sequence per coarse-signature
+      group, each containing ordered segments. A value matches a group if it
+      matches ALL segments in that group's sequence (in order).
     """
     if _is_null(value):
         return False
     text = value if isinstance(value, str) else str(value)
-    if not text:
-        return False
     if isinstance(pattern, str):
         return matches(pattern, text)
-    return any(matches(p, text) for p in pattern)
+
+    # Distinguish between:
+    # - flat list of segments (single group): e.g. ["<letter>+", "<digit>+"] -> one group with 2 segments
+    # - list of groups: e.g. [["<letter>+"], ["<digit>+", "<symbol>+"]] -> two groups
+    # We treat a flat list of strings as a single group (all segments must match).
+    is_flat_segments = all(isinstance(g, str) for g in pattern)
+
+    if is_flat_segments:
+        # Single group with multiple ordered segments (AND logic)
+        return _matches_segments(pattern, text)  # type: ignore[arg-type]
+
+    # Pattern is a list of groups. Each group is a Sequence[str] of ordered segments.
+    # A value matches if it matches ANY group (OR logic across groups), and
+    # within a group it must match ALL segments (AND logic).
+    for group in pattern:
+        if isinstance(group, str):
+            group = [group]
+        if _matches_segments(group, text):
+            return True
+    return False
+
+
+def _value_matches_groups(groups: Sequence[Sequence[str]], text: str) -> bool:
+    """Match ``text`` against a list of signature groups (OR logic across groups, AND within)."""
+    for group in groups:
+        if isinstance(group, str):
+            group = [group]
+        if _matches_segments(group, text):
+            return True
+    return False
+
+
+def _infer_pattern_to_groups(pattern: InferredPattern) -> list[list[str]]:
+    """Convert an InferredPattern to a list of groups, each being a list of ordered segments.
+
+    For fmdv/fmdv_h: returns [[pattern]] (single group with single segment)
+    For fmdv_v:
+      - string pattern -> single group with single segment -> [[pattern]]
+      - flat list of segments (all strings) -> single group with multiple segments -> [pattern]
+      - list of groups (first element is a list) -> already list of groups -> pattern directly
+    For fmdv_vh: returns pattern directly (list of groups, each a list of segments)
+    """
+    from typing import cast
+
+    if pattern.variant in ("fmdv", "fmdv_h"):
+        if isinstance(pattern.pattern, str):
+            return [[pattern.pattern]]
+        # pattern.pattern is a Sequence[str] here
+        return [list(pattern.pattern)]  # type: ignore[arg-type]
+    elif pattern.variant == "fmdv_v":
+        if isinstance(pattern.pattern, str):
+            # Single segment
+            return [[pattern.pattern]]
+        elif pattern.pattern and isinstance(pattern.pattern[0], str):
+            # Flat list of segments (single group with multiple segments)
+            return [list(pattern.pattern)]  # type: ignore[arg-type]
+        else:
+            # List of groups (multiple signature groups)
+            groups = cast(list[Sequence[str]], pattern.pattern)
+            return [list(g) for g in groups]
+    else:  # fmdv_vh
+        if isinstance(pattern.pattern, list):
+            # pattern.pattern is list[Sequence[str]], so each g is Sequence[str]
+            groups = cast(list[Sequence[str]], pattern.pattern)
+            return [list(g) for g in groups]
+        # pattern.pattern is a single string segment
+        return [[str(pattern.pattern)]]
+
+
+def _distinct_value_verdicts(
+    series: pd.Series, pattern: str | Sequence[str] | list[Sequence[str]]
+) -> dict[str, bool]:
+    """Return a ``{text: is_error}`` map for every non-null value in ``series``.
+
+    The verdict is computed once per distinct **text representation** (the
+    canonical key used by ``_value_matches``) and broadcast to every cell,
+    instead of re-running ``_value_matches`` for each of the (potentially
+    100k+) cells. This ensures values like ``1``, ``1.0``, and ``True`` get
+    distinct verdicts since they have different string representations.
+    Unhashable values (lists/dicts/numpy arrays) are not cached and are
+    resolved per cell in :meth:`AutoValidateAlgorithm.detect`.
+    """
+    verdicts: dict[str, bool] = {}
+    for value in series:
+        text = _value_text(value)
+        if text is None:
+            continue
+        if text in verdicts:
+            continue
+        verdicts[text] = not _value_matches(pattern, value)
+    return verdicts
+
+
+def _distinct_value_verdicts_groups(
+    series: pd.Series, groups: Sequence[Sequence[str]]
+) -> dict[str, bool]:
+    """Return a ``{text: is_error}`` map for every non-null value in ``series``.
+
+    Works with the groups representation (list of groups, each a list of ordered
+    segments) produced by ``_infer_pattern_to_groups``. The verdict is computed
+    once per distinct text representation and broadcast to every cell.
+
+    Empty strings (``""``) are included as valid cache keys since they are
+    non-null text values that should be checked against patterns (OPE-159 fix).
+    """
+    verdicts: dict[str, bool] = {}
+    for value in series:
+        text = _value_text(value)
+        if text is None:
+            continue
+        if text in verdicts:
+            continue
+        verdicts[text] = not _value_matches_groups(groups, text)
+    return verdicts
 
 
 def _non_null_cells(
@@ -246,12 +475,18 @@ def _non_null_cells(
     score: float,
     evidence: dict[str, Any],
 ) -> list[CellResult]:
-    """Emit one ``CellResult`` per non-null cell of ``series``."""
+    """Emit one ``CellResult`` per non-null cell of ``series``.
+
+    Empty strings (``""``) are included as non-null values since they are valid
+    text values that fail pattern matching on feasible columns. On infeasible
+    columns, they are emitted as non-error cells (OPE-159 fix).
+    """
     cells: list[CellResult] = []
     for idx, value in series.items():
         if _is_null(value):
             continue
-        # Empty strings are non-null and should be included
+        # Empty strings are valid non-null values (OPE-159)
+        # Note: we don't need to convert value here since we're not using it
         cells.append(
             CellResult(
                 table_id=table_id,
@@ -283,7 +518,7 @@ def _infeasible_evidence(config: AutoValidateConfig, reason: str | None) -> dict
 
 def _feasible_evidence(
     config: AutoValidateConfig,
-    pattern: str | Sequence[str],
+    pattern: str | Sequence[str] | list[Sequence[str]],
     fpr_t: float,
     cov_t: int,
     theta_c: float,
@@ -298,4 +533,27 @@ def _feasible_evidence(
         "r": config.r,
         "m": config.m,
         "tau": config.tau,
+    }
+
+
+def _tooltip_content(
+    title: str,
+    severity: str,
+    category: str,
+    expected_pattern: str,
+    received_value: str,
+    suggestion: str,
+    details: dict[str, Any],
+    actions: list[str],
+) -> dict[str, Any]:
+    """Create a tooltip as a plain dictionary for JSON serialization."""
+    return {
+        "title": title,
+        "severity": severity,
+        "category": category,
+        "expected_pattern": expected_pattern,
+        "received_value": received_value,
+        "suggestion": suggestion,
+        "details": copy.deepcopy(details),
+        "actions": list(actions),
     }

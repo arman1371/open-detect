@@ -13,6 +13,7 @@ This is the single entry point most users need:
 
 from __future__ import annotations
 
+from contextlib import suppress
 from functools import reduce
 from typing import TYPE_CHECKING, Any
 
@@ -66,6 +67,8 @@ class UniDetect:
             ErrorType.SPELLING: SpellingDetector(self.spark, config),
             ErrorType.FUNCTIONAL_DEPENDENCY: FunctionalDependencyDetector(self.spark, config),
         }
+        self._result_frame: DataFrame | None = None
+        self._persisted: list[DataFrame] = []
 
     def _validate_inputs(
         self,
@@ -171,6 +174,10 @@ class UniDetect:
         output, sorted ascending by ``lr_ratio`` (Definition 3: smaller is
         more surprising, i.e. more likely a real error).
 
+        The returned DataFrame is persisted and materialized once.  After
+        the caller finishes using the result they should call :meth:`release`
+        on the ``UniDetect`` instance to free the cached detector frames.
+
         Raises
         ------
         ValidationError
@@ -181,23 +188,76 @@ class UniDetect:
 
         from pyspark.sql import functions as F
 
+        from open_detect.algorithms.uni_detect.spark_utils import (
+            ARROW_MAX_RECORDS_PER_BATCH,
+            ARROW_MAX_RECORDS_PER_BATCH_KEY,
+            scoped_conf,
+        )
+
         error_types = tuple(error_types) if error_types else tuple(ErrorType)
-        frames = [self._detectors[et].detect(table_names) for et in error_types]
-        result = reduce(lambda a, b: a.unionByName(b), frames)
-        # Order first, then persist and materialize the *final* frame.  Sorting
-        # after persist() would return an unpersisted frame, so the caller's
-        # count/show/write would re-execute the scoring stage to re-materialize
-        # it -- the very thing this cache lifecycle exists to prevent.
-        # The per-detector caches are released only after the union is cached.
-        result = result.orderBy(F.col("lr_ratio").asc())
-        result = result.persist(StorageLevel.MEMORY_AND_DISK)
-        result.count()
-        # Ensure detectors are released even if an exception occurs.
+        frames = []
+        result = None
         try:
-            return result
+            # Keep Arrow limit active through ALL detector operations:
+            # extract_candidates (mapInPandas), candidate materialization (count),
+            # scoring (batch_score join), and result materialization.
+            with scoped_conf(
+                self.spark,
+                **{ARROW_MAX_RECORDS_PER_BATCH_KEY: str(ARROW_MAX_RECORDS_PER_BATCH)},
+            ):
+                for et in error_types:
+                    frame = self._detectors[et].detect(table_names)
+                    frames.append(frame)
+                result = reduce(lambda a, b: a.unionByName(b), frames)
+                # Order first, then persist and materialize the *final* frame.  Sorting
+                # after persist() would return an unpersisted frame, so the caller's
+                # count/show/write would re-execute the scoring stage to re-materialize
+                # it -- the very thing this cache lifecycle exists to prevent.
+                # The per-detector caches are released only after the union is cached.
+                result = result.orderBy(F.col("lr_ratio").asc())
+                result = result.persist(StorageLevel.MEMORY_AND_DISK)
+                result.count()
+                self._result_frame = self._track(result)
+                return result
+        except Exception:
+            # Clean up detector results on failure - this includes any frames
+            # already returned by detector.detect() calls.
+            for frame in frames:
+                with suppress(Exception):
+                    frame.unpersist()
+            # Clean up the unioned result frame if it was created but failed
+            if result is not None:
+                with suppress(Exception):
+                    result.unpersist()
+            raise
         finally:
+            # Release per-detector caches (scored, joined, result frames) now that
+            # the unioned result is materialized.  Must run on both success and
+            # error to avoid memory leaks from accumulated persisted frames.
             for detector in (self._detectors[et] for et in error_types):
                 detector.release()
+
+    def release(self) -> None:
+        """Release all cached detector resources.
+
+        After calling :meth:`detect` the underlying detectors keep persisted
+        frames in memory (``_persisted``).  Call this method when the result is
+        no longer needed to avoid memory leaks.  Also releases the unioned
+        result frame returned by the last ``detect()`` call.
+        """
+        # Release the unioned result frame if tracked
+        if self._result_frame is not None:
+            with suppress(Exception):
+                self._result_frame.unpersist()
+            self._result_frame = None
+        # Release detector-level caches
+        for detector in self._detectors.values():
+            detector.release()
+
+    def _track(self, frame: DataFrame) -> DataFrame:
+        """Register a persisted result frame for later release."""
+        self._persisted.append(frame)
+        return frame
 
     def write_detections(self, detections: DataFrame, mode: str = "append") -> None:
         """Append (or overwrite) a detection result set to the configured UC table."""

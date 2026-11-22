@@ -30,6 +30,11 @@ from open_detect.algorithms.uni_detect.core.enums import ErrorType
 from open_detect.algorithms.uni_detect.corpus.ingestion import CorpusIngestor
 from open_detect.algorithms.uni_detect.corpus.store import CorpusStatsStore
 from open_detect.algorithms.uni_detect.failures import FailureTracker
+from open_detect.algorithms.uni_detect.spark_utils import (
+    ARROW_MAX_RECORDS_PER_BATCH,
+    ARROW_MAX_RECORDS_PER_BATCH_KEY,
+    scoped_conf,
+)
 from open_detect.algorithms.uni_detect.strategies import get_spec
 from open_detect.logging_utils import get_logger, log_duration
 
@@ -113,10 +118,28 @@ class BaseDetector(ABC):
         from pyspark.sql import functions as F
 
         spec = get_spec(self.error_type)
-        with log_duration(logger, f"detect[{self.error_type.value}]"):
-            candidates = self.extract_candidates(table_names)
-            candidates.persist(StorageLevel.MEMORY_AND_DISK)
-            try:
+        # Use scoped_conf to ensure ARROW_MAX_RECORDS_PER_BATCH stays active
+        # through the entire pipeline: extract_candidates (mapInPandas),
+        # candidate materialization (count), scoring (batch_score join),
+        # and result materialization. This protects against OOM on array-heavy
+        # workloads where a single Arrow batch can balloon to ~10^9 strings.
+        candidates = None
+        result = None
+        try:
+            # Keep Arrow limit active through the ENTIRE pipeline:
+            # extract_candidates (mapInPandas), candidate materialization (count),
+            # scoring (batch_score join), and result materialization.
+            # This protects against OOM on array-heavy workloads where a single
+            # Arrow batch can balloon to ~10^9 strings.
+            with (
+                log_duration(logger, f"detect[{self.error_type.value}]"),
+                scoped_conf(
+                    self.spark,
+                    **{ARROW_MAX_RECORDS_PER_BATCH_KEY: str(ARROW_MAX_RECORDS_PER_BATCH)},
+                ),
+            ):
+                candidates = self.extract_candidates(table_names)
+                candidates.persist(StorageLevel.MEMORY_AND_DISK)
                 n = candidates.count()
                 if self._failure_tracker is not None:
                     self._failure_tracker.check()
@@ -130,11 +153,18 @@ class BaseDetector(ABC):
                     # Return a persisted empty result so downstream actions (count, collect,
                     # write) don't re-execute the scoring stage, and the frame can be
                     # released via release() like any other result.
+                    # candidates must be explicitly unpersisted since we're returning early
+                    # without going through the normal finally path.
+                    with suppress(Exception):
+                        candidates.unpersist()
                     result = self._track(self._empty_result().persist(StorageLevel.MEMORY_AND_DISK))
                     result.count()
                     return result
 
                 scored = self.store.batch_score(candidates, self.error_type, spec.direction)
+                # Keep scored LAZY - it will be materialized along with the final
+                # result. Avoid eager .persist().count() on intermediate frames,
+                # which would add Spark actions and retain extra caches.
                 joined = candidates.join(scored, on="candidate_id", how="inner")
 
                 alpha = float(self.config.alpha)
@@ -156,14 +186,24 @@ class BaseDetector(ABC):
                         "evidence_json",
                     )
                 )
-                # Materialize once while ``candidates`` is still cached, then
-                # release the inputs.  The persisted result survives on its own,
-                # so downstream actions never re-execute the scoring stage.
+                # Materialize the final result once while candidates is still cached.
+                # Track the result for release; scored/joined are in the same lineage.
                 result = self._track(result.persist(StorageLevel.MEMORY_AND_DISK))
                 result.count()
+                # Track candidates for cleanup - it must be released by the caller
+                # via detector.release() along with the result frame.
+                self._track(candidates)
                 return result
-            finally:
-                candidates.unpersist()
+        except Exception:
+            # On failure, clean up any frames that were tracked/persisted during this call.
+            if result is not None:
+                with suppress(Exception):
+                    result.unpersist()
+            # Always release candidates on failure too
+            if candidates is not None:
+                with suppress(Exception):
+                    candidates.unpersist()
+            raise
 
     def _empty_result(self) -> DataFrame:
         from open_detect.algorithms.uni_detect.detectors.schema import DETECTION_RESULT_SCHEMA
@@ -217,5 +257,5 @@ def redact_evidence(evidence: dict[str, Any], mode: RedactMode) -> dict[str, Any
     return {k: _hash_value(v) if k in RAW_VALUE_EVIDENCE_KEYS else v for k, v in evidence.items()}
 
 
-def make_evidence_json(evidence: dict, redact: RedactMode = "none") -> str:
+def make_evidence_json(evidence: dict[str, Any], redact: RedactMode = "none") -> str:
     return json.dumps(redact_evidence(evidence, redact), default=str)

@@ -35,6 +35,7 @@ and an approximation otherwise.  Documented as a fidelity note.
 from __future__ import annotations
 
 from collections.abc import Callable
+from collections.abc import Sequence as SequenceType
 
 import pandas as pd
 
@@ -62,18 +63,47 @@ def fmdv_v(
         sig = _coarse_signature(v)
         sig_to_idx.setdefault(sig, []).append(i)
 
-    best_overall: InferredPattern | None = None
+    # For each signature group, run DP to get its ordered segments and statistics.
+    all_groups: list[list[str]] = []  # list of segment groups (each group is a list of segments)
+    total_fpr = 0.0
+    total_cov = 0
+    total_theta_c_num = 0.0
+    total_theta_c_den = 0.0
+
     for indices in sig_to_idx.values():
         group = [clean[i] for i in indices]
-        if len(group) == 0:
+        result = _segment_fmdv_v(group, index, config)
+        if result is None:
             continue
-        seg = _segment_fmdv_v(group, index, config)
-        if seg is None:
-            continue
-        if best_overall is None or _infer_cmp(seg, best_overall) < 0:
-            best_overall = seg
+        seg_groups, fpr_t, cov_t, theta_c = result
+        all_groups.extend(seg_groups)
+        total_fpr += fpr_t
+        total_cov += cov_t
+        total_theta_c_num += theta_c * cov_t  # proportional contribution
+        total_theta_c_den += cov_t
 
-    return best_overall
+    if not all_groups:
+        return None
+
+    theta_c = total_theta_c_num / total_theta_c_den if total_theta_c_den else 0.0
+
+    # Flatten groups: each signature group contributes its segment groups
+    # For fmdv_v, each signature group produces one segment group (list of segments)
+    # So pattern becomes list of segment groups (each group is a list of segments)
+    # For backward compatibility: when there's a single group with a single
+    # segment, return the pattern as a string, not a nested list.
+    if len(all_groups) == 1 and len(all_groups[0]) == 1 and isinstance(all_groups[0][0], str):
+        pattern: str | SequenceType[str] | list[SequenceType[str]] = all_groups[0][0]
+    else:
+        pattern = all_groups  # type: ignore[assignment]
+
+    return InferredPattern(
+        pattern=pattern,
+        fpr_t=min(1.0, total_fpr),
+        cov_t=total_cov,
+        theta_c=theta_c,
+        variant="fmdv_v",
+    )
 
 
 def fmdv_vh(
@@ -98,7 +128,7 @@ def fmdv_vh(
         sig = _coarse_signature(v)
         sig_to_idx.setdefault(sig, []).append(i)
 
-    all_patterns: list[InferredPattern] = []
+    all_groups: list[list[str]] = []
     total_fpr = 0.0
     total_cov = 0
     total_theta_c_num = 0.0
@@ -106,21 +136,29 @@ def fmdv_vh(
 
     for indices in sig_to_idx.values():
         group = [clean[i] for i in indices]
-        seg = _segment_fmdv_vh(group, index, config)
-        if seg is None:
+        result = _segment_fmdv_vh(group, index, config)
+        if result is None:
             continue
-        all_patterns.append(seg)
-        total_fpr += seg.fpr_t
-        total_cov += seg.cov_t
-        total_theta_c_num += seg.theta_c * seg.cov_t  # proportional contribution
-        total_theta_c_den += seg.cov_t
+        seg_groups, fpr_t, cov_t, theta_c = result
+        all_groups.extend(seg_groups)
+        total_fpr += fpr_t
+        total_cov += cov_t
+        total_theta_c_num += theta_c * cov_t  # proportional contribution
+        total_theta_c_den += cov_t
 
-    if not all_patterns:
+    if not all_groups:
         return None
     theta_c = total_theta_c_num / total_theta_c_den if total_theta_c_den else 0.0
-    patterns = [s.pattern for s in all_patterns]
+
+    # For fmdv_vh, each signature group produces its segment groups
+    # For backward compatibility: when there's a single group with a single
+    # segment, return the pattern as a string, not a nested list.
+    if len(all_groups) == 1 and len(all_groups[0]) == 1 and isinstance(all_groups[0][0], str):
+        pattern: str | SequenceType[str] | list[SequenceType[str]] = all_groups[0][0]
+    else:
+        pattern = all_groups  # type: ignore[assignment]
     return InferredPattern(
-        pattern=patterns[0] if len(patterns) == 1 else patterns,  # type: ignore[arg-type]
+        pattern=pattern,
         fpr_t=min(1.0, total_fpr),
         cov_t=total_cov,
         theta_c=theta_c,
@@ -139,7 +177,7 @@ def _segment_dp(
     config: AutoValidateConfig,
     variant: str,
     solve_segment: Callable[[list[str], PatternIndex, AutoValidateConfig], InferredPattern | None],
-) -> InferredPattern | None:
+) -> tuple[list[list[str]], float, int, float] | None:
     """Run the shared vertical-cut DP over token positions and aggregate the segments.
 
     ``values`` must share one token-class signature, so token position ``p``
@@ -147,6 +185,12 @@ def _segment_dp(
     tokens ``i..j-1`` of every value, rejoined into a string.  ``solve_segment``
     is the per-segment FMDV variant (single-segment FMDV for ``fmdv_v``; FMDV-H
     for ``fmdv_vh``).  Returns ``None`` when no feasible segmentation exists.
+
+    The return value is ``(groups, total_fpr, total_cov, theta_c)`` where
+    ``groups`` is a single group: a list of ordered segment strings that must
+    ALL match (AND logic).  This single DP result is reused by both
+    ``fmdv_v`` and ``fmdv_vh`` callers, so the segmentation search runs once
+    per coarse-signature group instead of twice.
     """
     if not values:
         return None
@@ -201,22 +245,24 @@ def _segment_dp(
     total_fpr = min(1.0, sum(s.fpr_t for s in best_segments))
     total_cov = sum(s.cov_t for s in best_segments)
     theta_c = sum(s.theta_c * s.cov_t for s in best_segments) / total_cov if total_cov else 0.0
-    patterns = [s.pattern for s in best_segments]
-    return InferredPattern(
-        pattern=patterns[0] if len(patterns) == 1 else patterns,  # type: ignore[arg-type]
-        fpr_t=total_fpr,
-        cov_t=total_cov,
-        theta_c=theta_c,
-        variant=variant,
-    )
+    # Preserve segment groups: each vertical segmentation produces ordered
+    # segments that must ALL match (AND logic). Return a single group (a list
+    # of ordered segment strings) so callers can aggregate across signature
+    # groups without re-deriving the DP.
+    group = [s.pattern for s in best_segments if isinstance(s.pattern, str)]
+    return [group], total_fpr, total_cov, theta_c
 
 
 def _segment_fmdv_v(
     values: list[str],
     index: PatternIndex,
     config: AutoValidateConfig,
-) -> InferredPattern | None:
-    """Run FMDV-V on a single coarse-signature group via DP."""
+) -> tuple[list[list[str]], float, int, float] | None:
+    """Run FMDV-V on a single coarse-signature group via DP.
+
+    Returns ``(groups, total_fpr, total_cov, theta_c)`` where ``groups`` is a
+    single group (a list of ordered segment strings that must all match).
+    """
     return _segment_dp(values, index, config, "fmdv_v", _fmdv_single_segment)
 
 
@@ -224,8 +270,12 @@ def _segment_fmdv_vh(
     values: list[str],
     index: PatternIndex,
     config: AutoValidateConfig,
-) -> InferredPattern | None:
-    """FMDV-VH within a single coarse-signature group: horizontal first, then DP."""
+) -> tuple[list[list[str]], float, int, float] | None:
+    """FMDV-VH within a single coarse-signature group: horizontal first, then DP.
+
+    Returns ``(groups, total_fpr, total_cov, theta_c)`` where ``groups`` is a
+    single group (a list of ordered segment strings that must all match).
+    """
     return _segment_dp(values, index, config, "fmdv_vh", _fmdv_h_single)
 
 
@@ -315,18 +365,3 @@ def _fmdv_h_single(
         theta_c=theta_c,
         variant="fmdv_h",
     )
-
-
-def _infer_cmp(a: InferredPattern, b: InferredPattern) -> int:
-    """Compare two InferredPatterns by (fpr_t, theta_c, cov_t desc, variant)."""
-    if a.fpr_t < b.fpr_t:
-        return -1
-    if a.fpr_t > b.fpr_t:
-        return 1
-    if a.theta_c < b.theta_c:
-        return -1
-    if a.theta_c > b.theta_c:
-        return 1
-    if a.cov_t != b.cov_t:
-        return -1 if a.cov_t > b.cov_t else 1
-    return -1 if a.variant < b.variant else (1 if a.variant > b.variant else 0)

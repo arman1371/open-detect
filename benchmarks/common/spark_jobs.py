@@ -86,3 +86,129 @@ class SparkJobCounter:
 
     def to_list(self) -> list[dict[str, Any]]:
         return [r.to_dict() for r in self.results]
+
+
+class ScoringJobCounter:
+    """Counts scoring computation executions per labelled scope.
+
+    Unlike :class:`SparkJobCounter` which counts all Spark jobs, this counter
+    instruments the specific scoring computation (``batch_score`` in
+    :mod:`open_detect.algorithms.uni_detect.corpus.store`) to assert that
+    downstream actions on the returned frame (``count()``, ``collect()``,
+    ``write()``) do not re-execute the scoring stage.
+
+    It uses an executor-side accumulator to count each partition evaluation
+    of the scoring DataFrame, which corresponds to actual scoring executions
+    (not just plan construction).
+
+    Use as a context manager to ensure the global ``batch_score`` patch is
+    restored on exit:
+
+        with ScoringJobCounter(spark) as counter:
+            with counter.scope("detect"):
+                result = detector.detect(...)
+            with counter.scope("count"):
+                result.count()
+    """
+
+    def __init__(self, spark: Any, enabled: bool = True) -> None:
+        self._spark = spark
+        self.enabled = enabled
+        self.results: list[ScopeStats] = []
+        self._sequence = 0
+        self._acc: Any = None
+        self._original_batch_score: Any = None
+        self._patched = False
+        self._scope_depth = 0
+
+    def __enter__(self) -> ScoringJobCounter:
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb) -> None:
+        self._restore_batch_score()
+
+    def _restore_batch_score(self) -> None:
+        """Restore the original ``batch_score`` method if it was patched."""
+        if self._patched and self._original_batch_score is not None:
+            from open_detect.algorithms.uni_detect.corpus.store import CorpusStatsStore
+
+            CorpusStatsStore.batch_score = self._original_batch_score
+            self._patched = False
+            self._original_batch_score = None
+
+    @contextmanager
+    def scope(self, label: str) -> Iterator[None]:
+        if not self.enabled:
+            yield
+            return
+
+        from open_detect.algorithms.uni_detect.corpus.store import CorpusStatsStore
+
+        # Reuse one accumulator across scopes. A scoring plan built inside an
+        # earlier scope retains a reference to the accumulator captured when
+        # batch_score was patched, so re-executing that plan later updates the
+        # same accumulator. Creating a fresh accumulator per scope would report
+        # zero for any recomputation that happens outside the scope that built
+        # the plan.
+        if self._acc is None:
+            self._acc = self._spark.sparkContext.accumulator(0)
+
+        # Track nesting depth to only restore on the outermost scope exit
+        self._scope_depth += 1
+        is_outermost = self._scope_depth == 1
+
+        # Install the batch_score wrapper only in the outermost scope. Nested
+        # scopes share the accumulator but must not re-wrap an already-wrapped
+        # method, and only the scope that installed the wrapper should restore
+        # it on exit. The original method is captured in a local closure cell so
+        # that nested scopes or later installations cannot change the wrapper's
+        # target mid-flight.
+        if not self._patched:
+            original_batch_score = CorpusStatsStore.batch_score
+            self._original_batch_score = original_batch_score
+            acc = self._acc
+
+            def counting_batch_score(self_arg, *args, **kwargs):
+                scored_df = original_batch_score(self_arg, *args, **kwargs)
+
+                # Wrap the scoring DataFrame with a mapInPandas that increments
+                # the accumulator for each partition evaluated. This counts actual
+                # scoring executions, not just plan construction.
+                def increment_acc(iterator):
+                    # Increment once per partition evaluation
+                    acc.add(1)
+                    yield from iterator
+
+                # Use mapInPandas to inject the side effect while preserving schema
+                return scored_df.mapInPandas(increment_acc, schema=scored_df.schema)
+
+            CorpusStatsStore.batch_score = counting_batch_score
+            self._patched = True
+
+        acc = self._acc
+        baseline = acc.value
+        self._sequence += 1
+        try:
+            yield
+        finally:
+            executions = acc.value - baseline
+            # Only restore the original batch_score when the outermost scope exits.
+            # Nested scopes leave the wrapper in place so previously constructed
+            # plans keep reporting into the shared accumulator.
+            if is_outermost and self._patched:
+                CorpusStatsStore.batch_score = self._original_batch_score
+                self._patched = False
+                self._original_batch_score = None
+            self._scope_depth -= 1
+            self.results.append(
+                ScopeStats(
+                    label=label,
+                    jobs=executions,
+                    stages=0,
+                    wall_seconds=0.0,
+                    evicted_jobs=0,
+                )
+            )
+
+    def to_list(self) -> list[dict[str, Any]]:
+        return [r.to_dict() for r in self.results]

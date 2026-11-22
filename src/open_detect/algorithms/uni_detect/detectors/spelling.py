@@ -13,11 +13,6 @@ from open_detect.algorithms.uni_detect.detectors.schema import CANDIDATE_SCHEMA
 from open_detect.algorithms.uni_detect.failures import FailureCounts
 from open_detect.algorithms.uni_detect.featurization import build_spelling_bucket
 from open_detect.algorithms.uni_detect.perturbation import perturb_spelling
-from open_detect.algorithms.uni_detect.spark_utils import (
-    ARROW_MAX_RECORDS_PER_BATCH,
-    ARROW_MAX_RECORDS_PER_BATCH_KEY,
-    scoped_conf,
-)
 from open_detect.algorithms.uni_detect.strategies import get_spec
 
 if TYPE_CHECKING:
@@ -108,10 +103,11 @@ class SpellingDetector(BaseDetector):
                 yield pd.DataFrame(rows, columns=[f.name for f in CANDIDATE_SCHEMA.fields])
 
         columns_df = self.ingestor.ingest_columns(table_names)
-        with scoped_conf(
-            self.spark,
-            **{ARROW_MAX_RECORDS_PER_BATCH_KEY: str(ARROW_MAX_RECORDS_PER_BATCH)},
-        ):
-            return columns_df.select("table_id", "column_name", "num_rows", "values").mapInPandas(
-                compute, schema=CANDIDATE_SCHEMA
-            )
+        # Keep Arrow limit active through candidate extraction and materialization.
+        # The BaseDetector.detect() sets ARROW_MAX_RECORDS_PER_BATCH before calling
+        # extract_candidates, so the lazy mapInPandas plan runs with the limited
+        # batch size. The caller must also keep the override active through
+        # the subsequent count() to avoid oversized batches during materialization.
+        return columns_df.select("table_id", "column_name", "num_rows", "values").mapInPandas(
+            compute, schema=CANDIDATE_SCHEMA
+        )
