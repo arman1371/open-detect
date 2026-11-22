@@ -162,15 +162,10 @@ class BaseDetector(ABC):
                     return result
 
                 scored = self.store.batch_score(candidates, self.error_type, spec.direction)
-                # Persist scored frame so downstream materialization doesn't
-                # re-execute the scoring stage. Track it for later release.
-                scored = self._track(scored.persist(StorageLevel.MEMORY_AND_DISK))
-                scored.count()
+                # Keep scored LAZY - it will be materialized along with the final
+                # result. Avoid eager .persist().count() on intermediate frames,
+                # which would add Spark actions and retain extra caches.
                 joined = candidates.join(scored, on="candidate_id", how="inner")
-                # Persist the joined frame so the final select reads from cache,
-                # not from the candidate/scored lineage that gets unpersisted.
-                joined = self._track(joined.persist(StorageLevel.MEMORY_AND_DISK))
-                joined.count()
 
                 alpha = float(self.config.alpha)
                 result = (
@@ -191,13 +186,13 @@ class BaseDetector(ABC):
                         "evidence_json",
                     )
                 )
-                # Materialize once while ``candidates`` is still cached, then
-                # release the inputs.  The persisted result survives on its own,
-                # so downstream actions never re-execute the scoring stage.
-                # (``scored`` and ``joined`` are intermediate frames in the same
-                # logical plan; they are not separately cached here.)
+                # Materialize the final result once while candidates is still cached.
+                # Track the result for release; scored/joined are in the same lineage.
                 result = self._track(result.persist(StorageLevel.MEMORY_AND_DISK))
                 result.count()
+                # Track candidates for cleanup - it must be released by the caller
+                # via detector.release() along with the result frame.
+                self._track(candidates)
                 return result
         except Exception:
             # On failure, clean up any frames that were tracked/persisted during this call.

@@ -67,6 +67,7 @@ class UniDetect:
             ErrorType.SPELLING: SpellingDetector(self.spark, config),
             ErrorType.FUNCTIONAL_DEPENDENCY: FunctionalDependencyDetector(self.spark, config),
         }
+        self._result_frame: DataFrame | None = None
 
     def _validate_inputs(
         self,
@@ -215,6 +216,7 @@ class UniDetect:
                 result = result.orderBy(F.col("lr_ratio").asc())
                 result = result.persist(StorageLevel.MEMORY_AND_DISK)
                 result.count()
+                self._result_frame = result
                 return result
         except Exception:
             # Clean up detector results on failure - this includes any frames
@@ -239,8 +241,15 @@ class UniDetect:
 
         After calling :meth:`detect` the underlying detectors keep persisted
         frames in memory (``_persisted``).  Call this method when the result is
-        no longer needed to avoid memory leaks.
+        no longer needed to avoid memory leaks.  Also releases the unioned
+        result frame returned by the last ``detect()`` call.
         """
+        # Release the unioned result frame if tracked
+        if self._result_frame is not None:
+            with suppress(Exception):
+                self._result_frame.unpersist()
+            self._result_frame = None
+        # Release detector-level caches
         for detector in self._detectors.values():
             detector.release()
 
