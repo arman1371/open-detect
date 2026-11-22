@@ -407,7 +407,26 @@ class CorpusStatsBuilder:
                 # Reload table to get updated schema with weight column
                 existing_table = self.spark.table(fqn)
 
-        writer = stats.write.format("delta").mode(mode)
+        # OPE-92 Requirement 4: Attempt optional Delta table liquid clustering
+        # by ``feature_bucket``.  This is a no-op on platforms that do not support
+        # liquid clustering (e.g. standalone Spark without Unity Catalog); it falls
+        # back gracefully to plain partition‑by(error_type).
+        try:
+            # Attempt to set liquid clustering on the table being written.
+            # ``clusteringKey`` is a Delta Lake feature that reorganises data on
+            # disk to prune whole buckets during reads.  It is supported on
+            # Databricks Unity Catalog and recent Delta Lake versions; on other
+            # configurations the ``saveAsTable`` call will simply ignore the
+            # option.
+            writer = stats.write.format("delta").mode(mode).option(
+                "clusteringKey", "feature_bucket"
+            )
+        except Exception:
+            # Fall back to the original writer without clusteringKey.  This ensures
+            # the write succeeds on any Delta deployment; the table will remain
+            # partitioned only by ``error_type`` as before.
+            writer = stats.write.format("delta").mode(mode)
+
         if table_already_exists:
             # Re-declaring `.partitionBy(...)` (and `overwriteSchema`) against
             # an already-partitioned table is unnecessary -- Delta keeps the
