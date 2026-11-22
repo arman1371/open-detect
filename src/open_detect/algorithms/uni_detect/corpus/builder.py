@@ -153,6 +153,7 @@ class CorpusStatsBuilder:
                 )
 
         result_schema = _stats_schema_without_error_type()
+        from pyspark.sql import functions as F
         with (
             log_duration(logger, "build_fd_stats"),
             scoped_conf(
@@ -160,8 +161,6 @@ class CorpusStatsBuilder:
                 **{ARROW_MAX_RECORDS_PER_BATCH_KEY: str(ARROW_MAX_RECORDS_PER_BATCH)},
             ),
         ):
-            from pyspark.sql import functions as F
-
             stats = corpus_pairs.select(
                 "table_id", "lhs_values", "rhs_values", "num_rows", "rhs_column_index"
             ).mapInPandas(compute, schema=result_schema)

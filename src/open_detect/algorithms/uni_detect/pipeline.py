@@ -68,6 +68,7 @@ class UniDetect:
             ErrorType.FUNCTIONAL_DEPENDENCY: FunctionalDependencyDetector(self.spark, config),
         }
         self._result_frame: DataFrame | None = None
+        self._persisted: list[DataFrame] = []
 
     def _validate_inputs(
         self,
@@ -216,7 +217,7 @@ class UniDetect:
                 result = result.orderBy(F.col("lr_ratio").asc())
                 result = result.persist(StorageLevel.MEMORY_AND_DISK)
                 result.count()
-                self._result_frame = result
+                self._result_frame = self._track(result)
                 return result
         except Exception:
             # Clean up detector results on failure - this includes any frames
@@ -252,6 +253,11 @@ class UniDetect:
         # Release detector-level caches
         for detector in self._detectors.values():
             detector.release()
+
+    def _track(self, frame: DataFrame) -> DataFrame:
+        """Register a persisted result frame for later release."""
+        self._persisted.append(frame)
+        return frame
 
     def write_detections(self, detections: DataFrame, mode: str = "append") -> None:
         """Append (or overwrite) a detection result set to the configured UC table."""

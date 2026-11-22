@@ -40,7 +40,6 @@ from open_detect.algorithms.base import (
     AlgorithmResult,
     CellResult,
     ErrorDetectionAlgorithm,
-    TooltipContent,
 )
 from open_detect.exceptions import ValidationError
 from open_detect.validation import _check_unknown_kwargs
@@ -201,18 +200,7 @@ class AutoValidateAlgorithm(ErrorDetectionAlgorithm):
                     # Unhashable value or empty text: resolve per cell
                     is_error = False if text is None else not _value_matches_groups(groups, text)
                 if is_error:
-                    tooltip_obj = _make_tooltip(value, inferred, fpr_t, cov_t, theta_c, self.config)
-                    # Convert TooltipContent to plain dict for JSON serialization
-                    tooltip = {
-                        "title": tooltip_obj.title,
-                        "severity": tooltip_obj.severity,
-                        "category": tooltip_obj.category,
-                        "expected_pattern": tooltip_obj.expected_pattern,
-                        "received_value": tooltip_obj.received_value,
-                        "suggestion": tooltip_obj.suggestion,
-                        "details": copy.deepcopy(tooltip_obj.details),
-                        "actions": list(tooltip_obj.actions),
-                    }
+                    tooltip = _make_tooltip(value, inferred, fpr_t, cov_t, theta_c, self.config)
                 else:
                     tooltip = None
                 cells.append(
@@ -239,8 +227,8 @@ def _make_tooltip(
     cov_t: int,
     theta_c: float,
     config: AutoValidateConfig,
-) -> TooltipContent:
-    """Generate tooltip content for a flagged cell.
+) -> dict[str, Any]:
+    """Generate tooltip content for a flagged cell as a plain dictionary.
 
     Translates the inferred pattern and cell value into a human-readable
     explanation with an actionable suggestion.
@@ -462,6 +450,9 @@ def _distinct_value_verdicts_groups(
     Works with the groups representation (list of groups, each a list of ordered
     segments) produced by ``_infer_pattern_to_groups``. The verdict is computed
     once per distinct text representation and broadcast to every cell.
+
+    Empty strings (``""``) are included as valid cache keys since they are
+    non-null text values that should be checked against patterns (OPE-159 fix).
     """
     verdicts: dict[str, bool] = {}
     for value in series:
@@ -484,14 +475,18 @@ def _non_null_cells(
     score: float,
     evidence: dict[str, Any],
 ) -> list[CellResult]:
-    """Emit one ``CellResult`` per non-null cell of ``series``."""
+    """Emit one ``CellResult`` per non-null cell of ``series``.
+
+    Empty strings (``""``) are included as non-null values since they are valid
+    text values that fail pattern matching on feasible columns. On infeasible
+    columns, they are emitted as non-error cells (OPE-159 fix).
+    """
     cells: list[CellResult] = []
     for idx, value in series.items():
         if _is_null(value):
             continue
-        text = value if isinstance(value, str) else str(value)
-        if not text:
-            continue
+        # Empty strings are valid non-null values (OPE-159)
+        # Note: we don't need to convert value here since we're not using it
         cells.append(
             CellResult(
                 table_id=table_id,
@@ -550,15 +545,15 @@ def _tooltip_content(
     suggestion: str,
     details: dict[str, Any],
     actions: list[str],
-) -> TooltipContent:
-    """Create a TooltipContent instance."""
-    return TooltipContent(
-        title=title,
-        severity=severity,
-        category=category,
-        expected_pattern=expected_pattern,
-        received_value=received_value,
-        suggestion=suggestion,
-        details=details,
-        actions=actions,
-    )
+) -> dict[str, Any]:
+    """Create a tooltip as a plain dictionary for JSON serialization."""
+    return {
+        "title": title,
+        "severity": severity,
+        "category": category,
+        "expected_pattern": expected_pattern,
+        "received_value": received_value,
+        "suggestion": suggestion,
+        "details": copy.deepcopy(details),
+        "actions": list(actions),
+    }

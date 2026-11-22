@@ -96,20 +96,11 @@ def _per_cell_reference(dirty: pd.DataFrame) -> tuple[CellResult, ...]:
                 if _is_null(value):
                     continue
                 # Reference implementation evaluates per-cell without cache
-                is_error = not _value_matches_groups(groups, _value_text(value))
+                text = _value_text(value)
+                is_error = text is not None and not _value_matches_groups(groups, text)
                 if is_error:
-                    tooltip_obj = _make_tooltip(value, inferred, fpr_t, cov_t, theta_c, detector.config)
-                    # Convert TooltipContent to plain dict for JSON serialization (matching new behavior)
-                    tooltip = {
-                        "title": tooltip_obj.title,
-                        "severity": tooltip_obj.severity,
-                        "category": tooltip_obj.category,
-                        "expected_pattern": tooltip_obj.expected_pattern,
-                        "received_value": tooltip_obj.received_value,
-                        "suggestion": tooltip_obj.suggestion,
-                        "details": tooltip_obj.details,
-                        "actions": list(tooltip_obj.actions),
-                    }
+                    # Generate tooltip as plain dict (matching new behavior)
+                    tooltip = _make_tooltip(value, inferred, fpr_t, cov_t, theta_c, detector.config)
                 else:
                     tooltip = None
                 cells.append(
@@ -271,16 +262,20 @@ def test_empty_dataframe() -> None:
     assert _detector().detect(pd.DataFrame(), table_id=TABLE_ID).cells == ()
 
 
-def test_infeasible_column_skips_empty_strings() -> None:
+def test_infeasible_column_includes_empty_strings_as_non_null() -> None:
     """With no feasible pattern the column goes through ``_non_null_cells``,
-
-    which drops nulls *and* blanks, so no cell is emitted here at all. This is
-    an infeasible-path test; it says nothing about ``""`` on a feasible column.
+    which now includes empty strings as non-null cells (OPE-159 fix).
+    Empty strings are emitted as non-error cells with score=0.0.
     """
     dirty = pd.DataFrame({"email": ["", "", None, ""]})
     assert _detector().infer_pattern(dirty["email"]) is None, "fixture must be infeasible"
-    assert _detect(dirty) == ()
-    assert _detect(dirty) == _per_cell_reference(dirty)
+    cells = _detect(dirty)
+    # Empty strings should be included as non-null cells (not skipped)
+    assert len(cells) == 3  # three empty strings, None is skipped
+    assert all(c.row_index in {0, 1, 3} for c in cells)
+    assert all(not c.is_error for c in cells)
+    assert all(c.score == 0.0 for c in cells)
+    assert cells == _per_cell_reference(dirty)
 
 
 def _two_distinct_frame(rows: int) -> pd.DataFrame:

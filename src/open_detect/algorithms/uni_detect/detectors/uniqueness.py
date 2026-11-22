@@ -95,9 +95,11 @@ class UniquenessDetector(BaseDetector):
                 yield pd.DataFrame(rows, columns=[f.name for f in CANDIDATE_SCHEMA.fields])
 
         columns_df = self.ingestor.ingest_columns(table_names)
-        # ARROW_MAX_RECORDS_PER_BATCH is set by BaseDetector.detect() so it stays
-        # active through the lazy execution of mapInPandas and the subsequent count().
-        # Keep the override active through candidate materialization in the base detector.
+        # Keep Arrow limit active through candidate extraction and materialization.
+        # The BaseDetector.detect() sets ARROW_MAX_RECORDS_PER_BATCH before calling
+        # extract_candidates, so the lazy mapInPandas plan runs with the limited
+        # batch size. The caller must also keep the override active through
+        # the subsequent count() to avoid oversized batches during materialization.
         return columns_df.select(
             "table_id", "column_name", "column_index", "num_rows", "values"
         ).mapInPandas(compute, schema=CANDIDATE_SCHEMA)

@@ -39,6 +39,7 @@ def _check_expected_type(value: Any, expected_type: type, param_name: str) -> No
     TypeError from parameterized generics.
     """
     from typing import get_args
+    from collections.abc import Sequence
 
     origin = get_origin(expected_type)
 
@@ -65,8 +66,20 @@ def _check_expected_type(value: Any, expected_type: type, param_name: str) -> No
                 )
         except TypeError:
             # Parameterized generics (e.g., Sequence[str]) can't be used with
-            # isinstance. The origin check already validated the container type.
-            pass
+            # isinstance. Fall back to checking against collections.abc.Sequence
+            # for sequence types, or the raw expected_type for others.
+            if expected_type is Sequence or origin is Sequence:
+                if not isinstance(value, Sequence):
+                    raise ValidationError(
+                        f"{param_name} must be a sequence, "
+                        f"got {type(value).__name__}: {value!r}"
+                    )
+            elif origin is not None:
+                # For other parameterized generics, we already validated the
+                # container type via the origin check
+                pass
+            else:
+                raise
 
 
 def _validate_literal_value(

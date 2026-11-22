@@ -204,12 +204,6 @@ class BaseDetector(ABC):
                 with suppress(Exception):
                     candidates.unpersist()
             raise
-        # NOTE: No 'finally' block that unpersists candidates.  The result DataFrame
-        # is persisted (MEMORY_AND_DISK) and must survive until the caller consumes
-        # it via count()/collect()/write().  The caller is responsible for calling
-        # ``detector.release()`` or ``result.unpersist()`` when the result is no
-        # longer needed.  This ensures downstream actions reuse the cached frame
-        # instead of re-executing the scoring stage.
 
     def _empty_result(self) -> DataFrame:
         from open_detect.algorithms.uni_detect.detectors.schema import DETECTION_RESULT_SCHEMA

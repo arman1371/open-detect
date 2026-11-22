@@ -40,7 +40,7 @@ TEST_CATALOG = "spark_catalog"
 TEST_SCHEMA = "open_detect_test_schema"
 
 _MAVEN_BASE = "https://repo1.maven.org/maven2"
-_SCALA_VERSION = "2.13"
+_SCALA_VERSION = "2.12"
 
 
 def _download(url: str, dest: Path) -> None:
@@ -127,8 +127,8 @@ def spark() -> Iterator[pyspark.sql.SparkSession]:  # noqa: F821
         # same reason (corpus/store.py's load_token_stats_map() pre-sizes an
         # ordering buffer proportional to max_tokens; default 500k fits in 4g).
         # CI runners have limited memory (7GB total), so use smaller heaps to fit.
-        .config("spark.driver.memory", "2g")
-        .config("spark.executor.memory", "3g")
+        .config("spark.driver.memory", "4g")
+        .config("spark.executor.memory", "4g")
         # Delta replays its transaction log with this many partitions on every
         # snapshot load (default 50) -- pure overhead for tiny test tables.
         .config("spark.databricks.delta.snapshotPartitions", "2")
