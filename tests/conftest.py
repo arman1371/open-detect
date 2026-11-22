@@ -201,7 +201,7 @@ def spark() -> Iterator[pyspark.sql.SparkSession]:  # noqa: F821
     # In local mode, executor runs in the same JVM as driver, so we only set driver memory
     # and cap it to fit. executor.memory is ignored in local mode but we keep a safe value.
     try:
-        driver_memory = _cap_driver_memory("1g")
+        driver_memory = _cap_driver_memory("2g")
     except ValueError as exc:
         pytest.skip(f"Could not start a local Delta-enabled Spark session: {exc}")
         return

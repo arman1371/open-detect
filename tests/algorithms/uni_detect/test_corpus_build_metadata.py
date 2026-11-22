@@ -219,9 +219,9 @@ class TestWiring:
         CorpusStatsBuilder(spark, config).write(stats, error_types=[ErrorType.SPELLING])
 
         stats.select.assert_not_called()
-        stats.write.format.return_value.mode.return_value.option.assert_called_once_with(
-            "replaceWhere", "error_type = 'spelling'"
-        )
+        # replaceWhere is no longer used — legacy migration is handled atomically
+        # via the backfill with overwriteSchema=true on the entire table
+        stats.write.format.return_value.mode.return_value.option.assert_not_called()
         assert read_build_config(spark, config.corpus_stats_fqn, ErrorType.SPELLING) == (
             config.build_fingerprint()
         )
