@@ -251,9 +251,7 @@ def _non_null_cells(
     for idx, value in series.items():
         if _is_null(value):
             continue
-        text = value if isinstance(value, str) else str(value)
-        if not text:
-            continue
+        # Empty strings are non-null and should be included
         cells.append(
             CellResult(
                 table_id=table_id,

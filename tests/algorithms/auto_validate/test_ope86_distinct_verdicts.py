@@ -39,7 +39,10 @@ def _detect_dirty(dirty: pd.DataFrame) -> list:
 def _per_cell_reference(
     series: pd.Series, pattern: str | list[str], table_id: str, col: str, config: AutoValidateConfig
 ):
-    """Per-cell reference implementation matching the old detect() loop."""
+    """Per-cell reference implementation matching the detect() loop with OPE-159 fix.
+
+    Empty strings are non-null values that get checked against patterns.
+    """
     n_total = len(series) - sum(1 for v in series if _is_null(v))
     score = 1.0 - 0.0 if n_total > 0 else 0.0  # fpr_t not needed for is_error
     cells = []
@@ -47,8 +50,7 @@ def _per_cell_reference(
         if _is_null(value):
             continue
         text = value if isinstance(value, str) else str(value)
-        if not text:
-            continue
+        # Empty strings are non-null and should be included
         is_error = not _value_matches(pattern, text)
         cells.append(
             type(
@@ -140,11 +142,20 @@ def test_empty_dataframe():
 
 
 def test_nan_and_empty_string_distinct_verdicts():
-    """NaN is skipped; empty strings are skipped too, matching the per-cell
-    baseline in ``_non_null_cells`` (an empty text value is not a cell)."""
+    """NaN is skipped; empty strings are non-null values that create cells.
+
+    When a column has no feasible pattern (e.g., all empty strings), empty strings
+    are still included as non-null cells but are not flagged as errors (no pattern
+    to match against). This tests the OPE-159 fix that empty strings are treated
+    as non-null.
+    """
     dirty = pd.DataFrame({"email": ["", "", None]})
     cells = _detect_dirty(dirty)
-    assert cells == ()
+    # 2 empty strings + 1 None -> 2 cells (empty strings are non-null)
+    # No pattern inferred -> not flagged as errors
+    assert len(cells) == 2
+    assert all(not c.is_error for c in cells)  # no pattern = not errors
+    assert all(c.column_name == "email" for c in cells)
 
 
 def test_verdict_cache_invoked_at_most_once_per_distinct():
