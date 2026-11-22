@@ -32,7 +32,6 @@ import pytest
 from open_detect.algorithms.auto_validate.config import AutoValidateConfig
 from open_detect.algorithms.auto_validate.detector import (
     AutoValidateAlgorithm,
-    _distinct_value_verdicts_groups,
     _feasible_evidence,
     _infeasible_evidence,
     _infer_pattern_to_groups,
@@ -92,16 +91,12 @@ def _per_cell_reference(dirty: pd.DataFrame) -> tuple[CellResult, ...]:
             n_total = len(series) - sum(1 for v in series if _is_null(v))
             score = 1.0 - fpr_t if n_total > 0 else 0.0
             groups = _infer_pattern_to_groups(inferred)
-            verdicts = _distinct_value_verdicts_groups(series, groups)
             series.map(_is_null)
             for idx, value in series.items():
                 if _is_null(value):
                     continue
-                text = _value_text(value)
-                if text is not None and text in verdicts:
-                    is_error = verdicts[text]
-                else:
-                    is_error = not _value_matches_groups(groups, text)
+                # Reference implementation evaluates per-cell without cache
+                is_error = not _value_matches_groups(groups, _value_text(value))
                 if is_error:
                     tooltip_obj = _make_tooltip(value, inferred, fpr_t, cov_t, theta_c, detector.config)
                     # Convert TooltipContent to plain dict for JSON serialization (matching new behavior)

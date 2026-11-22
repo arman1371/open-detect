@@ -296,24 +296,11 @@ def _build_suggestion(
     cov_t: int,
 ) -> str:
     """Build an actionable suggestion for the tooltip."""
-    # Common patterns and suggestions
-    if "@" in pattern_lang and "." in pattern_lang:
-        # Email-like pattern
-        if "@@" in received or received.count("@") > 1:
-            return "Remove duplicate '@' symbol"
-        elif (
-            not received.endswith(".com")
-            and not received.endswith(".org")
-            and not received.endswith(".net")
-        ):
-            return "Use a valid domain extension (e.g. '.com', '.org', '.net')"
-    if "-" in pattern_lang and any(c.isdigit() for c in pattern_lang):
-        # Date-like pattern
-        return "Use YYYY-MM-DD format"
+    # Provide generic, non-prescriptive guidance based on the inferred pattern
     if fpr_t < 0.01:
-        return "Value exceeds 3σ threshold — verify data entry"
+        return "Value is a strong outlier — verify data entry"
     if cov_t < 3:
-        return "Low coverage — verify this is expected"
+        return "Pattern has low coverage in corpus — verify this is expected"
     return "Check value against expected format"
 
 
