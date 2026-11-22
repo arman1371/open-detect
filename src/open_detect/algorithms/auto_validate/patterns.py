@@ -207,9 +207,7 @@ def pattern_to_language(pattern: str | Sequence[str] | list[Sequence[str]], vari
             result = result.replace("<digit>", "[0-9]")
             result = result.replace("<symbol>", "[!@#$%^&*()_+={}|:'\",.<>?/]")
             result = result.replace("<letter>", "[a-zA-Z]")
-            # Normalize the pattern for display
-            result = result.replace("+", "")
-            result = result.replace("*", "")
+            # Keep + and * as quantifiers in human-readable form
             return result
         # fmdv_v: flat list of segments
         elif variant == "fmdv_v":
@@ -220,8 +218,7 @@ def pattern_to_language(pattern: str | Sequence[str] | list[Sequence[str]], vari
                 seg = seg.replace("<digit>", "[0-9]")
                 seg = seg.replace("<symbol>", "[!@#$%^&*()_+={}|:'\",.<>?/]")
                 seg = seg.replace("<letter>", "[a-zA-Z]")
-                seg = seg.replace("+", "")
-                seg = seg.replace("*", "")
+                # Keep + and * as quantifiers
                 readable.append(seg)
             return (
                 " + ".join(readable) if len(readable) > 1 else readable[0] if readable else pattern
@@ -232,8 +229,7 @@ def pattern_to_language(pattern: str | Sequence[str] | list[Sequence[str]], vari
             result = result.replace("<digit>", "[0-9]")
             result = result.replace("<symbol>", "[!@#$%^&*()_+={}|:'\",.<>?/]")
             result = result.replace("<letter>", "[a-zA-Z]")
-            result = result.replace("+", "")
-            result = result.replace("*", "")
+            # Keep + and * as quantifiers
             return result
         return pattern
 
@@ -253,8 +249,7 @@ def pattern_to_language(pattern: str | Sequence[str] | list[Sequence[str]], vari
             seg_str = seg_str.replace("<digit>", "[0-9]")
             seg_str = seg_str.replace("<symbol>", "[!@#$%^&*()_+={}|:'\",.<>?/]")
             seg_str = seg_str.replace("<letter>", "[a-zA-Z]")
-            seg_str = seg_str.replace("+", "")
-            seg_str = seg_str.replace("*", "")
+            # Keep + and * as quantifiers
             readable_list.append(seg_str)
         return (
             " and ".join(readable_list)
@@ -273,8 +268,7 @@ def pattern_to_language(pattern: str | Sequence[str] | list[Sequence[str]], vari
                     seg = seg.replace("<digit>", "[0-9]")
                     seg = seg.replace("<symbol>", "[!@#$%^&*()_+={}|:'\",.<>?/]")
                     seg = seg.replace("<letter>", "[a-zA-Z]")
-                    seg = seg.replace("+", "")
-                    seg = seg.replace("*", "")
+                    # Keep + and * as quantifiers
                     seg_descs.append(seg)
                 group_descriptions.append(" and ".join(seg_descs))
             return " or ".join(group_descriptions)

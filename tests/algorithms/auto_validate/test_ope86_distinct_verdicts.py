@@ -103,7 +103,18 @@ def _per_cell_reference(dirty: pd.DataFrame) -> tuple[CellResult, ...]:
                 else:
                     is_error = not _value_matches_groups(groups, text)
                 if is_error:
-                    tooltip = _make_tooltip(value, inferred, fpr_t, cov_t, theta_c, detector.config)
+                    tooltip_obj = _make_tooltip(value, inferred, fpr_t, cov_t, theta_c, detector.config)
+                    # Convert TooltipContent to plain dict for JSON serialization (matching new behavior)
+                    tooltip = {
+                        "title": tooltip_obj.title,
+                        "severity": tooltip_obj.severity,
+                        "category": tooltip_obj.category,
+                        "expected_pattern": tooltip_obj.expected_pattern,
+                        "received_value": tooltip_obj.received_value,
+                        "suggestion": tooltip_obj.suggestion,
+                        "details": tooltip_obj.details,
+                        "actions": list(tooltip_obj.actions),
+                    }
                 else:
                     tooltip = None
                 cells.append(

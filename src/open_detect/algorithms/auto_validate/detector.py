@@ -24,6 +24,7 @@ compare against when scanning a single table. See the fidelity notes in
 
 from __future__ import annotations
 
+import copy
 from collections.abc import Iterable, Sequence
 from typing import Any
 
@@ -200,7 +201,18 @@ class AutoValidateAlgorithm(ErrorDetectionAlgorithm):
                     # Unhashable value or empty text: resolve per cell
                     is_error = False if text is None else not _value_matches_groups(groups, text)
                 if is_error:
-                    tooltip = _make_tooltip(value, inferred, fpr_t, cov_t, theta_c, self.config)
+                    tooltip_obj = _make_tooltip(value, inferred, fpr_t, cov_t, theta_c, self.config)
+                    # Convert TooltipContent to plain dict for JSON serialization
+                    tooltip = {
+                        "title": tooltip_obj.title,
+                        "severity": tooltip_obj.severity,
+                        "category": tooltip_obj.category,
+                        "expected_pattern": tooltip_obj.expected_pattern,
+                        "received_value": tooltip_obj.received_value,
+                        "suggestion": tooltip_obj.suggestion,
+                        "details": copy.deepcopy(tooltip_obj.details),
+                        "actions": list(tooltip_obj.actions),
+                    }
                 else:
                     tooltip = None
                 cells.append(

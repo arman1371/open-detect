@@ -67,6 +67,7 @@ class RahaDetector(ErrorDetectionAlgorithm):
         variant:
             Variant label for the column being scanned. Must be one of ``"A"``
             or ``"B"``. If not supplied, the config default is used.
+            This parameter controls which feature extraction variant to use.
         labeler:
             Answers "is this cell dirty?" for the tuples Raha samples
             (Section 4.3). Defaults to :class:`~open_detect.algorithms.raha.labeling.HeuristicLabeler`,
@@ -81,7 +82,7 @@ class RahaDetector(ErrorDetectionAlgorithm):
             _validate_literal_value,
         )
 
-        _check_unknown_kwargs(kwargs, {"table_id", "conflict_resolution", "labeler"}, "detect")
+        _check_unknown_kwargs(kwargs, {"table_id", "conflict_resolution", "labeler", "variant"}, "detect")
 
         _ensure_dataframe_is_spark(data, "data")
         if conflict_resolution is not None:
@@ -98,7 +99,21 @@ class RahaDetector(ErrorDetectionAlgorithm):
 
         with log_duration(logger, "raha.detect"):
             rng = np.random.default_rng(self.config.random_state)
-            column_features = build_all_features(df, self.config)
+            # Use the variant from detect() call, falling back to config default
+            effective_variant = variant or self.config.variant
+            # Create a config with the effective variant
+            from open_detect.algorithms.raha.config import RahaConfig
+            effective_config = RahaConfig(
+                labeling_budget=self.config.labeling_budget,
+                tf_thresholds=self.config.tf_thresholds,
+                dist_thresholds=self.config.dist_thresholds,
+                conflict_resolution=self.config.conflict_resolution,
+                max_pattern_characters=self.config.max_pattern_characters,
+                classifier_factory=self.config.classifier_factory,
+                random_state=self.config.random_state,
+                variant=effective_variant,
+            )
+            column_features = build_all_features(df, effective_config)
             active_labeler = labeler or HeuristicLabeler(column_features)
 
             per_column_labels: dict[str, dict[int, bool]] = {col: {} for col in df.columns}
