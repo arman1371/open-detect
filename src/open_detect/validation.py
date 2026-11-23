@@ -38,7 +38,6 @@ def _check_expected_type(value: Any, expected_type: type, param_name: str) -> No
     Uses the already-computed origin for runtime type checks to avoid
     TypeError from parameterized generics.
     """
-    from collections.abc import Sequence
     from typing import get_args
 
     origin = get_origin(expected_type)
@@ -49,11 +48,8 @@ def _check_expected_type(value: Any, expected_type: type, param_name: str) -> No
         if args and args[0] is str and isinstance(value, str):
             raise ValidationError("expected a sequence of str, got str; wrap in a list")
 
-    # Determine the check type and whether we need a fallback
-    if origin is not None:
-        check_type = origin
-    else:
-        check_type = expected_type
+    # Determine check type: use origin if available, otherwise expected_type
+    check_type = origin if origin is not None else expected_type
 
     if not isinstance(value, check_type):
         raise ValidationError(
