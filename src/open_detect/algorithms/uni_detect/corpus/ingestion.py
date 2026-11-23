@@ -236,6 +236,7 @@ class CorpusIngestor:
         # Also collect FD pairs as structs to preserve row alignment
         if len(col_names) >= 2:
             from itertools import permutations
+
             pair_columns = []
             for lhs_idx, rhs_idx in permutations(range(len(col_names)), 2):
                 lhs_col, rhs_col = col_names[lhs_idx], col_names[rhs_idx]
@@ -243,7 +244,7 @@ class CorpusIngestor:
                     F.collect_list(
                         F.when(
                             F.col(lhs_col).isNotNull() & F.col(rhs_col).isNotNull(),
-                            F.struct(F.col(lhs_col).alias("lhs"), F.col(rhs_col).alias("rhs"))
+                            F.struct(F.col(lhs_col).alias("lhs"), F.col(rhs_col).alias("rhs")),
                         )
                     ).alias(f"pairs_{lhs_idx}_{rhs_idx}")
                 )
