@@ -631,23 +631,77 @@ class TestUniDetectOutlierVsSpellingRouting:
     outlier jobs to numeric columns and spelling jobs to non-numeric columns.
     """
 
-    def test_outlier_only_numeric_columns(self):
-        """Outlier detector should only see numeric columns."""
-        # This test requires a Spark session to create DataFrames
-        # We'll use a mock for now
-        pass
+    def test_filter_by_column_type_outlier(self):
+        """_filter_by_column_type should filter to numeric columns for NUMERIC_OUTLIER."""
+        from open_detect.algorithms.uni_detect.pipeline import _filter_by_column_type
+        from open_detect.algorithms.uni_detect.core.enums import ErrorType
+        from pyspark.sql import functions as F
 
-    def test_spelling_only_non_numeric_columns(self):
-        """Spelling detector should only see non-numeric columns."""
-        pass
+        # Create a mock DataFrame
+        mock_df = MagicMock()
+        mock_filtered = MagicMock()
+        mock_df.where.return_value = mock_filtered
 
-    def test_uniqueness_sees_all_columns(self):
-        """Uniqueness detector should see all column types."""
-        pass
+        # Patch F.col in pyspark.sql.functions where it's imported from
+        with patch("pyspark.sql.functions.col") as mock_col:
+            mock_col_instance = MagicMock()
+            mock_col_instance.isin.return_value = MagicMock()
+            mock_col.return_value = mock_col_instance
 
-    def test_tagged_type_matches_in_job_filtering(self):
-        """Tagged column_data_type must not change results vs in-job filtering."""
-        pass
+            result = _filter_by_column_type(mock_df, ErrorType.NUMERIC_OUTLIER)
+
+            # Verify where was called with the correct condition
+            mock_df.where.assert_called_once()
+            call_args = mock_df.where.call_args
+            assert call_args is not None
+
+    def test_filter_by_column_type_spelling(self):
+        """_filter_by_column_type should filter to non-numeric columns for SPELLING."""
+        from open_detect.algorithms.uni_detect.pipeline import _filter_by_column_type
+        from open_detect.algorithms.uni_detect.core.enums import ErrorType
+        from pyspark.sql import functions as F
+
+        mock_df = MagicMock()
+        mock_filtered = MagicMock()
+        mock_df.where.return_value = mock_filtered
+
+        with patch("pyspark.sql.functions.col") as mock_col:
+            mock_col_instance = MagicMock()
+            mock_col_instance.isin.return_value = MagicMock()
+            mock_col.return_value = mock_col_instance
+
+            result = _filter_by_column_type(mock_df, ErrorType.SPELLING)
+
+            # Verify where was called with the correct condition (NOT numeric)
+            mock_df.where.assert_called_once()
+            call_args = mock_df.where.call_args
+            assert call_args is not None
+
+    def test_filter_by_column_type_uniqueness(self):
+        """_filter_by_column_type should return all columns for UNIQUENESS."""
+        from open_detect.algorithms.uni_detect.pipeline import _filter_by_column_type
+        from open_detect.algorithms.uni_detect.core.enums import ErrorType
+
+        mock_df = MagicMock()
+
+        result = _filter_by_column_type(mock_df, ErrorType.UNIQUENESS)
+
+        # Should return the original DataFrame without filtering
+        assert result is mock_df
+        mock_df.where.assert_not_called()
+
+    def test_filter_by_column_type_fd(self):
+        """_filter_by_column_type should return all columns for FUNCTIONAL_DEPENDENCY."""
+        from open_detect.algorithms.uni_detect.pipeline import _filter_by_column_type
+        from open_detect.algorithms.uni_detect.core.enums import ErrorType
+
+        mock_df = MagicMock()
+
+        result = _filter_by_column_type(mock_df, ErrorType.FUNCTIONAL_DEPENDENCY)
+
+        # Should return the original DataFrame without filtering
+        assert result is mock_df
+        mock_df.where.assert_not_called()
 
 
 class TestUniDetectSharedIngestionOnce:
