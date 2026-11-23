@@ -73,7 +73,11 @@ def _build_row(tid, col, vals, outcome, bucket, cfg: UniDetectConfig) -> dict:
 class SpellingDetector(BaseDetector):
     error_type = ErrorType.SPELLING
 
-    def extract_candidates(self, table_names: Sequence[str]) -> DataFrame:
+    def extract_candidates(
+        self,
+        table_names: Sequence[str],
+        ingested_columns_df: DataFrame | None = None,
+    ) -> DataFrame:
         import pandas as pd
 
         cfg = self.config
@@ -102,7 +106,11 @@ class SpellingDetector(BaseDetector):
                 tracker.flush(counts)
                 yield pd.DataFrame(rows, columns=[f.name for f in CANDIDATE_SCHEMA.fields])
 
-        columns_df = self.ingestor.ingest_columns(table_names)
+        columns_df = (
+            ingested_columns_df
+            if ingested_columns_df is not None
+            else self.ingestor.ingest_columns(table_names)
+        )
         # Keep Arrow limit active through candidate extraction and materialization.
         # The BaseDetector.detect() sets ARROW_MAX_RECORDS_PER_BATCH before calling
         # extract_candidates, so the lazy mapInPandas plan runs with the limited

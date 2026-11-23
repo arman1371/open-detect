@@ -165,9 +165,7 @@ class UniDetect:
                 columns_df.count()  # materialize the cache deterministically
         elif needs_pairs:
             with log_duration(logger, "ingest_column_pairs"):
-                pairs_df = ingestor.ingest_column_pairs(table_names).persist(
-                    StorageLevel.DISK_ONLY
-                )
+                pairs_df = ingestor.ingest_column_pairs(table_names).persist(StorageLevel.DISK_ONLY)
                 pairs_df.count()  # materialize the cache deterministically
 
         if needs_tokens:

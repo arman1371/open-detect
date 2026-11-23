@@ -41,7 +41,11 @@ def _score_pair(
 class FunctionalDependencyDetector(BaseDetector):
     error_type = ErrorType.FUNCTIONAL_DEPENDENCY
 
-    def extract_candidates(self, table_names: Sequence[str]) -> DataFrame:
+    def extract_candidates(
+        self,
+        table_names: Sequence[str],
+        ingested_pairs_df: DataFrame | None = None,
+    ) -> DataFrame:
         import pandas as pd
 
         cfg = self.config
@@ -103,7 +107,11 @@ class FunctionalDependencyDetector(BaseDetector):
                 tracker.flush(counts)
                 yield pd.DataFrame(rows, columns=[f.name for f in CANDIDATE_SCHEMA.fields])
 
-        pairs_df = self.ingestor.ingest_column_pairs(table_names)
+        pairs_df = (
+            ingested_pairs_df
+            if ingested_pairs_df is not None
+            else self.ingestor.ingest_column_pairs(table_names)
+        )
         # Keep Arrow limit active through candidate extraction and materialization.
         # The BaseDetector.detect() sets ARROW_MAX_RECORDS_PER_BATCH before calling
         # extract_candidates, so the lazy mapInPandas plan runs with the limited

@@ -198,6 +198,7 @@ def pattern_to_language(pattern: str | Sequence[str] | list[Sequence[str]], vari
         The FMDV variant name (``"fmdv"``, ``"fmdv_h"``, ``"fmdv_v"``,
         ``"fmdv_vh"``).
     """
+
     def _translate_token(seg: str) -> str:
         """Replace token placeholders with human-readable equivalents, preserving quantifiers."""
         seg = seg.replace("<alphanum>", "[a-zA-Z0-9]")
@@ -226,7 +227,11 @@ def pattern_to_language(pattern: str | Sequence[str] | list[Sequence[str]], vari
                 # This is a flat list of segments joined by +
                 segments = pattern.split("+")
                 readable = [_translate_token(seg) for seg in segments]
-                return " and ".join(readable) if len(readable) > 1 else (readable[0] if readable else pattern)
+                return (
+                    " and ".join(readable)
+                    if len(readable) > 1
+                    else (readable[0] if readable else pattern)
+                )
             else:
                 # Single segment
                 return _translate_token(pattern)

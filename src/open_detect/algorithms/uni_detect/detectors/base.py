@@ -88,7 +88,12 @@ class BaseDetector(ABC):
         )
         return self._failure_tracker
 
-    def detect(self, table_names: Sequence[str]) -> DataFrame:
+    def detect(
+        self,
+        table_names: Sequence[str],
+        ingested_columns_df: DataFrame | None = None,
+        ingested_pairs_df: DataFrame | None = None,
+    ) -> DataFrame:
         """Run the full Definition-4 pipeline for ``table_names`` and rank results.
 
         Returns a DataFrame with columns: ``candidate_id``, ``error_type``,
@@ -105,6 +110,11 @@ class BaseDetector(ABC):
         ``orderBy`` was removed because it is redundant with the global sort in
         ``pipeline.UniDetect.detect``.  Direct callers that need a specific
         order must sort the returned frame themselves.
+
+        Args:
+            table_names: List of table names to scan.
+            ingested_columns_df: Pre-ingested columns DataFrame (optional, for shared ingestion).
+            ingested_pairs_df: Pre-ingested pairs DataFrame (optional, for shared ingestion).
 
         .. note::
 
