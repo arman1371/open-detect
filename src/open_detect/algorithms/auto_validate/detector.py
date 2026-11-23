@@ -244,7 +244,7 @@ def _make_tooltip(
         received = received[:77] + "..."
 
     # Build suggestion based on pattern type and value
-    suggestion = _build_suggestion(pattern_lang, received, fpr_t, cov_t)
+    suggestion = _build_suggestion(fpr_t, cov_t)
 
     # Determine severity and category
     severity = "error" if fpr_t < 0.1 else "warning"
@@ -278,8 +278,6 @@ def _make_tooltip(
 
 
 def _build_suggestion(
-    pattern_lang: str,
-    received: str,
     fpr_t: float,
     cov_t: int,
 ) -> str:

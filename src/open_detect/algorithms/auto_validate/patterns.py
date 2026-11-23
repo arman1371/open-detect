@@ -232,11 +232,11 @@ def pattern_to_language(pattern: str | Sequence[str] | list[Sequence[str]], vari
                 # This is a flat list of segments joined by +
                 segments = pattern.split("+")
                 readable = [_translate_token(seg) for seg in segments]
-                return (
-                    _PATTERN_JOIN.join(readable)
-                    if len(readable) > 1
-                    else (readable[0] if readable else pattern)
-                )
+                if len(readable) > 1:
+                    return _PATTERN_JOIN.join(readable)
+                if readable:
+                    return readable[0]
+                return pattern
             # Single segment
             return _translate_token(pattern)
         # fmdv_vh: single segment string
