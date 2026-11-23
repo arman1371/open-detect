@@ -633,9 +633,9 @@ class TestUniDetectOutlierVsSpellingRouting:
 
     def test_filter_by_column_type_outlier(self):
         """_filter_by_column_type should filter to numeric columns for NUMERIC_OUTLIER."""
-        from open_detect.algorithms.uni_detect.pipeline import _filter_by_column_type
+
         from open_detect.algorithms.uni_detect.core.enums import ErrorType
-        from pyspark.sql import functions as F
+        from open_detect.algorithms.uni_detect.pipeline import _filter_by_column_type
 
         # Create a mock DataFrame
         mock_df = MagicMock()
@@ -648,7 +648,7 @@ class TestUniDetectOutlierVsSpellingRouting:
             mock_col_instance.isin.return_value = MagicMock()
             mock_col.return_value = mock_col_instance
 
-            result = _filter_by_column_type(mock_df, ErrorType.NUMERIC_OUTLIER)
+            _filter_by_column_type(mock_df, ErrorType.NUMERIC_OUTLIER)
 
             # Verify where was called with the correct condition
             mock_df.where.assert_called_once()
@@ -657,9 +657,9 @@ class TestUniDetectOutlierVsSpellingRouting:
 
     def test_filter_by_column_type_spelling(self):
         """_filter_by_column_type should filter to non-numeric columns for SPELLING."""
-        from open_detect.algorithms.uni_detect.pipeline import _filter_by_column_type
+
         from open_detect.algorithms.uni_detect.core.enums import ErrorType
-        from pyspark.sql import functions as F
+        from open_detect.algorithms.uni_detect.pipeline import _filter_by_column_type
 
         mock_df = MagicMock()
         mock_filtered = MagicMock()
@@ -670,7 +670,7 @@ class TestUniDetectOutlierVsSpellingRouting:
             mock_col_instance.isin.return_value = MagicMock()
             mock_col.return_value = mock_col_instance
 
-            result = _filter_by_column_type(mock_df, ErrorType.SPELLING)
+            _filter_by_column_type(mock_df, ErrorType.SPELLING)
 
             # Verify where was called with the correct condition (NOT numeric)
             mock_df.where.assert_called_once()
@@ -679,8 +679,8 @@ class TestUniDetectOutlierVsSpellingRouting:
 
     def test_filter_by_column_type_uniqueness(self):
         """_filter_by_column_type should return all columns for UNIQUENESS."""
-        from open_detect.algorithms.uni_detect.pipeline import _filter_by_column_type
         from open_detect.algorithms.uni_detect.core.enums import ErrorType
+        from open_detect.algorithms.uni_detect.pipeline import _filter_by_column_type
 
         mock_df = MagicMock()
 
@@ -692,8 +692,8 @@ class TestUniDetectOutlierVsSpellingRouting:
 
     def test_filter_by_column_type_fd(self):
         """_filter_by_column_type should return all columns for FUNCTIONAL_DEPENDENCY."""
-        from open_detect.algorithms.uni_detect.pipeline import _filter_by_column_type
         from open_detect.algorithms.uni_detect.core.enums import ErrorType
+        from open_detect.algorithms.uni_detect.pipeline import _filter_by_column_type
 
         mock_df = MagicMock()
 
@@ -754,3 +754,141 @@ class TestUniDetectSharedIngestionOnce:
                     call_args = ud._detectors[et].detect.call_args
                     assert call_args[1]["ingested_columns_df"] is mock_columns_df
                     assert call_args[1]["ingested_pairs_df"] is mock_pairs_df
+
+    def test_partial_frame_ingest_columns_when_pairs_provided(self):
+        """When only pairs_df is provided and columns are needed, ingest only columns."""
+        with _mock_spark_context():
+            spark = _mock_spark()
+            ud = UniDetect(_config(), spark=spark)
+
+            # Mock detectors - need uniqueness (columns) and FD (pairs)
+            for et in [ErrorType.UNIQUENESS, ErrorType.FUNCTIONAL_DEPENDENCY]:
+                mock_detector = MagicMock()
+                mock_detector.detect.return_value = _mock_detector_result(spark)
+                ud._detectors[et] = mock_detector
+
+            mock_pairs_df = MagicMock()
+            mock_pairs_df.select.return_value.mapInPandas.return_value = _mock_detector_result(
+                spark
+            )
+            mock_pairs_df.repartition.return_value = mock_pairs_df
+            mock_pairs_df.persist.return_value = mock_pairs_df
+            mock_pairs_df.count.return_value = 1
+
+            mock_columns_df = MagicMock()
+            mock_columns_df.repartition.return_value = mock_columns_df
+            mock_columns_df.persist.return_value = mock_columns_df
+            mock_columns_df.count.return_value = 1
+
+            with patch(
+                "open_detect.algorithms.uni_detect.pipeline.CorpusIngestor"
+            ) as mock_ingestor_class:
+                mock_ingestor = MagicMock()
+                mock_ingestor.ingest_columns.return_value = mock_columns_df
+                mock_ingestor_class.return_value = mock_ingestor
+
+                # Call detect with pre-ingested pairs_df but no columns_df
+                ud.detect(
+                    table_names=["t1"],
+                    error_types=[ErrorType.UNIQUENESS, ErrorType.FUNCTIONAL_DEPENDENCY],
+                    ingested_pairs_df=mock_pairs_df,
+                    ingested_columns_df=None,
+                )
+
+                # Verify ingest_columns was called (since columns were missing but needed)
+                mock_ingestor.ingest_columns.assert_called_once_with(["t1"])
+                # ingest_columns_with_pairs should NOT be called
+                mock_ingestor.ingest_columns_with_pairs.assert_not_called()
+                # ingest_column_pairs should NOT be called (pairs were provided)
+                mock_ingestor.ingest_column_pairs.assert_not_called()
+
+    def test_partial_frame_ingest_pairs_when_columns_provided(self):
+        """When only columns_df is provided and pairs are needed, ingest only pairs."""
+        with _mock_spark_context():
+            spark = _mock_spark()
+            ud = UniDetect(_config(), spark=spark)
+
+            # Mock detectors - need uniqueness (columns) and FD (pairs)
+            for et in [ErrorType.UNIQUENESS, ErrorType.FUNCTIONAL_DEPENDENCY]:
+                mock_detector = MagicMock()
+                mock_detector.detect.return_value = _mock_detector_result(spark)
+                ud._detectors[et] = mock_detector
+
+            mock_columns_df = MagicMock()
+            mock_columns_df.repartition.return_value = mock_columns_df
+            mock_columns_df.persist.return_value = mock_columns_df
+            mock_columns_df.count.return_value = 1
+
+            mock_pairs_df = MagicMock()
+            mock_pairs_df.repartition.return_value = mock_pairs_df
+            mock_pairs_df.persist.return_value = mock_pairs_df
+            mock_pairs_df.count.return_value = 1
+            mock_pairs_df.select.return_value.mapInPandas.return_value = _mock_detector_result(
+                spark
+            )
+
+            with patch(
+                "open_detect.algorithms.uni_detect.pipeline.CorpusIngestor"
+            ) as mock_ingestor_class:
+                mock_ingestor = MagicMock()
+                mock_ingestor.ingest_column_pairs.return_value = mock_pairs_df
+                mock_ingestor_class.return_value = mock_ingestor
+
+                # Call detect with pre-ingested columns_df but no pairs_df
+                ud.detect(
+                    table_names=["t1"],
+                    error_types=[ErrorType.UNIQUENESS, ErrorType.FUNCTIONAL_DEPENDENCY],
+                    ingested_columns_df=mock_columns_df,
+                    ingested_pairs_df=None,
+                )
+
+                # Verify ingest_column_pairs was called (since pairs were missing but needed)
+                mock_ingestor.ingest_column_pairs.assert_called_once_with(["t1"])
+                # ingest_columns_with_pairs should NOT be called
+                mock_ingestor.ingest_columns_with_pairs.assert_not_called()
+                # ingest_columns should NOT be called (columns were provided)
+                mock_ingestor.ingest_columns.assert_not_called()
+
+    def test_partial_frame_no_reingest_when_both_provided(self):
+        """When both columns_df and pairs_df are provided, no re-ingestion should occur."""
+        with _mock_spark_context():
+            spark = _mock_spark()
+            ud = UniDetect(_config(), spark=spark)
+
+            # Mock detectors
+            for et in [ErrorType.UNIQUENESS, ErrorType.FUNCTIONAL_DEPENDENCY]:
+                mock_detector = MagicMock()
+                mock_detector.detect.return_value = _mock_detector_result(spark)
+                ud._detectors[et] = mock_detector
+
+            mock_columns_df = MagicMock()
+            mock_columns_df.repartition.return_value = mock_columns_df
+            mock_columns_df.persist.return_value = mock_columns_df
+            mock_columns_df.count.return_value = 1
+
+            mock_pairs_df = MagicMock()
+            mock_pairs_df.repartition.return_value = mock_pairs_df
+            mock_pairs_df.persist.return_value = mock_pairs_df
+            mock_pairs_df.count.return_value = 1
+            mock_pairs_df.select.return_value.mapInPandas.return_value = _mock_detector_result(
+                spark
+            )
+
+            with patch(
+                "open_detect.algorithms.uni_detect.pipeline.CorpusIngestor"
+            ) as mock_ingestor_class:
+                mock_ingestor = MagicMock()
+                mock_ingestor_class.return_value = mock_ingestor
+
+                # Call detect with BOTH pre-ingested DataFrames
+                ud.detect(
+                    table_names=["t1"],
+                    error_types=[ErrorType.UNIQUENESS, ErrorType.FUNCTIONAL_DEPENDENCY],
+                    ingested_columns_df=mock_columns_df,
+                    ingested_pairs_df=mock_pairs_df,
+                )
+
+                # Verify NO ingestion was called (both were provided)
+                mock_ingestor.ingest_columns.assert_not_called()
+                mock_ingestor.ingest_column_pairs.assert_not_called()
+                mock_ingestor.ingest_columns_with_pairs.assert_not_called()
