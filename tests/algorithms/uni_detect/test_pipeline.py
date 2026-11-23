@@ -10,7 +10,7 @@ from pyspark import StorageLevel
 from pyspark.sql import DataFrame
 
 from open_detect.algorithms.uni_detect.config import UniDetectConfig, UnityCatalogLocation
-from open_detect.algorithms.uni_detect.core.enums import ColumnDataType, ErrorType
+from open_detect.algorithms.uni_detect.core.enums import ErrorType
 from open_detect.algorithms.uni_detect.pipeline import (
     UniDetect,
     _filter_by_column_type,
