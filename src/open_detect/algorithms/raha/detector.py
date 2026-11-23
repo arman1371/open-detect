@@ -83,7 +83,7 @@ class RahaDetector(ErrorDetectionAlgorithm):
         _ensure_dataframe_is_spark(data, "data")
         if conflict_resolution is not None:
             _validate_literal_value(
-                conflict_resolution, {"homogeneity", "majority"}, "conflict_resolution"
+                conflict_resolution, {"homogeneity", "majority"}, "conflict_resolution", None
             )
 
         df = data

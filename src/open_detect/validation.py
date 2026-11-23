@@ -86,6 +86,7 @@ def _validate_literal_value(
     value: Any,
     valid_values: set[str],
     param_name: str,
+    received: Any = None,  # kept for API compatibility but unused
 ) -> None:
     """Validate that value is one of the allowed Literal values.
 
@@ -93,6 +94,7 @@ def _validate_literal_value(
     Checks isinstance(value, str) before set membership to avoid TypeError on
     unhashable types (e.g. lists, dicts). Raises ValidationError instead.
     """
+    del received  # explicitly mark as unused
     if not isinstance(value, str):
         raise ValidationError(f"{param_name} must be one of {sorted(valid_values)}, got {value!r}")
     if value not in valid_values:

@@ -182,6 +182,7 @@ def _spark_available() -> bool:
     os.environ.setdefault("PYSPARK_DRIVER_PYTHON", sys.executable)
     try:
         import pytest
+
         pytest.importorskip("pyspark")
         pytest.importorskip("delta")
         return True

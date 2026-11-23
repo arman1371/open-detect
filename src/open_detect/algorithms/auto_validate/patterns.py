@@ -183,6 +183,20 @@ def matching_pattern(patterns: frozenset[str], value: str) -> str | None:
     return None
 
 
+# Shared join string for readable pattern descriptions
+_PATTERN_JOIN = " and "
+
+
+def _translate_token(seg: str) -> str:
+    """Replace token placeholders with human-readable equivalents, preserving quantifiers."""
+    seg = seg.replace("<alphanum>", "[a-zA-Z0-9]")
+    seg = seg.replace("<digit>", "[0-9]")
+    seg = seg.replace("<symbol>", "[!@#$%^&*()_+={}|:'\",.<>?/]")
+    seg = seg.replace("<letter>", "[a-zA-Z]")
+    # Keep + and * as quantifiers
+    return seg
+
+
 def pattern_to_language(pattern: str | Sequence[str] | list[Sequence[str]], variant: str) -> str:
     """Convert an FMDV pattern to a human-readable language description.
 
@@ -198,16 +212,6 @@ def pattern_to_language(pattern: str | Sequence[str] | list[Sequence[str]], vari
         The FMDV variant name (``"fmdv"``, ``"fmdv_h"``, ``"fmdv_v"``,
         ``"fmdv_vh"``).
     """
-
-    def _translate_token(seg: str) -> str:
-        """Replace token placeholders with human-readable equivalents, preserving quantifiers."""
-        seg = seg.replace("<alphanum>", "[a-zA-Z0-9]")
-        seg = seg.replace("<digit>", "[0-9]")
-        seg = seg.replace("<symbol>", "[!@#$%^&*()_+={}|:'\",.<>?/]")
-        seg = seg.replace("<letter>", "[a-zA-Z]")
-        # Keep + and * as quantifiers
-        return seg
-
     if isinstance(pattern, str):
         # Single-pattern variants: fmdv, fmdv_h
         if variant in ("fmdv", "fmdv_h"):
@@ -223,18 +227,18 @@ def pattern_to_language(pattern: str | Sequence[str] | list[Sequence[str]], vari
         elif variant == "fmdv_v":
             # The pattern string for fmdv_v could be a single segment or multiple segments joined by +
             # Check if this is a composite pattern with multiple segments
-            if "+" in pattern and not pattern.startswith("<"):
+            is_composite = "+" in pattern and not pattern.startswith("<")
+            if is_composite:
                 # This is a flat list of segments joined by +
                 segments = pattern.split("+")
                 readable = [_translate_token(seg) for seg in segments]
                 return (
-                    " and ".join(readable)
+                    _PATTERN_JOIN.join(readable)
                     if len(readable) > 1
                     else (readable[0] if readable else pattern)
                 )
-            else:
-                # Single segment
-                return _translate_token(pattern)
+            # Single segment
+            return _translate_token(pattern)
         # fmdv_vh: single segment string
         elif variant == "fmdv_vh":
             return _translate_token(pattern)
@@ -254,7 +258,7 @@ def pattern_to_language(pattern: str | Sequence[str] | list[Sequence[str]], vari
             seg_str: str = str(seg)
             readable_list.append(_translate_token(seg_str))
         return (
-            " and ".join(readable_list)
+            _PATTERN_JOIN.join(readable_list)
             if len(readable_list) > 1
             else (readable_list[0] if readable_list else str(pattern))
         )
@@ -267,7 +271,7 @@ def pattern_to_language(pattern: str | Sequence[str] | list[Sequence[str]], vari
                 seg_descs = []
                 for seg in group:
                     seg_descs.append(_translate_token(seg))
-                group_descriptions.append(" and ".join(seg_descs))
+                group_descriptions.append(_PATTERN_JOIN.join(seg_descs))
             return " or ".join(group_descriptions)
         # Fallback: just convert the string pattern
         return pattern_to_language(str(pattern), variant)

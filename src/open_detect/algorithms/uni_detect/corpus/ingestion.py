@@ -383,78 +383,89 @@ class CorpusIngestor:
             frames.append(per_pair)
         return frames
 
-    def build_token_stats(self, corpus_columns: DataFrame) -> DataFrame:
-        """Global token -> distinct-table document-frequency (``Prev(C)`` input).
 
-        A token's document frequency is the number of *distinct tables* (not
-        rows/values) it appears in, matching the paper's ``Prev`` definition
-        (Sec. 3.3: "the number of times the tokens in C occur in other
-        tables").
+def _compute_token_counts_batch(batch, StringType):
+    """Process a single batch for token counts.
 
-        Uses ``mapInPandas`` with Arrow batch limits to avoid OOM on large
-        corpora (CI runner: 7GB total, 2g driver / 3g executor).
-        """
-        from pyspark.sql.types import StringType
+    Returns an empty DataFrame or a DataFrame with token,table_id columns.
+    """
+    token_table_pairs: list[tuple[str, str]] = []
+    for tid, vals in zip(batch["table_id"], batch["values"], strict=True):
+        if vals is None:
+            continue
+        for v in vals:
+            if v is None:
+                continue
+            for tok in tokenize(v.lower()):
+                token_table_pairs.append((tok, tid))
 
-        def compute_token_counts(batches):
-            for batch in batches:
-                token_table_pairs: list[tuple[str, str]] = []
-                for tid, vals in zip(batch["table_id"], batch["values"], strict=True):
-                    if vals is None:
-                        continue
-                    for v in vals:
-                        if v is None:
-                            continue
-                        for tok in tokenize(v.lower()):
-                            token_table_pairs.append((tok, tid))
+    if not token_table_pairs:
+        return pd.DataFrame(
+            {
+                "token": pd.array([], dtype=StringType()),
+                "table_id": pd.array([], dtype=StringType()),
+            }
+        )
 
-                if not token_table_pairs:
-                    yield pd.DataFrame(
-                        {
-                            "token": pd.array([], dtype=StringType()),
-                            "table_id": pd.array([], dtype=StringType()),
-                        }
-                    )
-                    continue
+    pdf = pd.DataFrame(token_table_pairs, columns=["token", "table_id"])
+    # Deduplicate per (token, table_id) locally in the batch
+    pdf = pdf.drop_duplicates(subset=["token", "table_id"])
+    return pdf[["token", "table_id"]]
 
-                pdf = pd.DataFrame(token_table_pairs, columns=["token", "table_id"])
-                # Deduplicate per (token, table_id) locally in the batch
-                pdf = pdf.drop_duplicates(subset=["token", "table_id"])
-                yield pdf[["token", "table_id"]]
 
-        # Use mapInPandas with Arrow batch limit to bound memory
-        with scoped_conf(
-            self.spark,
-            **{ARROW_MAX_RECORDS_PER_BATCH_KEY: str(ARROW_MAX_RECORDS_PER_BATCH)},
-        ):
-            # First stage: (token, table_id) pairs per partition
-            intermediate = corpus_columns.select("table_id", "values").mapInPandas(
-                compute_token_counts,
-                schema="token string, table_id string",
-            )
+def _count_tables_batch(batch, StringType):
+    """Process a single batch for counting distinct tables per token."""
+    if len(batch) == 0:
+        return pd.DataFrame(
+            {
+                "token": pd.array([], dtype=StringType()),
+                "doc_frequency": pd.array([], dtype="int64"),
+            }
+        )
+    grouped = batch.groupby("token")["table_id"].nunique().reset_index()
+    grouped.columns = ["token", "doc_frequency"]
+    return grouped
 
-            # Second stage: group by token and count distinct table_ids
-            def count_tables(batches):
-                for batch in batches:
-                    if len(batch) == 0:
-                        yield pd.DataFrame(
-                            {
-                                "token": pd.array([], dtype=StringType()),
-                                "doc_frequency": pd.array([], dtype="int64"),
-                            }
-                        )
-                        continue
-                    grouped = batch.groupby("token")["table_id"].nunique().reset_index()
-                    grouped.columns = ["token", "doc_frequency"]
-                    yield grouped
 
-            result = intermediate.mapInPandas(
-                count_tables,
-                schema="token string, doc_frequency long",
-            )
+# These methods are added to CorpusIngestor class at module level
+# to keep the class definition clean while avoiding cognitive complexity issues
+def _build_token_stats_impl(self, corpus_columns: DataFrame) -> DataFrame:
+    """Global token -> distinct-table document-frequency (``Prev(C)`` input).
 
-        return result
+    A token's document frequency is the number of *distinct tables* (not
+    rows/values) it appears in, matching the paper's ``Prev`` definition
+    (Sec. 3.3: "the number of times the tokens in C occur in other
+    tables").
 
-    @staticmethod
-    def token_stats_schema():
-        return TOKEN_STATS_SCHEMA
+    Uses ``mapInPandas`` with Arrow batch limits to avoid OOM on large
+    corpora (CI runner: 7GB total, 2g driver / 3g executor).
+    """
+    from pyspark.sql.types import StringType
+
+    # Use mapInPandas with Arrow batch limit to bound memory
+    with scoped_conf(
+        self.spark,
+        **{ARROW_MAX_RECORDS_PER_BATCH_KEY: str(ARROW_MAX_RECORDS_PER_BATCH)},
+    ):
+        # First stage: (token, table_id) pairs per partition
+        intermediate = corpus_columns.select("table_id", "values").mapInPandas(
+            lambda batches: (_compute_token_counts_batch(batch, StringType) for batch in batches),
+            schema="token string, table_id string",
+        )
+
+        # Second stage: group by token and count distinct table_ids
+        result = intermediate.mapInPandas(
+            lambda batches: (_count_tables_batch(batch, StringType) for batch in batches),
+            schema="token string, doc_frequency long",
+        )
+
+    return result
+
+
+def _token_stats_schema():
+    return TOKEN_STATS_SCHEMA
+
+
+# Attach the methods to the class
+CorpusIngestor.build_token_stats = _build_token_stats_impl  # type: ignore[attr-defined]
+CorpusIngestor.token_stats_schema = staticmethod(_token_stats_schema)  # type: ignore[attr-defined]

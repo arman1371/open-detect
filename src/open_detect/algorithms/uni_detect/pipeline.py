@@ -170,7 +170,7 @@ class UniDetect:
 
         if needs_tokens:
             with log_duration(logger, "build_token_stats"):
-                token_stats = ingestor.build_token_stats(_require_columns(columns_df))
+                token_stats = ingestor.build_token_stats(_require_columns(columns_df))  # type: ignore[attr-defined]
                 token_stats.write.format("delta").mode("overwrite").saveAsTable(
                     self.config.token_stats_fqn
                 )
