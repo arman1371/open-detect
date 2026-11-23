@@ -35,6 +35,7 @@ CELL_RESULT_COLUMNS = (
     "is_error",
     "score",
     "evidence",
+    "tooltip",
 )
 
 
@@ -79,7 +80,7 @@ class CellResult:
     is_error: bool
     score: float
     evidence: Mapping[str, Any] = field(default_factory=dict)
-    tooltip: TooltipContent | None = None
+    tooltip: dict[str, Any] | None = None
 
     def __post_object__(self) -> None:
         object.__setattr__(self, "evidence", MappingProxyType(copy.deepcopy(dict(self.evidence))))
@@ -104,6 +105,19 @@ class CellResult:
         )
 
     def to_dict(self) -> dict[str, Any]:
+        tooltip = self.tooltip
+        if tooltip is not None and isinstance(tooltip, TooltipContent):
+            # Convert TooltipContent to plain dict for JSON serialization
+            tooltip = {
+                "title": tooltip.title,
+                "severity": tooltip.severity,
+                "category": tooltip.category,
+                "expected_pattern": tooltip.expected_pattern,
+                "received_value": tooltip.received_value,
+                "suggestion": tooltip.suggestion,
+                "details": copy.deepcopy(tooltip.details),
+                "actions": list(tooltip.actions),
+            }
         return {
             "table_id": self.table_id,
             "row_index": self.row_index,
@@ -112,7 +126,7 @@ class CellResult:
             "is_error": self.is_error,
             "score": self.score,
             "evidence": copy.deepcopy(dict(self.evidence)),
-            "tooltip": self.tooltip,
+            "tooltip": tooltip,
         }
 
 

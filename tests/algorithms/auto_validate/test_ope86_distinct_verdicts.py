@@ -34,11 +34,12 @@ from open_detect.algorithms.auto_validate.detector import (
     AutoValidateAlgorithm,
     _feasible_evidence,
     _infeasible_evidence,
+    _infer_pattern_to_groups,
     _is_null,
     _make_tooltip,
     _non_null_cells,
-    _value_matches,
     _value_matches_groups,
+    _value_text,
 )
 from open_detect.algorithms.auto_validate.fmdv import InferredPattern
 from open_detect.algorithms.base import CellResult
@@ -75,8 +76,9 @@ def _per_cell_reference(dirty: pd.DataFrame) -> tuple[CellResult, ...]:
     The only difference from the optimized path is the missing dedup: the
     verdict is recomputed for every row.
 
-    With the OPE-159 fix, empty strings are treated as non-null values in both
-    feasible and infeasible paths.
+    Neither branch treats empty strings specially, so the oracle stays faithful
+    to the detector on ``main``. Blank cells are dropped only in the infeasible
+    path, by :func:`_non_null_cells`.
     """
     detector = _detector()
     cells: list[CellResult] = []
@@ -88,11 +90,19 @@ def _per_cell_reference(dirty: pd.DataFrame) -> tuple[CellResult, ...]:
             fpr_t, cov_t, theta_c = inferred.fpr_t, inferred.cov_t, inferred.theta_c
             n_total = len(series) - sum(1 for v in series if _is_null(v))
             score = 1.0 - fpr_t if n_total > 0 else 0.0
+            groups = _infer_pattern_to_groups(inferred)
+            series.map(_is_null)
             for idx, value in series.items():
                 if _is_null(value):
                     continue
-                # Empty strings are non-null and should be included (OPE-159)
-                is_error = not _value_matches(pattern, value)
+                # Reference implementation evaluates per-cell without cache
+                text = _value_text(value)
+                is_error = text is not None and not _value_matches_groups(groups, text)
+                if is_error:
+                    # Generate tooltip as plain dict (matching new behavior)
+                    tooltip = _make_tooltip(value, inferred, fpr_t, cov_t, theta_c, detector.config)
+                else:
+                    tooltip = None
                 cells.append(
                     CellResult(
                         table_id=TABLE_ID,
@@ -104,11 +114,7 @@ def _per_cell_reference(dirty: pd.DataFrame) -> tuple[CellResult, ...]:
                         evidence=_feasible_evidence(
                             detector.config, pattern, fpr_t, cov_t, theta_c
                         ),
-                        tooltip=(
-                            _make_tooltip(value, inferred, fpr_t, cov_t, theta_c, detector.config)
-                            if is_error
-                            else None
-                        ),
+                        tooltip=tooltip,
                     )
                 )
         else:
@@ -186,23 +192,8 @@ def test_identical_to_per_cell_baseline_multi_column() -> None:
     assert _detect(dirty) == _per_cell_reference(dirty)
 
 
-def _counting_value_matches(call_counter: dict[str, int]) -> Callable:
-    """Wrapper around ``_value_matches`` that records how often it is called."""
-
-    def counting(pattern, value):
-        call_counter["n"] += 1
-        return _value_matches(pattern, value)
-
-    return counting
-
-
 def _counting_value_matches_groups(call_counter: dict[str, int]) -> Callable:
-    """Wrapper around ``_value_matches_groups`` that records how often it is called.
-
-    The verdict cache routes through ``_value_matches_groups`` for the
-    ``fmdv_vh`` groups representation, so the call-count tests patch this
-    path too. The invariant is unchanged: one match per distinct text.
-    """
+    """Wrapper around ``_value_matches_groups`` that records how often it is called."""
 
     def counting(groups, text):
         call_counter["n"] += 1
@@ -221,6 +212,8 @@ def _counting_value_matches_groups(call_counter: dict[str, int]) -> Callable:
 #: real result, and :func:`test_verdict_cache_matches_per_cell_under_broadcasting`
 #: / :func:`test_identical_to_per_cell_baseline` keep asserting full equivalence
 #: against the oracle with the *real* inference (no stub).
+#: For this test fixture (emails), all values share the same coarse signature,
+#: so fmdv_vh returns a single string pattern (backward compat: one group, one segment).
 STUBBED_INFERRED_PATTERN = InferredPattern(
     pattern="<alphanum>+<symbol>+<alphanum>+<symbol>+<alphanum>+",
     fpr_t=0.0,
@@ -231,19 +224,15 @@ STUBBED_INFERRED_PATTERN = InferredPattern(
 
 
 def _count_detect_calls(dirty: pd.DataFrame) -> tuple[int, int]:
-    """Run ``detect`` with ``_value_matches`` counted and ``infer_pattern`` stubbed.
+    """Run ``detect`` with ``_value_matches_groups`` counted and ``infer_pattern`` stubbed.
 
     Returns ``(num_cells, num_value_matches_calls)``. ``infer_pattern`` never
-    calls ``_value_matches``, so the count isolates the verdict loop.
+    calls ``_value_matches_groups``, so the count isolates the verdict loop.
     """
     detector = _detector()
     call_counter: dict[str, int] = {"n": 0}
     with (
         patch.object(detector, "infer_pattern", return_value=STUBBED_INFERRED_PATTERN),
-        patch(
-            "open_detect.algorithms.auto_validate.detector._value_matches",
-            _counting_value_matches(call_counter),
-        ),
         patch(
             "open_detect.algorithms.auto_validate.detector._value_matches_groups",
             _counting_value_matches_groups(call_counter),
@@ -275,18 +264,17 @@ def test_empty_dataframe() -> None:
 
 def test_infeasible_column_includes_empty_strings_as_non_null() -> None:
     """With no feasible pattern the column goes through ``_non_null_cells``,
-
     which now includes empty strings as non-null cells (OPE-159 fix).
-    Empty strings are not flagged as errors (no pattern to match against).
+    Empty strings are emitted as non-error cells with score=0.0.
     """
     dirty = pd.DataFrame({"email": ["", "", None, ""]})
     assert _detector().infer_pattern(dirty["email"]) is None, "fixture must be infeasible"
     cells = _detect(dirty)
-    # 3 empty strings + 1 None -> 3 cells (empty strings are non-null)
-    # No pattern inferred -> not flagged as errors
-    assert len(cells) == 3
+    # Empty strings should be included as non-null cells (not skipped)
+    assert len(cells) == 3  # three empty strings, None is skipped
+    assert all(c.row_index in {0, 1, 3} for c in cells)
     assert all(not c.is_error for c in cells)
-    assert all(c.column_name == "email" for c in cells)
+    assert all(c.score == 0.0 for c in cells)
     assert cells == _per_cell_reference(dirty)
 
 

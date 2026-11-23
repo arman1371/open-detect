@@ -48,31 +48,21 @@ def _check_expected_type(value: Any, expected_type: type, param_name: str) -> No
         if args and args[0] is str and isinstance(value, str):
             raise ValidationError("expected a sequence of str, got str; wrap in a list")
 
-    # Use the origin type (collections.abc.Sequence) for isinstance check.
-    # Parameterized generics like Sequence[str] cannot be used with isinstance.
-    # If there's no origin (concrete types like str, int, list), use expected_type directly.
+    # Determine check type: use origin if available, otherwise expected_type
     check_type = origin if origin is not None else expected_type
 
-    if check_type is not None:
-        # Runtime type check. Parameterized generics like Sequence[str] are
-        # not valid isinstance targets; we already used the origin above.
-        # Only perform isinstance if check_type is a valid class.
-        try:
-            if not isinstance(value, check_type):
-                raise ValidationError(
-                    f"{param_name} must be of type {getattr(expected_type, '__name__', str(expected_type))}, "
-                    f"got {type(value).__name__}: {value!r}"
-                )
-        except TypeError:
-            # Parameterized generics (e.g., Sequence[str]) can't be used with
-            # isinstance. The origin check already validated the container type.
-            pass
+    if not isinstance(value, check_type):
+        raise ValidationError(
+            f"{param_name} must be of type {getattr(expected_type, '__name__', str(expected_type))}, "
+            f"got {type(value).__name__}: {value!r}"
+        )
 
 
 def _validate_literal_value(
     value: Any,
     valid_values: set[str],
     param_name: str,
+    received: Any = None,  # kept for API compatibility but unused
 ) -> None:
     """Validate that value is one of the allowed Literal values.
 
@@ -80,6 +70,7 @@ def _validate_literal_value(
     Checks isinstance(value, str) before set membership to avoid TypeError on
     unhashable types (e.g. lists, dicts). Raises ValidationError instead.
     """
+    del received  # explicitly mark as unused
     if not isinstance(value, str):
         raise ValidationError(f"{param_name} must be one of {sorted(valid_values)}, got {value!r}")
     if value not in valid_values:

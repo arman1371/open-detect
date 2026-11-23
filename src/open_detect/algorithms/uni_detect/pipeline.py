@@ -13,7 +13,6 @@ This is the single entry point most users need:
 
 from __future__ import annotations
 
-import time
 from contextlib import suppress
 from typing import TYPE_CHECKING, Any
 
@@ -23,7 +22,10 @@ from open_detect.algorithms.uni_detect.catalog import ensure_schema_exists
 from open_detect.algorithms.uni_detect.config import UniDetectConfig
 from open_detect.algorithms.uni_detect.core.enums import ErrorType
 from open_detect.algorithms.uni_detect.corpus.builder import CorpusStatsBuilder
-from open_detect.algorithms.uni_detect.corpus.ingestion import CorpusIngestor, balanced_union
+from open_detect.algorithms.uni_detect.corpus.ingestion import (
+    INGESTION_REPARTITION_FACTOR,
+    CorpusIngestor,
+)
 from open_detect.algorithms.uni_detect.detectors import (
     FunctionalDependencyDetector,
     NumericOutlierDetector,
@@ -33,8 +35,6 @@ from open_detect.algorithms.uni_detect.detectors import (
 from open_detect.algorithms.uni_detect.spark_utils import get_spark
 from open_detect.exceptions import ConfigurationError, ValidationError
 from open_detect.logging_utils import get_logger, log_duration
-from open_detect.notifications.config import get_notification_config
-from open_detect.notifications.teams import TeamsNotifier
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
@@ -49,14 +49,6 @@ _TOKEN_DEPENDENT_TYPES = (ErrorType.UNIQUENESS, ErrorType.FUNCTIONAL_DEPENDENCY)
 _NUMERIC_ONLY_TYPES = (ErrorType.NUMERIC_OUTLIER,)
 # Types that need non-numeric columns only (spelling)
 _NON_NUMERIC_ONLY_TYPES = (ErrorType.SPELLING,)
-
-# Type name mapping for Teams notifications
-_TYPE_NAMES = {
-    "uniqueness": "Uniqueness",
-    "numeric_outlier": "Numeric Outlier",
-    "spelling": "Spelling",
-    "functional_dependency": "Functional Dependency",
-}
 
 
 def _require_columns(columns_df: DataFrame | None) -> DataFrame:
@@ -157,20 +149,28 @@ class UniDetect:
         needs_pairs = ErrorType.FUNCTIONAL_DEPENDENCY in error_types
         needs_tokens = any(et in _TOKEN_DEPENDENT_TYPES for et in error_types)
 
-        # Use single-scan ingestion when both columns and pairs are needed
+        # Use single-scan ingestion with pairs when both columns and pairs are needed
         if (needs_columns or needs_tokens) and needs_pairs:
             with log_duration(logger, "ingest_columns_with_pairs"):
                 columns_df, pairs_df = ingestor.ingest_columns_with_pairs(table_names)
-                columns_df.cache()
-                columns_df.count()  # materialize cache
+                if columns_df is not None:
+                    columns_df = columns_df.persist(StorageLevel.DISK_ONLY)
+                    columns_df.count()  # materialize the cache deterministically
+                if pairs_df is not None:
+                    pairs_df = pairs_df.persist(StorageLevel.DISK_ONLY)
+                    pairs_df.count()  # materialize the cache deterministically
         elif needs_columns or needs_tokens:
             with log_duration(logger, "ingest_columns"):
-                columns_df = ingestor.ingest_columns(table_names).cache()
+                columns_df = ingestor.ingest_columns(table_names).persist(StorageLevel.DISK_ONLY)
                 columns_df.count()  # materialize the cache deterministically
+        elif needs_pairs:
+            with log_duration(logger, "ingest_column_pairs"):
+                pairs_df = ingestor.ingest_column_pairs(table_names).persist(StorageLevel.DISK_ONLY)
+                pairs_df.count()  # materialize the cache deterministically
 
         if needs_tokens:
             with log_duration(logger, "build_token_stats"):
-                token_stats = ingestor.build_token_stats(_require_columns(columns_df))
+                token_stats = ingestor.build_token_stats(_require_columns(columns_df))  # type: ignore[attr-defined]
                 token_stats.write.format("delta").mode("overwrite").saveAsTable(
                     self.config.token_stats_fqn
                 )
@@ -190,8 +190,8 @@ class UniDetect:
                 filtered_columns = _filter_by_column_type(_require_columns(columns_df), error_type)
                 stats = builder.build_spelling_stats(filtered_columns)
             elif error_type is ErrorType.FUNCTIONAL_DEPENDENCY:
-                if pairs_df is None:
-                    pairs_df = ingestor.ingest_column_pairs(table_names)
+                # pairs_df is already available from single-scan ingestion
+                assert pairs_df is not None, "pairs_df must be available for FUNCTIONAL_DEPENDENCY"
                 stats = builder.build_fd_stats(pairs_df, token_map)
             else:  # pragma: no cover - exhaustive over ErrorType
                 raise ValidationError(f"Unknown error type: {error_type}")
@@ -232,10 +232,12 @@ class UniDetect:
         ingested_columns_df:
             Pre-ingested columns DataFrame from a shared ingestion call.
             If provided, detectors will use this instead of re-ingesting.
-            If not provided, ingestion happens lazily inside each detector.
+            If not provided, ingestion happens ONCE per detect() call and is shared
+            across all detectors (requirement 5).
         ingested_pairs_df:
             Pre-ingested column pairs DataFrame for FD detection.
             If provided, FD detector will use this instead of re-ingesting.
+            If not provided, FD pairs are built from the shared single-scan ingestion.
 
         Raises
         ------
@@ -247,91 +249,91 @@ class UniDetect:
 
         from pyspark.sql import functions as F
 
-        from open_detect.algorithms.uni_detect.corpus.store import _AUTO_BROADCAST_DISABLED
         from open_detect.algorithms.uni_detect.spark_utils import (
             ARROW_MAX_RECORDS_PER_BATCH,
             ARROW_MAX_RECORDS_PER_BATCH_KEY,
             scoped_conf,
         )
 
-        # Constant for repartitioning before mapInPandas to avoid single-row partitions
-        INGESTION_REPARTITION_FACTOR = 4
-
         error_types = tuple(error_types) if error_types else tuple(ErrorType)
         frames = []
         result = None
+        # Ingested DataFrames that we created and need to unpersist at the end
+        _shared_columns_df = None
+        _shared_pairs_df = None
         try:
             # Keep Arrow limit active through ALL detector operations:
             # extract_candidates (mapInPandas), candidate materialization (count),
             # scoring (batch_score join), and result materialization.
-            # Also disable auto broadcast joins to prevent OOM on CI runners with small heaps.
             with scoped_conf(
                 self.spark,
-                **{
-                    ARROW_MAX_RECORDS_PER_BATCH_KEY: str(ARROW_MAX_RECORDS_PER_BATCH),
-                    **_AUTO_BROADCAST_DISABLED,
-                },
+                **{ARROW_MAX_RECORDS_PER_BATCH_KEY: str(ARROW_MAX_RECORDS_PER_BATCH)},
             ):
-                # Ingest once and share across detectors if not provided
-                shared_columns_df = None
-                shared_pairs_df = None
-
-                if ingested_columns_df is not None:
-                    shared_columns_df = ingested_columns_df
-                if ingested_pairs_df is not None:
-                    shared_pairs_df = ingested_pairs_df
-
-                # Perform single-scan ingestion if not provided by caller
-                needs_columns = any(et in _SINGLE_COLUMN_TYPES for et in error_types)
-                needs_pairs = ErrorType.FUNCTIONAL_DEPENDENCY in error_types
-
-                # Use repartition to spread work across cores and avoid single-row partitions
-                parallelism = self.spark.sparkContext.defaultParallelism
-
-                if needs_columns and shared_columns_df is None:
+                # Ingest once and share across all detectors (requirement 5).
+                # If caller provided pre-ingested DataFrames, use those.
+                # Otherwise, perform single-scan ingestion and share across detectors.
+                if ingested_columns_df is not None or ingested_pairs_df is not None:
+                    # Backward compatible: caller provided pre-ingested DataFrames
+                    columns_df = ingested_columns_df
+                    pairs_df = ingested_pairs_df
+                else:
+                    # New behavior: ingest once, share across all detectors
                     ingestor = CorpusIngestor(
                         self.spark,
                         max_values_per_column=self.config.max_mpd_block_size * 200,
                         max_fd_column_pairs_per_table=self.config.max_fd_column_pairs_per_table,
                     )
-                    shared_columns_df = (
-                        ingestor.ingest_columns(table_names)
-                        .repartition(parallelism * INGESTION_REPARTITION_FACTOR)
-                        .cache()
-                    )
-                    shared_columns_df.count()  # materialize cache
+                    # Check if any detector needs column data (uniqueness, outlier, spelling)
+                    needs_columns = any(et in _SINGLE_COLUMN_TYPES for et in error_types)
+                    # Check if FD detector is requested
+                    needs_pairs = ErrorType.FUNCTIONAL_DEPENDENCY in error_types
 
-                if needs_pairs and shared_pairs_df is None:
-                    if "ingestor" not in locals():
-                        ingestor = CorpusIngestor(
-                            self.spark,
-                            max_values_per_column=self.config.max_mpd_block_size * 200,
-                            max_fd_column_pairs_per_table=self.config.max_fd_column_pairs_per_table,
-                        )
-                    shared_pairs_df = (
-                        ingestor.ingest_column_pairs(table_names)
-                        .repartition(parallelism * INGESTION_REPARTITION_FACTOR)
-                        .cache()
-                    )
-                    shared_pairs_df.count()  # materialize cache
+                    if needs_columns and needs_pairs:
+                        # Both columns and pairs needed - use single-scan ingestion with pairs
+                        columns_df, pairs_df = ingestor.ingest_columns_with_pairs(table_names)
+                    elif needs_columns:
+                        # Only columns needed
+                        columns_df = ingestor.ingest_columns(table_names)
+                        pairs_df = None
+                    elif needs_pairs:
+                        # Only pairs needed - ingest pairs directly
+                        columns_df = None
+                        pairs_df = ingestor.ingest_column_pairs(table_names)
+                    else:
+                        columns_df = None
+                        pairs_df = None
+
+                    # Repartition to spread work across cores (requirement 4) and persist DISK_ONLY
+                    if columns_df is not None:
+                        default_parallelism = self.spark.sparkContext.defaultParallelism
+                        target_partitions = default_parallelism * INGESTION_REPARTITION_FACTOR
+                        columns_df = columns_df.repartition(target_partitions)
+                        columns_df = columns_df.persist(StorageLevel.DISK_ONLY)
+                        columns_df.count()  # materialize cache
+                        _shared_columns_df = columns_df
+
+                    if pairs_df is not None:
+                        default_parallelism = self.spark.sparkContext.defaultParallelism
+                        target_partitions = default_parallelism * INGESTION_REPARTITION_FACTOR
+                        pairs_df = pairs_df.repartition(target_partitions)
+                        pairs_df = pairs_df.persist(StorageLevel.DISK_ONLY)
+                        pairs_df.count()  # materialize cache
+                        _shared_pairs_df = pairs_df
 
                 for et in error_types:
                     frame = self._detectors[et].detect(
                         table_names,
-                        ingested_columns_df=shared_columns_df,
-                        ingested_pairs_df=shared_pairs_df,
+                        ingested_columns_df=columns_df,
+                        ingested_pairs_df=pairs_df,
                     )
                     frames.append(frame)
-
-                    # Send Teams notification after each detector runs
-                    self._send_teams_notification_after_detection(
-                        et,
-                        frame,
-                        kwargs,
-                    )
-
                 # Balanced union (not left-deep reduce) so the final merge plan is
                 # ceil(log2(N)) deep regardless of how many detectors are enabled.
+                # Using balanced_union from ingestion module for consistency.
+                from open_detect.algorithms.uni_detect.corpus.ingestion import (
+                    balanced_union,
+                )
+
                 result = balanced_union(frames)
                 # Order first, then persist and materialize the *final* frame.  Sorting
                 # after persist() would return an unpersisted frame, so the caller's
@@ -339,7 +341,7 @@ class UniDetect:
                 # it -- the very thing this cache lifecycle exists to prevent.
                 # The per-detector caches are released only after the union is cached.
                 result = result.orderBy(F.col("lr_ratio").asc())
-                result = result.persist(StorageLevel.MEMORY_AND_DISK)
+                result = result.persist(StorageLevel.DISK_ONLY)
                 result.count()
                 return result
         except Exception:
@@ -359,105 +361,13 @@ class UniDetect:
             # error to avoid memory leaks from accumulated persisted frames.
             for detector in (self._detectors[et] for et in error_types):
                 detector.release()
-            # Release shared ingestion DataFrames
-            if shared_columns_df is not None and ingested_columns_df is None:
+            # Unpersist shared ingestion DataFrames we created
+            if _shared_columns_df is not None:
                 with suppress(Exception):
-                    shared_columns_df.unpersist()
-            if shared_pairs_df is not None and ingested_pairs_df is None:
+                    _shared_columns_df.unpersist()
+            if _shared_pairs_df is not None:
                 with suppress(Exception):
-                    shared_pairs_df.unpersist()
-
-    def _build_affected_summary(
-        self,
-        error_type: ErrorType,
-        candidates_count: int,
-        description: str | None = None,
-    ) -> str:
-        """Build a human-readable summary of affected areas for Teams notification."""
-        type_name = _TYPE_NAMES.get(error_type.value, error_type.value.title())
-
-        if candidates_count == 0:
-            return f"{type_name} detection - no specific anomalies found"
-
-        if description:
-            return f"{type_name} detection: {description}"
-
-        return f"{type_name} detection - {candidates_count} anomaly(ies) detected"
-
-    def _send_teams_notification_after_detection(
-        self,
-        error_type: ErrorType,
-        detection_frame: DataFrame,
-        kwargs: dict[str, Any],
-    ) -> None:
-        """Send a Teams notification after a detector runs.
-
-        This is called after each detector's ``detect()`` method completes.
-        It respects severity thresholds, rate limiting, and configuration.
-
-        Args:
-            error_type: The error type that was detected
-            detection_frame: The detection result DataFrame
-            kwargs: Keyword arguments passed to detect(), including:
-                - severity: Override default severity (low, medium, high, critical)
-                - description: Optional description for the notification
-                - affected_summary: Optional affected summary
-        """
-
-        # Get notification configuration
-        config = get_notification_config()
-
-        if not config["enabled"]:
-            logger.debug("Teams notifications disabled, skipping notification")
-            return
-
-        # Determine severity from kwargs or default
-        severity = kwargs.get("severity", "medium")
-        description = kwargs.get("description")
-
-        # Check if we should notify based on severity threshold
-        severity_order = {"low": 0, "medium": 1, "high": 2, "critical": 3}
-        threshold_order = {"low": 0, "medium": 1, "high": 2, "critical": 3}
-        if severity_order.get(severity, 0) < threshold_order.get(config["severity_threshold"], 1):
-            logger.debug(
-                f"Severity {severity} below threshold {config['severity_threshold']}, "
-                "skipping notification"
-            )
-            return
-
-        # Initialize Teams notifier if webhook is configured
-        webhook_url = config["webhook_url"]
-        if not webhook_url:
-            logger.debug("Teams webhook URL not configured, skipping notification")
-            return
-
-        # Get affected summary from the detection results
-        candidates_count = detection_frame.count() if detection_frame is not None else 0
-        affected = self._build_affected_summary(error_type, candidates_count, description)
-
-        # Get timestamp
-        timestamp = time.strftime("%Y-%m-%dT%H:%M:%SZ")
-
-        # Create Teams notifier and send notification with retry logic
-        notifier = TeamsNotifier(
-            webhook_url=webhook_url,
-            severity_threshold=config["severity_threshold"],
-            rate_limit=config["rate_limit"],
-        )
-
-        try:
-            notifier.send_safe(
-                event_type=f"scan_context_{error_type.name.lower()}",
-                severity=severity,
-                affected=affected,
-                timestamp=timestamp,
-                description=description,
-            )
-            logger.info(
-                f"Teams notification dispatched: {error_type.name} ({severity}) - {affected}"
-            )
-        except Exception as e:
-            logger.warning(f"Failed to send Teams notification: {e}")
+                    _shared_pairs_df.unpersist()
 
     def release(self) -> None:
         """Release all cached detector resources.

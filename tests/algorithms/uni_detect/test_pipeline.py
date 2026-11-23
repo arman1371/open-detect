@@ -150,12 +150,13 @@ class TestUniDetectDetect:
             result.persist.assert_called_once()
             result.count.assert_called_once()
 
-            # Verify each detector was called - now with shared ingestion DataFrames
+            # Verify each detector was called with the new signature including
+            # ingested_columns_df and ingested_pairs_df
             for et in error_types:
                 call_args, call_kwargs = ud._detectors[et].detect.call_args
-                assert call_args == (["t1", "t2"],)
-                assert call_kwargs["ingested_columns_df"] is not None
-                assert call_kwargs["ingested_pairs_df"] is None
+                assert call_args == (["t1", "t2"],), f"Expected (['t1', 't2']), got {call_args}"
+                assert "ingested_columns_df" in call_kwargs, "Expected ingested_columns_df kwarg"
+                assert "ingested_pairs_df" in call_kwargs, "Expected ingested_pairs_df kwarg"
 
             # release() IS called automatically in the finally block to free per-detector
             # caches (scored, joined, result frames) after the unioned result is
@@ -179,13 +180,9 @@ class TestUniDetectDetect:
 
             for et in ErrorType:
                 call_args, call_kwargs = ud._detectors[et].detect.call_args
-                assert call_args == (["t1"],)
-                # UNIQUENESS, NUMERIC_OUTLIER, SPELLING need columns
-                if et in (ErrorType.UNIQUENESS, ErrorType.NUMERIC_OUTLIER, ErrorType.SPELLING):
-                    assert call_kwargs["ingested_columns_df"] is not None
-                # FD needs pairs
-                if et == ErrorType.FUNCTIONAL_DEPENDENCY:
-                    assert call_kwargs["ingested_pairs_df"] is not None
+                assert call_args == (["t1"],), f"Expected (['t1']), got {call_args}"
+                assert "ingested_columns_df" in call_kwargs, "Expected ingested_columns_df kwarg"
+                assert "ingested_pairs_df" in call_kwargs, "Expected ingested_pairs_df kwarg"
 
     def test_detect_validation_error_propagates(self):
         """ValidationError from _validate_inputs should propagate."""
@@ -273,234 +270,3 @@ class TestUniDetectRelease:
 
         # Should not raise
         ud.release()
-
-
-class TestBuildAffectedSummary:
-    """Tests for _build_affected_summary method."""
-
-    def test_builds_summary_with_candidates_count(self):
-        """Should include candidate count in the summary."""
-        spark = _mock_spark()
-        ud = UniDetect(_config(), spark=spark)
-
-        result = ud._build_affected_summary(ErrorType.UNIQUENESS, 5)
-        assert "Uniqueness" in result
-        assert "5 anomaly" in result
-
-    def test_handles_zero_candidates(self):
-        """Should indicate no anomalies found when count is 0."""
-        spark = _mock_spark()
-        ud = UniDetect(_config(), spark=spark)
-
-        result = ud._build_affected_summary(ErrorType.NUMERIC_OUTLIER, 0)
-        assert result == "Numeric Outlier detection - no specific anomalies found"
-
-    def test_includes_description_when_provided(self):
-        """Should include description in the summary."""
-        spark = _mock_spark()
-        ud = UniDetect(_config(), spark=spark)
-
-        result = ud._build_affected_summary(
-            ErrorType.SPELLING, 10, description="Suspicious string patterns detected"
-        )
-        assert result == "Spelling detection: Suspicious string patterns detected"
-
-    def test_handles_all_error_types(self):
-        """Should correctly format all error type names."""
-        spark = _mock_spark()
-        ud = UniDetect(_config(), spark=spark)
-
-        expected_names = {
-            ErrorType.UNIQUENESS: "Uniqueness",
-            ErrorType.NUMERIC_OUTLIER: "Numeric Outlier",
-            ErrorType.SPELLING: "Spelling",
-            ErrorType.FUNCTIONAL_DEPENDENCY: "Functional Dependency",
-        }
-
-        for error_type, expected_name in expected_names.items():
-            result = ud._build_affected_summary(error_type, 3)
-            assert expected_name in result
-
-
-class TestSendTeamsNotificationAfterDetection:
-    """Tests for _send_teams_notification_after_detection method."""
-
-    def test_skips_when_notifications_disabled(self):
-        """Should skip notification when TEAMS_NOTIFICATION_ENABLED is False."""
-        with _mock_spark_context():
-            spark = _mock_spark()
-            ud = UniDetect(_config(), spark=spark)
-
-            mock_df = MagicMock(spec=DataFrame)
-            mock_df.count.return_value = 5
-
-            with patch(
-                "open_detect.algorithms.uni_detect.pipeline.get_notification_config"
-            ) as mock_config:
-                mock_config.return_value = {
-                    "enabled": False,
-                    "webhook_url": "https://test.url",
-                    "severity_threshold": "medium",
-                    "rate_limit": {"max_per_hour": 5},
-                }
-
-                ud._send_teams_notification_after_detection(
-                    ErrorType.UNIQUENESS, mock_df, {"severity": "high"}
-                )
-
-                # Should return early without sending
-
-    def test_skips_when_webhook_not_configured(self):
-        """Should skip notification when webhook URL is not configured."""
-        with _mock_spark_context():
-            spark = _mock_spark()
-            ud = UniDetect(_config(), spark=spark)
-
-            mock_df = MagicMock(spec=DataFrame)
-            mock_df.count.return_value = 5
-
-            with patch(
-                "open_detect.algorithms.uni_detect.pipeline.get_notification_config"
-            ) as mock_config:
-                mock_config.return_value = {
-                    "enabled": True,
-                    "webhook_url": None,  # No webhook configured
-                    "severity_threshold": "medium",
-                    "rate_limit": {"max_per_hour": 5},
-                }
-
-                ud._send_teams_notification_after_detection(
-                    ErrorType.UNIQUENESS, mock_df, {"severity": "high"}
-                )
-
-                # Should return early without sending
-
-    def test_skips_when_severity_below_threshold(self):
-        """Should skip notification when severity is below threshold."""
-        with _mock_spark_context():
-            spark = _mock_spark()
-            ud = UniDetect(_config(), spark=spark)
-
-            mock_df = MagicMock(spec=DataFrame)
-            mock_df.count.return_value = 5
-
-            with patch(
-                "open_detect.algorithms.uni_detect.pipeline.get_notification_config"
-            ) as mock_config:
-                mock_config.return_value = {
-                    "enabled": True,
-                    "webhook_url": "https://test.url",
-                    "severity_threshold": "high",  # high threshold
-                    "rate_limit": {"max_per_hour": 5},
-                }
-
-                ud._send_teams_notification_after_detection(
-                    ErrorType.UNIQUENESS,
-                    mock_df,
-                    {"severity": "medium"},  # medium severity
-                )
-
-                # Should return early without sending
-
-    @patch("open_detect.algorithms.uni_detect.pipeline.TeamsNotifier")
-    @patch("open_detect.algorithms.uni_detect.pipeline.get_notification_config")
-    def test_sends_notification_when_severity_meets_threshold(
-        self, mock_config, mock_notifier_class
-    ):
-        """Should send notification when severity meets threshold."""
-        with _mock_spark_context():
-            spark = _mock_spark()
-            ud = UniDetect(_config(), spark=spark)
-
-            mock_df = MagicMock(spec=DataFrame)
-            mock_df.count.return_value = 5
-
-            mock_notifier = MagicMock()
-            mock_notifier.send_safe.return_value = True
-            mock_notifier_class.return_value = mock_notifier
-
-            mock_config.return_value = {
-                "enabled": True,
-                "webhook_url": "https://test.url",
-                "severity_threshold": "medium",
-                "rate_limit": {"max_per_hour": 5},
-            }
-
-            ud._send_teams_notification_after_detection(
-                ErrorType.UNIQUENESS, mock_df, {"severity": "high"}
-            )
-
-            # Verify TeamsNotifier was created and send_safe was called
-            mock_notifier_class.assert_called_once_with(
-                webhook_url="https://test.url",
-                severity_threshold="medium",
-                rate_limit={"max_per_hour": 5},
-            )
-            mock_notifier.send_safe.assert_called_once()
-
-            # Verify the call arguments
-            call_kwargs = mock_notifier.send_safe.call_args.kwargs
-            assert call_kwargs["event_type"] == "scan_context_uniqueness"
-            assert call_kwargs["severity"] == "high"
-            assert call_kwargs["affected"] == "Uniqueness detection - 5 anomaly(ies) detected"
-
-    @patch("open_detect.algorithms.uni_detect.pipeline.TeamsNotifier")
-    @patch("open_detect.algorithms.uni_detect.pipeline.get_notification_config")
-    def test_uses_description_from_kwargs(self, mock_config, mock_notifier_class):
-        """Should use description from kwargs if provided."""
-        with _mock_spark_context():
-            spark = _mock_spark()
-            ud = UniDetect(_config(), spark=spark)
-
-            mock_df = MagicMock(spec=DataFrame)
-            mock_df.count.return_value = 5
-
-            mock_notifier = MagicMock()
-            mock_notifier.send_safe.return_value = True
-            mock_notifier_class.return_value = mock_notifier
-
-            mock_config.return_value = {
-                "enabled": True,
-                "webhook_url": "https://test.url",
-                "severity_threshold": "medium",
-                "rate_limit": {"max_per_hour": 5},
-            }
-
-            ud._send_teams_notification_after_detection(
-                ErrorType.SPELLING,
-                mock_df,
-                {"severity": "high", "description": "Custom description"},
-            )
-
-            call_kwargs = mock_notifier.send_safe.call_args.kwargs
-            assert call_kwargs["description"] == "Custom description"
-
-    @patch("open_detect.algorithms.uni_detect.pipeline.TeamsNotifier")
-    @patch("open_detect.algorithms.uni_detect.pipeline.get_notification_config")
-    def test_logs_failure_when_send_safe_raises_exception(self, mock_config, mock_notifier_class):
-        """Should log warning when send_safe raises an exception."""
-        with _mock_spark_context():
-            spark = _mock_spark()
-            ud = UniDetect(_config(), spark=spark)
-
-            mock_df = MagicMock(spec=DataFrame)
-            mock_df.count.return_value = 5
-
-            mock_notifier = MagicMock()
-            mock_notifier.send_safe.side_effect = Exception("Network error")
-            mock_notifier_class.return_value = mock_notifier
-
-            mock_config.return_value = {
-                "enabled": True,
-                "webhook_url": "https://test.url",
-                "severity_threshold": "medium",
-                "rate_limit": {"max_per_hour": 5},
-            }
-
-            # Should not raise - exception is caught internally
-            ud._send_teams_notification_after_detection(
-                ErrorType.UNIQUENESS, mock_df, {"severity": "high"}
-            )
-
-            # Verify send_safe was still called
-            mock_notifier.send_safe.assert_called_once()

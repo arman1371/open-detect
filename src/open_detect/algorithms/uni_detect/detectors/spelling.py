@@ -77,7 +77,6 @@ class SpellingDetector(BaseDetector):
         self,
         table_names: Sequence[str],
         ingested_columns_df: DataFrame | None = None,
-        ingested_pairs_df: DataFrame | None = None,
     ) -> DataFrame:
         import pandas as pd
 
@@ -107,25 +106,16 @@ class SpellingDetector(BaseDetector):
                 tracker.flush(counts)
                 yield pd.DataFrame(rows, columns=[f.name for f in CANDIDATE_SCHEMA.fields])
 
-        # Use ingested columns if provided, otherwise ingest
-        if ingested_columns_df is not None:
-            columns_df = ingested_columns_df
-        else:
-            columns_df = self.ingestor.ingest_columns(table_names)
-
-        from pyspark.sql import functions as F
-
-        # Filter to non-numeric columns for spelling detection
-        from open_detect.algorithms.uni_detect.core.enums import ColumnDataType
-
-        numeric_types = {ColumnDataType.INTEGER, ColumnDataType.FLOAT}
-        filtered_columns = columns_df.filter(
-            ~F.col("column_data_type").isin([t.value for t in numeric_types])
+        columns_df = (
+            ingested_columns_df
+            if ingested_columns_df is not None
+            else self.ingestor.ingest_columns(table_names)
         )
-
-        # ARROW_MAX_RECORDS_PER_BATCH is set by BaseDetector.detect() so it stays
-        # active through the lazy execution of mapInPandas and the subsequent count().
-        # Keep the override active through candidate materialization in the base detector.
-        return filtered_columns.select("table_id", "column_name", "num_rows", "values").mapInPandas(
+        # Keep Arrow limit active through candidate extraction and materialization.
+        # The BaseDetector.detect() sets ARROW_MAX_RECORDS_PER_BATCH before calling
+        # extract_candidates, so the lazy mapInPandas plan runs with the limited
+        # batch size. The caller must also keep the override active through
+        # the subsequent count() to avoid oversized batches during materialization.
+        return columns_df.select("table_id", "column_name", "num_rows", "values").mapInPandas(
             compute, schema=CANDIDATE_SCHEMA
         )

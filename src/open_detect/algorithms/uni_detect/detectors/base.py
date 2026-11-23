@@ -28,10 +28,7 @@ from pyspark import StorageLevel
 from open_detect.algorithms.uni_detect.config import UniDetectConfig
 from open_detect.algorithms.uni_detect.core.enums import ErrorType
 from open_detect.algorithms.uni_detect.corpus.ingestion import CorpusIngestor
-from open_detect.algorithms.uni_detect.corpus.store import (
-    _AUTO_BROADCAST_DISABLED,
-    CorpusStatsStore,
-)
+from open_detect.algorithms.uni_detect.corpus.store import CorpusStatsStore
 from open_detect.algorithms.uni_detect.failures import FailureTracker
 from open_detect.algorithms.uni_detect.spark_utils import (
     ARROW_MAX_RECORDS_PER_BATCH,
@@ -79,25 +76,8 @@ class BaseDetector(ABC):
         )
 
     @abstractmethod
-    def extract_candidates(
-        self,
-        table_names: Sequence[str],
-        ingested_columns_df: DataFrame | None = None,
-        ingested_pairs_df: DataFrame | None = None,
-    ) -> DataFrame:
-        """Return a DataFrame with the columns in :data:`CANDIDATE_COLUMNS`.
-
-        Parameters
-        ----------
-        table_names:
-            Tables to scan for errors (used if no pre-ingested DataFrame provided).
-        ingested_columns_df:
-            Pre-ingested columns DataFrame from a shared ingestion call.
-            If provided, this detector will use it instead of re-ingesting.
-        ingested_pairs_df:
-            Pre-ingested column pairs DataFrame for FD detection.
-            If provided, FD detector will use it instead of re-ingesting.
-        """
+    def extract_candidates(self, table_names: Sequence[str]) -> DataFrame:
+        """Return a DataFrame with the columns in :data:`CANDIDATE_COLUMNS`."""
 
     def _new_failure_tracker(self) -> FailureTracker:
         """Create the accumulator-backed tracker an ``extract_candidates`` run reports into."""
@@ -131,16 +111,10 @@ class BaseDetector(ABC):
         ``pipeline.UniDetect.detect``.  Direct callers that need a specific
         order must sort the returned frame themselves.
 
-        Parameters
-        ----------
-        table_names:
-            Tables to scan for errors.
-        ingested_columns_df:
-            Pre-ingested columns DataFrame from a shared ingestion call.
-            If provided, this detector will use it instead of re-ingesting.
-        ingested_pairs_df:
-            Pre-ingested column pairs DataFrame for FD detection.
-            If provided, FD detector will use it instead of re-ingesting.
+        Args:
+            table_names: List of table names to scan.
+            ingested_columns_df: Pre-ingested columns DataFrame (optional, for shared ingestion).
+            ingested_pairs_df: Pre-ingested pairs DataFrame (optional, for shared ingestion).
 
         .. note::
 
@@ -167,22 +141,14 @@ class BaseDetector(ABC):
             # scoring (batch_score join), and result materialization.
             # This protects against OOM on array-heavy workloads where a single
             # Arrow batch can balloon to ~10^9 strings.
-            # Also disable auto broadcast joins to prevent OOM on CI runners with small heaps.
             with (
                 log_duration(logger, f"detect[{self.error_type.value}]"),
                 scoped_conf(
                     self.spark,
-                    **{
-                        ARROW_MAX_RECORDS_PER_BATCH_KEY: str(ARROW_MAX_RECORDS_PER_BATCH),
-                        **_AUTO_BROADCAST_DISABLED,
-                    },
+                    **{ARROW_MAX_RECORDS_PER_BATCH_KEY: str(ARROW_MAX_RECORDS_PER_BATCH)},
                 ),
             ):
-                candidates = self.extract_candidates(
-                    table_names,
-                    ingested_columns_df=ingested_columns_df,
-                    ingested_pairs_df=ingested_pairs_df,
-                )
+                candidates = self.extract_candidates(table_names)
                 candidates.persist(StorageLevel.MEMORY_AND_DISK)
                 n = candidates.count()
                 if self._failure_tracker is not None:
@@ -206,15 +172,10 @@ class BaseDetector(ABC):
                     return result
 
                 scored = self.store.batch_score(candidates, self.error_type, spec.direction)
-                # Persist scored frame so downstream materialization doesn't
-                # re-execute the scoring stage. Track it for later release.
-                scored = self._track(scored.persist(StorageLevel.MEMORY_AND_DISK))
-                scored.count()
+                # Keep scored LAZY - it will be materialized along with the final
+                # result. Avoid eager .persist().count() on intermediate frames,
+                # which would add Spark actions and retain extra caches.
                 joined = candidates.join(scored, on="candidate_id", how="inner")
-                # Persist the joined frame so the final select reads from cache,
-                # not from the candidate/scored lineage that gets unpersisted.
-                joined = self._track(joined.persist(StorageLevel.MEMORY_AND_DISK))
-                joined.count()
 
                 alpha = float(self.config.alpha)
                 result = (
@@ -235,13 +196,13 @@ class BaseDetector(ABC):
                         "evidence_json",
                     )
                 )
-                # Materialize once while ``candidates`` is still cached, then
-                # release the inputs.  The persisted result survives on its own,
-                # so downstream actions never re-execute the scoring stage.
-                # (``scored`` and ``joined`` are intermediate frames in the same
-                # logical plan; they are not separately cached here.)
+                # Materialize the final result once while candidates is still cached.
+                # Track the result for release; scored/joined are in the same lineage.
                 result = self._track(result.persist(StorageLevel.MEMORY_AND_DISK))
                 result.count()
+                # Track candidates for cleanup - it must be released by the caller
+                # via detector.release() along with the result frame.
+                self._track(candidates)
                 return result
         except Exception:
             # On failure, clean up any frames that were tracked/persisted during this call.
@@ -253,12 +214,6 @@ class BaseDetector(ABC):
                 with suppress(Exception):
                     candidates.unpersist()
             raise
-        # NOTE: No 'finally' block that unpersists candidates.  The result DataFrame
-        # is persisted (MEMORY_AND_DISK) and must survive until the caller consumes
-        # it via count()/collect()/write().  The caller is responsible for calling
-        # ``detector.release()`` or ``result.unpersist()`` when the result is no
-        # longer needed.  This ensures downstream actions reuse the cached frame
-        # instead of re-executing the scoring stage.
 
     def _empty_result(self) -> DataFrame:
         from open_detect.algorithms.uni_detect.detectors.schema import DETECTION_RESULT_SCHEMA

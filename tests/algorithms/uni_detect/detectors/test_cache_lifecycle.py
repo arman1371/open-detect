@@ -44,12 +44,7 @@ class _FakeDetector(BaseDetector):
         self._frames: list[Any] = []
         self._next_count = 1
 
-    def extract_candidates(
-        self,
-        table_names,
-        ingested_columns_df=None,
-        ingested_pairs_df=None,
-    ):  # type: ignore[override]
+    def extract_candidates(self, table_names):  # type: ignore[override]
         self._extract_calls += 1
         frame = MagicMock(name=f"candidates-{self._extract_calls}")
         frame.count.return_value = self._next_count
@@ -179,25 +174,17 @@ class TestDetectCacheContract:
 
 
 def _spark_available() -> bool:
-    """Probe whether a Delta-enabled Spark session can be started.
-
-    This checks for the required imports and basic connectivity without
-    actually starting a Spark session (which would leave JVM state that
-    interferes with the session-scoped ``spark`` fixture in local mode).
-    """
+    """Check if a Delta-enabled Spark session can be started using the shared fixture."""
     import os
     import sys
 
     os.environ.setdefault("PYSPARK_PYTHON", sys.executable)
     os.environ.setdefault("PYSPARK_DRIVER_PYTHON", sys.executable)
     try:
-        # Just check that the required modules can be imported.
-        # Do NOT create a Spark session here -- in local mode, starting and
-        # stopping a session leaves JVM state that conflicts with the
-        # session-scoped ``spark`` fixture created later by conftest.py.
-        import delta  # noqa: F401
-        import pyspark  # noqa: F401
+        import pytest
 
+        pytest.importorskip("pyspark")
+        pytest.importorskip("delta")
         return True
     except Exception:
         return False
@@ -236,14 +223,15 @@ class TestDetectCacheLifecycleSpark:
         )
         detector = UniquenessDetector(spark, config)
 
-        # Seed a tiny Delta table with some duplicate rows (6 rows to meet min_rows=5)
+        # Seed a tiny Delta table with some duplicate rows (8 rows to meet min_rows=5)
+        # Need enough duplicates to trigger scoring and produce non-empty results
         spark.sql(
             "CREATE TABLE IF NOT EXISTS spark_catalog.open_detect_test_schema.t1 "
             "(id LONG, val STRING) USING DELTA"
         )
         spark.sql(
             "INSERT INTO spark_catalog.open_detect_test_schema.t1 VALUES "
-            "(1, 'a'), (2, 'a'), (3, 'b'), (4, 'c'), (5, 'c'), (6, 'd')"
+            "(1, 'a'), (2, 'a'), (3, 'b'), (4, 'b'), (5, 'c'), (6, 'c'), (7, 'd'), (8, 'd')"
         )
 
         # Build corpus statistics so detect() can score candidates
@@ -261,6 +249,8 @@ class TestDetectCacheLifecycleSpark:
             # Materialize once inside detect(); result is persisted
             detect_jobs = counter.results[0].jobs
             assert detect_jobs > 0, "detect() should have launched at least one scoring execution"
+            # Assert non-empty result to exercise the scoring/cache path
+            assert result.count() > 0, "Expected non-empty detections from duplicated values"
 
             # Now call count() -- should NOT launch additional scoring executions
             with counter.scope("count"):
@@ -306,14 +296,15 @@ class TestDetectCacheLifecycleSpark:
         )
         ud = UniDetect(config, spark=spark)
 
-        # Seed tables
+        # Seed tables with enough rows for uniqueness detector (min_rows=5)
+        # Need at least 5 rows with duplicates to trigger scoring
         spark.sql(
             "CREATE TABLE IF NOT EXISTS spark_catalog.open_detect_test_schema.t2 "
             "(id LONG, val STRING) USING DELTA"
         )
         spark.sql(
             "INSERT INTO spark_catalog.open_detect_test_schema.t2 VALUES "
-            "(1, 'x'), (2, 'x'), (3, 'y')"
+            "(1, 'x'), (2, 'x'), (3, 'y'), (4, 'y'), (5, 'z'), (6, 'z')"
         )
 
         # Build corpus statistics so detect() can score candidates
@@ -334,6 +325,8 @@ class TestDetectCacheLifecycleSpark:
             # would re-execute the scoring stage.
             lr_ratios = [row["lr_ratio"] for row in detections.select("lr_ratio").collect()]
             assert lr_ratios == sorted(lr_ratios), "pipeline result must be sorted by lr_ratio"
+            # Assert non-empty result to exercise the scoring/cache path
+            assert detections.count() > 0, "Expected non-empty detections from duplicated values"
 
             with counter.scope("count"):
                 _ = detections.count()

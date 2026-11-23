@@ -77,5 +77,6 @@ def test_result_to_pandas_matches_shared_schema():
         "is_error",
         "score",
         "evidence",
+        "tooltip",
     ]
     assert len(frame) == DIRTY.size

@@ -216,7 +216,7 @@
     }
 
     @media (prefers-color-scheme: dark) {
-      body:not([data-theme="light"]) .value-label {
+      :root:not([data-theme="light"]) .value-label {
         color: var(--text-secondary-dark);
       }
     }
@@ -235,7 +235,7 @@
     }
 
     @media (prefers-color-scheme: dark) {
-      body:not([data-theme="light"]) .value-hex {
+      :root:not([data-theme="light"]) .value-hex {
         color: var(--text-primary-dark);
         background: var(--page-dark);
         border-color: var(--border-dark);
@@ -261,7 +261,7 @@
     }
 
     @media (prefers-color-scheme: dark) {
-      body:not([data-theme="light"]) .copy-btn {
+      :root:not([data-theme="light"]) .copy-btn {
         border-color: var(--border-dark);
         color: var(--text-secondary-dark);
       }
@@ -278,7 +278,7 @@
     }
 
     @media (prefers-color-scheme: dark) {
-      body:not([data-theme="light"]) .copy-btn:hover {
+      :root:not([data-theme="light"]) .copy-btn:hover {
         background: var(--page-dark);
         color: var(--text-primary-dark);
       }
@@ -295,7 +295,7 @@
       color: white;
     }
 
-    /* Slot indicator */
+    /* Slot indicator - uses computed contrast color from JS */
     .slot-badge {
       display: inline-flex;
       align-items: center;
@@ -305,8 +305,6 @@
       border-radius: 0.25rem;
       font-size: 0.7rem;
       font-weight: 700;
-      color: white;
-      background: var(--text-primary-light);
     }
 
     /* Responsive */
@@ -441,7 +439,7 @@
         </div>
         <div class="color-info">
           <div class="color-name">
-            <span class="slot-badge" style="background: ${color.light};">${color.slot}</span>
+            <span class="slot-badge" style="background: ${color.light}; color: ${lightLabelColor};">${color.slot}</span>
             ${color.hue.charAt(0).toUpperCase() + color.hue.slice(1)}
           </div>
           <div class="color-values">

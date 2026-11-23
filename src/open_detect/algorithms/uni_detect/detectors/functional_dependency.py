@@ -44,7 +44,6 @@ class FunctionalDependencyDetector(BaseDetector):
     def extract_candidates(
         self,
         table_names: Sequence[str],
-        ingested_columns_df: DataFrame | None = None,
         ingested_pairs_df: DataFrame | None = None,
     ) -> DataFrame:
         import pandas as pd
@@ -108,15 +107,16 @@ class FunctionalDependencyDetector(BaseDetector):
                 tracker.flush(counts)
                 yield pd.DataFrame(rows, columns=[f.name for f in CANDIDATE_SCHEMA.fields])
 
-        # Use ingested pairs if provided, otherwise ingest
-        if ingested_pairs_df is not None:
-            pairs_df = ingested_pairs_df
-        else:
-            pairs_df = self.ingestor.ingest_column_pairs(table_names)
-
-        # ARROW_MAX_RECORDS_PER_BATCH is set by BaseDetector.detect() so it stays
-        # active through the lazy execution of mapInPandas and the subsequent count().
-        # Keep the override active through candidate materialization in the base detector.
+        pairs_df = (
+            ingested_pairs_df
+            if ingested_pairs_df is not None
+            else self.ingestor.ingest_column_pairs(table_names)
+        )
+        # Keep Arrow limit active through candidate extraction and materialization.
+        # The BaseDetector.detect() sets ARROW_MAX_RECORDS_PER_BATCH before calling
+        # extract_candidates, so the lazy mapInPandas plan runs with the limited
+        # batch size. The caller must also keep the override active through
+        # the subsequent count() to avoid oversized batches during materialization.
         return pairs_df.select(
             "table_id",
             "lhs_column",

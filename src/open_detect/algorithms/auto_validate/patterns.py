@@ -183,6 +183,20 @@ def matching_pattern(patterns: frozenset[str], value: str) -> str | None:
     return None
 
 
+# Shared join string for readable pattern descriptions
+_PATTERN_JOIN = " and "
+
+
+def _translate_token(seg: str) -> str:
+    """Replace token placeholders with human-readable equivalents, preserving quantifiers."""
+    seg = seg.replace("<alphanum>", "[a-zA-Z0-9]")
+    seg = seg.replace("<digit>", "[0-9]")
+    seg = seg.replace("<symbol>", "[!@#$%^&*()_+={}|:'\",.<>?/]")
+    seg = seg.replace("<letter>", "[a-zA-Z]")
+    # Keep + and * as quantifiers
+    return seg
+
+
 def pattern_to_language(pattern: str | Sequence[str] | list[Sequence[str]], variant: str) -> str:
     """Convert an FMDV pattern to a human-readable language description.
 
@@ -207,34 +221,27 @@ def pattern_to_language(pattern: str | Sequence[str] | list[Sequence[str]], vari
             result = result.replace("<digit>", "[0-9]")
             result = result.replace("<symbol>", "[!@#$%^&*()_+={}|:'\",.<>?/]")
             result = result.replace("<letter>", "[a-zA-Z]")
-            # Normalize the pattern for display
-            result = result.replace("+", "")
-            result = result.replace("*", "")
+            # Keep + and * as quantifiers in human-readable form
             return result
         # fmdv_v: flat list of segments
         elif variant == "fmdv_v":
-            segments = pattern.split("+") if "+" in pattern else [pattern]
-            readable = []
-            for seg in segments:
-                seg = seg.replace("<alphanum>", "[a-zA-Z0-9]")
-                seg = seg.replace("<digit>", "[0-9]")
-                seg = seg.replace("<symbol>", "[!@#$%^&*()_+={}|:'\",.<>?/]")
-                seg = seg.replace("<letter>", "[a-zA-Z]")
-                seg = seg.replace("+", "")
-                seg = seg.replace("*", "")
-                readable.append(seg)
-            return (
-                " + ".join(readable) if len(readable) > 1 else readable[0] if readable else pattern
-            )
-        # fmdv_vh: list of groups (pattern is a string here for single-segment case)
+            # The pattern string for fmdv_v could be a single segment or multiple segments joined by +
+            # Check if this is a composite pattern with multiple segments
+            is_composite = "+" in pattern and not pattern.startswith("<")
+            if is_composite:
+                # This is a flat list of segments joined by +
+                segments = pattern.split("+")
+                readable = [_translate_token(seg) for seg in segments]
+                if len(readable) > 1:
+                    return _PATTERN_JOIN.join(readable)
+                if readable:
+                    return readable[0]
+                return pattern
+            # Single segment
+            return _translate_token(pattern)
+        # fmdv_vh: single segment string
         elif variant == "fmdv_vh":
-            result = pattern.replace("<alphanum>", "[a-zA-Z0-9]")
-            result = result.replace("<digit>", "[0-9]")
-            result = result.replace("<symbol>", "[!@#$%^&*()_+={}|:'\",.<>?/]")
-            result = result.replace("<letter>", "[a-zA-Z]")
-            result = result.replace("+", "")
-            result = result.replace("*", "")
-            return result
+            return _translate_token(pattern)
         return pattern
 
     # List-based patterns
@@ -249,15 +256,9 @@ def pattern_to_language(pattern: str | Sequence[str] | list[Sequence[str]], vari
         readable_list: list[str] = []
         for seg in pattern_list:
             seg_str: str = str(seg)
-            seg_str = seg_str.replace("<alphanum>", "[a-zA-Z0-9]")
-            seg_str = seg_str.replace("<digit>", "[0-9]")
-            seg_str = seg_str.replace("<symbol>", "[!@#$%^&*()_+={}|:'\",.<>?/]")
-            seg_str = seg_str.replace("<letter>", "[a-zA-Z]")
-            seg_str = seg_str.replace("+", "")
-            seg_str = seg_str.replace("*", "")
-            readable_list.append(seg_str)
+            readable_list.append(_translate_token(seg_str))
         return (
-            " and ".join(readable_list)
+            _PATTERN_JOIN.join(readable_list)
             if len(readable_list) > 1
             else (readable_list[0] if readable_list else str(pattern))
         )
@@ -269,14 +270,8 @@ def pattern_to_language(pattern: str | Sequence[str] | list[Sequence[str]], vari
             for group in pattern:
                 seg_descs = []
                 for seg in group:
-                    seg = seg.replace("<alphanum>", "[a-zA-Z0-9]")
-                    seg = seg.replace("<digit>", "[0-9]")
-                    seg = seg.replace("<symbol>", "[!@#$%^&*()_+={}|:'\",.<>?/]")
-                    seg = seg.replace("<letter>", "[a-zA-Z]")
-                    seg = seg.replace("+", "")
-                    seg = seg.replace("*", "")
-                    seg_descs.append(seg)
-                group_descriptions.append(" and ".join(seg_descs))
+                    seg_descs.append(_translate_token(seg))
+                group_descriptions.append(_PATTERN_JOIN.join(seg_descs))
             return " or ".join(group_descriptions)
         # Fallback: just convert the string pattern
         return pattern_to_language(str(pattern), variant)
