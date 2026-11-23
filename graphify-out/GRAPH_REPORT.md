@@ -1,7 +1,7 @@
-# Graph Report - open-detect  (2026-11-22)
+# Graph Report - open-detect  (2026-11-23)
 
 ## Corpus Check
-- 211 files · ~167,059 words
+- 211 files · ~167,147 words
 - Verdict: corpus is large enough that graph structure adds value.
 - Unclassified: 234 file(s) not represented in the graph (top: .csv 227, (none) 3, .properties 1)
 - WARNING: 234 of 473 files seen (49%) have no supported extractor and are missing from this graph entirely. It may look complete while representing only part of the codebase.
@@ -12,7 +12,7 @@
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `f7948c2e`
+- Built from commit: `a762f432`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -812,7 +812,7 @@ _Questions this graph is uniquely positioned to answer:_
 - **Should `json` be split into smaller, more focused modules?**
   _Cohesion score 0.10359408033826638 - nodes in this community are weakly interconnected._
 - **Why does `UniDetect` connect `UniDetect` to `real_world_gov/run_benchmark.py`, `CorpusStatsBuilder`, `ErrorType`, `UnityCatalogLocation`, `Completed Work`, `quickstart.py`, `ValidationError`, `UniDetectConfig`, `main`, `test_build_corpus_statistics.py`, `ErrorDetectionAlgorithm`, `.build_corpus_statistics`, `TeamsNotifier`, `wiki_subset/run_benchmark.py`, `CorpusIngestor`, `._send_teams_notification_after_detection`, `open_detect/exceptions.py`, `pipeline.py`, `Benchmark: WIKI subset`, `TestUniDetectDetect`?**
-  _High betweenness centrality (0.073) - this node is a cross-community bridge._
+  _High betweenness centrality (0.074) - this node is a cross-community bridge._
 - **Are the 67 inferred relationships involving `ErrorType` (e.g. with `run_uni_detect()` and `run_uni_detect()`) actually correct?**
   _`ErrorType` has 67 INFERRED edges - model-reasoned connections that need verification._
 
