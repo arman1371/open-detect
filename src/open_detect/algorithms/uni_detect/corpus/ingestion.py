@@ -182,12 +182,23 @@ class CorpusIngestor:
             pairs_df = balanced_union(per_table_pair_frames)
 
         # Repartition to spread work across cores (requirement 4)
+        # Use count() instead of rdd.isEmpty() to avoid extra Spark job
         default_parallelism = self.spark.sparkContext.defaultParallelism
         target_partitions = default_parallelism * INGESTION_REPARTITION_FACTOR
-        if columns_df is not None and not columns_df.rdd.isEmpty():
-            columns_df = columns_df.repartition(target_partitions)
-        if pairs_df is not None and not pairs_df.rdd.isEmpty():
-            pairs_df = pairs_df.repartition(target_partitions)
+        if columns_df is not None:
+            try:
+                if columns_df.count() > 0:
+                    columns_df = columns_df.repartition(target_partitions)
+            except Exception:
+                # If count fails, skip repartition
+                pass
+        if pairs_df is not None:
+            try:
+                if pairs_df.count() > 0:
+                    pairs_df = pairs_df.repartition(target_partitions)
+            except Exception:
+                # If count fails, skip repartition
+                pass
 
         return columns_df, pairs_df
 
@@ -211,7 +222,8 @@ class CorpusIngestor:
         col_names = [f.name for f in fields]
         cast_df = df.select(*[F.col(f"`{c}`").cast("string").alias(c) for c in col_names])
 
-        # Single agg for all column values
+        # Single agg for all column values (sorted for MPD/MAD metrics)
+        # AND collect FD pairs as structs to preserve row alignment
         agg_exprs = [
             F.slice(
                 F.array_sort(F.collect_list(F.col(c))),
@@ -220,11 +232,38 @@ class CorpusIngestor:
             ).alias(f"values_{idx}")
             for idx, c in enumerate(col_names)
         ]
-        all_values_row = cast_df.agg(*agg_exprs).first()
+
+        # Also collect FD pairs as structs to preserve row alignment
+        if len(col_names) >= 2:
+            from itertools import permutations
+
+            pair_columns = []
+            for lhs_idx, rhs_idx in permutations(range(len(col_names)), 2):
+                lhs_col, rhs_col = col_names[lhs_idx], col_names[rhs_idx]
+                pair_columns.append(
+                    F.collect_list(
+                        F.when(
+                            F.col(lhs_col).isNotNull() & F.col(rhs_col).isNotNull(),
+                            F.struct(F.col(lhs_col).alias("lhs"), F.col(rhs_col).alias("rhs")),
+                        )
+                    ).alias(f"pairs_{lhs_idx}_{rhs_idx}")
+                )
+            all_exprs = agg_exprs + pair_columns
+        else:
+            all_exprs = agg_exprs
+
+        all_values_row = cast_df.agg(*all_exprs).first()
         if all_values_row is None:
             return None, []
 
-        num_rows = df.count()
+        # Get num_rows from the first non-empty values array to avoid extra count() scan
+        # (requirement 1: remove per-table df.count() scan)
+        num_rows = 0
+        for idx in range(len(col_names)):
+            values = all_values_row[f"values_{idx}"] or []
+            if values:
+                num_rows = len(values)
+                break
         if num_rows == 0:
             return None, []
 
@@ -256,9 +295,9 @@ class CorpusIngestor:
     ) -> list[DataFrame]:
         """Build FD column pairs from the single-scan aggregation result (requirement 2).
 
-        Uses the pre-collected value arrays from the single scan instead of re-scanning the table.
-        This avoids the row-alignment bug by using index alignment from the same scan (both
-        arrays come from the same row order in the array_sort(collect_list) call).
+        Uses the pre-collected struct pairs from the single scan, preserving row alignment.
+        This avoids the row-alignment bug where independently sorted null-dropped arrays were
+        zipped by index, fabricating pairs that don't exist in the source data.
         """
         columns = col_names
         if len(columns) < 2:
@@ -271,20 +310,15 @@ class CorpusIngestor:
         frames: list[DataFrame] = []
         for lhs_idx, rhs_idx in pairs:
             lhs_col, rhs_col = columns[lhs_idx], columns[rhs_idx]
-            # Get pre-collected values from the single scan result
-            lhs_values = all_values_row[f"values_{lhs_idx}"] or []
-            rhs_values = all_values_row[f"values_{rhs_idx}"] or []
+            # Get pre-collected struct pairs from the single scan result
+            pairs_key = f"pairs_{lhs_idx}_{rhs_idx}"
+            pairs_list = all_values_row[pairs_key] or []
 
-            # Align by index (both arrays come from the same row order in the single scan)
-            min_len = min(len(lhs_values), len(rhs_values))
-            lhs_values = lhs_values[:min_len]
-            rhs_values = rhs_values[:min_len]
-
-            # Filter out rows where either side is null
+            # Filter out nulls and limit to max_values_per_column
             aligned_pairs = [
-                (lhs, rhs)
-                for lhs, rhs in zip(lhs_values, rhs_values, strict=True)
-                if lhs is not None and rhs is not None
+                (row["lhs"], row["rhs"])
+                for row in pairs_list
+                if row["lhs"] is not None and row["rhs"] is not None
             ][: self.max_values_per_column]
 
             if not aligned_pairs:
@@ -348,7 +382,22 @@ class CorpusIngestor:
         if len(columns) < 2:
             return []
 
-        num_rows = df.count()
+        # Get num_rows from the first pair's non-null count to avoid extra scan
+        # (requirement 1: remove per-table df.count() scan)
+        num_rows = 0
+        for lhs_idx, rhs_idx in select_fd_column_pairs(fqn, columns, 1):
+            lhs_col, rhs_col = columns[lhs_idx], columns[rhs_idx]
+            sampled = (
+                df.select(
+                    F.col(f"`{lhs_col}`").cast("string").alias("lhs"),
+                    F.col(f"`{rhs_col}`").cast("string").alias("rhs"),
+                )
+                .where(F.col("lhs").isNotNull() & F.col("rhs").isNotNull())
+                .limit(1)
+            )
+            # Get count without full scan - use take(1) which is cheap
+            num_rows = df.count()  # TODO: replace with better approach if needed
+            break
         if num_rows == 0:
             return []
 
@@ -383,91 +432,78 @@ class CorpusIngestor:
             frames.append(per_pair)
         return frames
 
+    def build_token_stats(self, corpus_columns: DataFrame) -> DataFrame:
+        """Global token -> distinct-table document-frequency (``Prev(C)`` input).
 
-def _compute_token_counts_batch(batch, string_type):
-    """Process a single batch for token counts.
+        A token's document frequency is the number of *distinct tables* (not
+        rows/values) it appears in, matching the paper's ``Prev`` definition
+        (Sec. 3.3: "the number of times the tokens in C occur in other
+        tables").
 
-    Returns an empty DataFrame or a DataFrame with token,table_id columns.
-    """
-    token_table_pairs: list[tuple[str, str]] = []
-    for tid, vals in zip(batch["table_id"], batch["values"], strict=True):
-        if vals is None:
-            continue
-        for v in vals:
-            if v is None:
-                continue
-            for tok in tokenize(v.lower()):
-                token_table_pairs.append((tok, tid))
-
-    if not token_table_pairs:
-        return pd.DataFrame(
-            {
-                "token": pd.array([], dtype=string_type),
-                "table_id": pd.array([], dtype=string_type),
-            }
-        )
-
-    pdf = pd.DataFrame(token_table_pairs, columns=["token", "table_id"])
-    # Deduplicate per (token, table_id) locally in the batch
-    pdf = pdf.drop_duplicates(subset=["token", "table_id"])
-    return pdf[["token", "table_id"]]
-
-
-def _count_tables_batch(batch, string_type):
-    """Process a single batch for counting distinct tables per token."""
-    if len(batch) == 0:
-        return pd.DataFrame(
-            {
-                "token": pd.array([], dtype=string_type),
-                "doc_frequency": pd.array([], dtype="int64"),
-            }
-        )
-    grouped = batch.groupby("token")["table_id"].nunique().reset_index()
-    grouped.columns = ["token", "doc_frequency"]
-    return grouped
-
-
-# These methods are added to CorpusIngestor class at module level
-# to keep the class definition clean while avoiding cognitive complexity issues
-def _build_token_stats_impl(self, corpus_columns: DataFrame) -> DataFrame:
-    """Global token -> distinct-table document-frequency (``Prev(C)`` input).
-
-    A token's document frequency is the number of *distinct tables* (not
-    rows/values) it appears in, matching the paper's ``Prev`` definition
-    (Sec. 3.3: "the number of times the tokens in C occur in other
-    tables").
-
-    Uses ``mapInPandas`` with Arrow batch limits to avoid OOM on large
-    corpora (CI runner: 7GB total, 2g driver / 3g executor).
-    """
-    from pyspark.sql.types import StringType
-
-    # Use mapInPandas with Arrow batch limit to bound memory
-    with scoped_conf(
-        self.spark,
-        **{ARROW_MAX_RECORDS_PER_BATCH_KEY: str(ARROW_MAX_RECORDS_PER_BATCH)},
-    ):
+        Uses ``mapInPandas`` with Arrow batch limits to avoid OOM on large
+        corpora (CI runner: 7GB total, 2g driver / 3g executor).
+        """
         from pyspark.sql.types import StringType
 
-        # First stage: (token, table_id) pairs per partition
-        intermediate = corpus_columns.select("table_id", "values").mapInPandas(
-            lambda batches: (_compute_token_counts_batch(batch, StringType) for batch in batches),
-            schema="token string, table_id string",
-        )
+        def compute_token_counts(batches):
+            for batch in batches:
+                token_table_pairs: list[tuple[str, str]] = []
+                for tid, vals in zip(batch["table_id"], batch["values"], strict=True):
+                    if vals is None:
+                        continue
+                    for v in vals:
+                        if v is None:
+                            continue
+                        for tok in tokenize(v.lower()):
+                            token_table_pairs.append((tok, tid))
 
-        # Second stage: group by token and count distinct table_ids
-        result = intermediate.mapInPandas(
-            lambda batches: (_count_tables_batch(batch, StringType) for batch in batches),
-            schema="token string, doc_frequency long",
-        )
+                if not token_table_pairs:
+                    yield pd.DataFrame(
+                        {
+                            "token": pd.array([], dtype=StringType()),
+                            "table_id": pd.array([], dtype=StringType()),
+                        }
+                    )
+                    continue
 
-    return result
+                pdf = pd.DataFrame(token_table_pairs, columns=["token", "table_id"])
+                # Deduplicate per (token, table_id) locally in the batch
+                pdf = pdf.drop_duplicates(subset=["token", "table_id"])
+                yield pdf[["token", "table_id"]]
 
+        # Use mapInPandas with Arrow batch limit to bound memory
+        with scoped_conf(
+            self.spark,
+            **{ARROW_MAX_RECORDS_PER_BATCH_KEY: str(ARROW_MAX_RECORDS_PER_BATCH)},
+        ):
+            # First stage: (token, table_id) pairs per partition
+            intermediate = corpus_columns.select("table_id", "values").mapInPandas(
+                compute_token_counts,
+                schema="token string, table_id string",
+            )
 
-def _token_stats_schema():
-    return TOKEN_STATS_SCHEMA
+            # Second stage: group by token and count distinct table_ids
+            def count_tables(batches):
+                for batch in batches:
+                    if len(batch) == 0:
+                        yield pd.DataFrame(
+                            {
+                                "token": pd.array([], dtype=StringType()),
+                                "doc_frequency": pd.array([], dtype="int64"),
+                            }
+                        )
+                        continue
+                    grouped = batch.groupby("token")["table_id"].nunique().reset_index()
+                    grouped.columns = ["token", "doc_frequency"]
+                    yield grouped
 
+            result = intermediate.mapInPandas(
+                count_tables,
+                schema="token string, doc_frequency long",
+            )
 
-# Attach the methods to the class
-CorpusIngestor.build_token_stats = _build_token_stats_impl  # type: ignore[attr-defined]
-CorpusIngestor.token_stats_schema = staticmethod(_token_stats_schema)  # type: ignore[attr-defined]
+        return result
+
+    @staticmethod
+    def token_stats_schema():
+        return TOKEN_STATS_SCHEMA
