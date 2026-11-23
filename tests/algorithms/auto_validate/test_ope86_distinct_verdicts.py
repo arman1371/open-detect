@@ -105,7 +105,7 @@ def _per_cell_reference(dirty: pd.DataFrame) -> tuple[CellResult, ...]:
                             detector.config, pattern, fpr_t, cov_t, theta_c
                         ),
                         tooltip=(
-                            _make_tooltip(value, inferred, fpr_t, cov_t, theta_c, detector.config)
+                            _make_tooltip(value, inferred, fpr_t, cov_t, detector.config)
                             if is_error
                             else None
                         ),

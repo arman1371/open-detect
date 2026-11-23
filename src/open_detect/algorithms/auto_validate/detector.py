@@ -27,6 +27,8 @@ from __future__ import annotations
 from collections.abc import Iterable, Sequence
 from typing import Any
 
+import copy
+
 import pandas as pd
 
 from open_detect.algorithms.auto_validate.config import AutoValidateConfig
@@ -39,7 +41,6 @@ from open_detect.algorithms.base import (
     AlgorithmResult,
     CellResult,
     ErrorDetectionAlgorithm,
-    TooltipContent,
 )
 from open_detect.exceptions import ValidationError
 from open_detect.validation import _check_unknown_kwargs
@@ -200,7 +201,7 @@ class AutoValidateAlgorithm(ErrorDetectionAlgorithm):
                     # Unhashable value or empty text: resolve per cell
                     is_error = False if text is None else not _value_matches_groups(groups, text)
                 if is_error:
-                    tooltip = _make_tooltip(value, inferred, fpr_t, cov_t, theta_c, self.config)
+                    tooltip = _make_tooltip(value, inferred, fpr_t, cov_t, self.config)
                 else:
                     tooltip = None
                 cells.append(
@@ -225,10 +226,9 @@ def _make_tooltip(
     inferred: InferredPattern,
     fpr_t: float,
     cov_t: int,
-    theta_c: float,
     config: AutoValidateConfig,
-) -> TooltipContent:
-    """Generate tooltip content for a flagged cell.
+) -> dict[str, Any]:
+    """Generate tooltip content for a flagged cell as a plain dictionary.
 
     Translates the inferred pattern and cell value into a human-readable
     explanation with an actionable suggestion.
@@ -247,7 +247,7 @@ def _make_tooltip(
     suggestion = _build_suggestion(pattern_lang, received, fpr_t, cov_t)
 
     # Determine severity and category
-    severity = "error" if fpr_t < 0.1 else "warning"
+    severity = "error" if fpr_t < 0.01 else "warning"
     category = "format"
 
     # Gather details for the tooltip
@@ -255,7 +255,7 @@ def _make_tooltip(
         "inferred_pattern": pattern_lang,
         "fpr_t": fpr_t,
         "cov_t": cov_t,
-        "theta_c": theta_c,
+        "theta_c": inferred.theta_c,
         "variant": config.variant,
         "r": config.r,
         "m": config.m,
@@ -265,16 +265,16 @@ def _make_tooltip(
     # Available actions
     actions = ["copy_explanation", "view_evidence"]
 
-    return _tooltip_content(
-        title=f"Invalid {category}: {pattern_lang}",
-        severity=severity,
-        category=category,
-        expected_pattern=pattern_lang,
-        received_value=received,
-        suggestion=suggestion,
-        details=details,
-        actions=actions,
-    )
+    return {
+        "title": f"Invalid {category}: {pattern_lang}",
+        "severity": severity,
+        "category": category,
+        "expected_pattern": pattern_lang,
+        "received_value": received,
+        "suggestion": suggestion,
+        "details": copy.deepcopy(details),
+        "actions": list(actions),
+    }
 
 
 def _build_suggestion(
@@ -284,24 +284,11 @@ def _build_suggestion(
     cov_t: int,
 ) -> str:
     """Build an actionable suggestion for the tooltip."""
-    # Common patterns and suggestions
-    if "@" in pattern_lang and "." in pattern_lang:
-        # Email-like pattern
-        if "@@" in received or received.count("@") > 1:
-            return "Remove duplicate '@' symbol"
-        elif (
-            not received.endswith(".com")
-            and not received.endswith(".org")
-            and not received.endswith(".net")
-        ):
-            return "Use a valid domain extension (e.g. '.com', '.org', '.net')"
-    if "-" in pattern_lang and any(c.isdigit() for c in pattern_lang):
-        # Date-like pattern
-        return "Use YYYY-MM-DD format"
+    # Provide generic, non-prescriptive guidance based on the inferred pattern
     if fpr_t < 0.01:
-        return "Value exceeds 3σ threshold — verify data entry"
+        return "Value is a strong outlier — verify data entry"
     if cov_t < 3:
-        return "Low coverage — verify this is expected"
+        return "Pattern has low coverage in corpus — verify this is expected"
     return "Check value against expected format"
 
 
@@ -464,8 +451,8 @@ def _distinct_value_verdicts_groups(
     segments) produced by ``_infer_pattern_to_groups``. The verdict is computed
     once per distinct text representation and broadcast to every cell.
 
-    Empty strings are NOT null - they are valid text values that should be
-    checked against patterns (and will fail to match, getting flagged).
+    Empty strings (``""``) are included as valid cache keys since they are
+    non-null text values that should be checked against patterns (OPE-159 fix).
     """
     verdicts: dict[str, bool] = {}
     for value in series:
@@ -491,14 +478,16 @@ def _non_null_cells(
 ) -> list[CellResult]:
     """Emit one ``CellResult`` per non-null cell of ``series``.
 
-    Empty strings are NOT null - they are valid text values that should be
-    included as cells.
+    Empty strings (``""``) are included as non-null values since they are valid
+    text values that fail pattern matching on feasible columns. On infeasible
+    columns, empty strings are skipped (they are not emitted as cells).
     """
     cells: list[CellResult] = []
     for idx, value in series.items():
         if _is_null(value):
             continue
-        # Empty strings are non-null and should be included
+        # Empty strings are valid non-null values (OPE-159)
+        # Note: we don't need to convert value here since we're not using it
         cells.append(
             CellResult(
                 table_id=table_id,
@@ -557,15 +546,15 @@ def _tooltip_content(
     suggestion: str,
     details: dict[str, Any],
     actions: list[str],
-) -> TooltipContent:
-    """Create a TooltipContent instance."""
-    return TooltipContent(
-        title=title,
-        severity=severity,
-        category=category,
-        expected_pattern=expected_pattern,
-        received_value=received_value,
-        suggestion=suggestion,
-        details=details,
-        actions=actions,
-    )
+) -> dict[str, Any]:
+    """Create a tooltip as a plain dictionary for JSON serialization."""
+    return {
+        "title": title,
+        "severity": severity,
+        "category": category,
+        "expected_pattern": expected_pattern,
+        "received_value": received_value,
+        "suggestion": suggestion,
+        "details": copy.deepcopy(details),
+        "actions": list(actions),
+    }
