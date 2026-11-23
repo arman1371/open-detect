@@ -170,7 +170,7 @@ class UniDetect:
 
         if needs_tokens:
             with log_duration(logger, "build_token_stats"):
-                token_stats = ingestor.build_token_stats(_require_columns(columns_df))  # type: ignore[attr-defined]
+                token_stats = ingestor.build_token_stats(_require_columns(columns_df))
                 token_stats.write.format("delta").mode("overwrite").saveAsTable(
                     self.config.token_stats_fqn
                 )
@@ -272,10 +272,33 @@ class UniDetect:
                 # Ingest once and share across all detectors (requirement 5).
                 # If caller provided pre-ingested DataFrames, use those.
                 # Otherwise, perform single-scan ingestion and share across detectors.
+                # If only one of ingested_columns_df / ingested_pairs_df is supplied,
+                # ingest only the missing frame(s) to avoid re-ingestion.
                 if ingested_columns_df is not None or ingested_pairs_df is not None:
-                    # Backward compatible: caller provided pre-ingested DataFrames
+                    # Backward compatible: caller provided at least one pre-ingested DataFrame
                     columns_df = ingested_columns_df
                     pairs_df = ingested_pairs_df
+
+                    # If one is missing but needed, ingest it
+                    needs_columns = any(et in _SINGLE_COLUMN_TYPES for et in error_types)
+                    needs_pairs = ErrorType.FUNCTIONAL_DEPENDENCY in error_types
+
+                    if columns_df is None and needs_columns:
+                        # Only columns missing - ingest them
+                        ingestor = CorpusIngestor(
+                            self.spark,
+                            max_values_per_column=self.config.max_mpd_block_size * 200,
+                            max_fd_column_pairs_per_table=self.config.max_fd_column_pairs_per_table,
+                        )
+                        columns_df = ingestor.ingest_columns(table_names)
+                    elif pairs_df is None and needs_pairs:
+                        # Only pairs missing - ingest them
+                        ingestor = CorpusIngestor(
+                            self.spark,
+                            max_values_per_column=self.config.max_mpd_block_size * 200,
+                            max_fd_column_pairs_per_table=self.config.max_fd_column_pairs_per_table,
+                        )
+                        pairs_df = ingestor.ingest_column_pairs(table_names)
                 else:
                     # New behavior: ingest once, share across all detectors
                     ingestor = CorpusIngestor(
