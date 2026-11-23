@@ -49,37 +49,17 @@ def _check_expected_type(value: Any, expected_type: type, param_name: str) -> No
         if args and args[0] is str and isinstance(value, str):
             raise ValidationError("expected a sequence of str, got str; wrap in a list")
 
-    # Use the origin type (collections.abc.Sequence) for isinstance check.
-    # Parameterized generics like Sequence[str] cannot be used with isinstance.
-    # If there's no origin (concrete types like str, int, list), use expected_type directly.
-    check_type = origin if origin is not None else expected_type
+    # Determine the check type and whether we need a fallback
+    if origin is not None:
+        check_type = origin
+    else:
+        check_type = expected_type
 
-    if check_type is not None:
-        # Runtime type check. Parameterized generics like Sequence[str] are
-        # not valid isinstance targets; we already used the origin above.
-        # Only perform isinstance if check_type is a valid class.
-        try:
-            if not isinstance(value, check_type):
-                raise ValidationError(
-                    f"{param_name} must be of type {getattr(expected_type, '__name__', str(expected_type))}, "
-                    f"got {type(value).__name__}: {value!r}"
-                )
-        except TypeError:
-            # Parameterized generics (e.g., Sequence[str]) can't be used with
-            # isinstance. Fall back to checking against collections.abc.Sequence
-            # for sequence types, or the raw expected_type for others.
-            if expected_type is Sequence or origin is Sequence:
-                if not isinstance(value, Sequence):
-                    raise ValidationError(
-                        f"{param_name} must be a sequence, "
-                        f"got {type(value).__name__}: {value!r}"
-                    ) from None
-            elif origin is not None:
-                # For other parameterized generics, we already validated the
-                # container type via the origin check
-                pass
-            else:
-                raise
+    if not isinstance(value, check_type):
+        raise ValidationError(
+            f"{param_name} must be of type {getattr(expected_type, '__name__', str(expected_type))}, "
+            f"got {type(value).__name__}: {value!r}"
+        )
 
 
 def _validate_literal_value(
