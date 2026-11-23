@@ -384,7 +384,7 @@ class CorpusIngestor:
         return frames
 
 
-def _compute_token_counts_batch(batch, StringType):
+def _compute_token_counts_batch(batch, string_type):
     """Process a single batch for token counts.
 
     Returns an empty DataFrame or a DataFrame with token,table_id columns.
@@ -402,8 +402,8 @@ def _compute_token_counts_batch(batch, StringType):
     if not token_table_pairs:
         return pd.DataFrame(
             {
-                "token": pd.array([], dtype=StringType()),
-                "table_id": pd.array([], dtype=StringType()),
+                "token": pd.array([], dtype=string_type),
+                "table_id": pd.array([], dtype=string_type),
             }
         )
 
@@ -413,12 +413,12 @@ def _compute_token_counts_batch(batch, StringType):
     return pdf[["token", "table_id"]]
 
 
-def _count_tables_batch(batch, StringType):
+def _count_tables_batch(batch, string_type):
     """Process a single batch for counting distinct tables per token."""
     if len(batch) == 0:
         return pd.DataFrame(
             {
-                "token": pd.array([], dtype=StringType()),
+                "token": pd.array([], dtype=string_type),
                 "doc_frequency": pd.array([], dtype="int64"),
             }
         )
@@ -447,15 +447,17 @@ def _build_token_stats_impl(self, corpus_columns: DataFrame) -> DataFrame:
         self.spark,
         **{ARROW_MAX_RECORDS_PER_BATCH_KEY: str(ARROW_MAX_RECORDS_PER_BATCH)},
     ):
+        from pyspark.sql.types import StringType as string_type
+
         # First stage: (token, table_id) pairs per partition
         intermediate = corpus_columns.select("table_id", "values").mapInPandas(
-            lambda batches: (_compute_token_counts_batch(batch, StringType) for batch in batches),
+            lambda batches: (_compute_token_counts_batch(batch, string_type) for batch in batches),
             schema="token string, table_id string",
         )
 
         # Second stage: group by token and count distinct table_ids
         result = intermediate.mapInPandas(
-            lambda batches: (_count_tables_batch(batch, StringType) for batch in batches),
+            lambda batches: (_count_tables_batch(batch, string_type) for batch in batches),
             schema="token string, doc_frequency long",
         )
 
