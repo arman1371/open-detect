@@ -133,7 +133,9 @@ class UniDetect:
 
         if needs_tokens:
             with log_duration(logger, "build_token_stats"):
-                token_stats = ingestor.build_token_stats(_require_columns(columns_df))
+                # Use the same max_tokens default as load_token_stats_map() to ensure
+                # corpus building and detection use the same vocabulary policy.
+                token_stats = ingestor.build_token_stats(_require_columns(columns_df), max_tokens=500_000)
                 token_stats.write.format("delta").mode("overwrite").saveAsTable(
                     self.config.token_stats_fqn
                 )

@@ -202,13 +202,21 @@ class CorpusIngestor:
             frames.append(per_pair)
         return frames
 
-    def build_token_stats(self, corpus_columns: DataFrame) -> DataFrame:
+    def build_token_stats(self, corpus_columns: DataFrame, max_tokens: int | None = 500_000) -> DataFrame:
         """Global token -> distinct-table document-frequency (``Prev(C)`` input).
 
         A token's document frequency is the number of *distinct tables* (not
         rows/values) it appears in, matching the paper's ``Prev`` definition
         (Sec. 3.3: "the number of times the tokens in C occur in other
         tables").
+
+        Parameters
+        ----------
+        max_tokens:
+            Maximum number of top tokens to keep (by document frequency).
+            Defaults to 500k to match :meth:`CorpusStatsStore.load_token_stats_map`
+            and avoid OOM on driver during detection. Set to ``None`` to keep
+            all tokens (requires sufficient driver memory).
         """
         from pyspark.sql import functions as F
 
@@ -222,7 +230,12 @@ class CorpusIngestor:
             .select("table_id", F.explode(tokenize_udf(F.lower(F.col("value")))).alias("token"))
             .dropDuplicates(["table_id", "token"])
         )
-        return exploded.groupBy("token").agg(F.count("*").alias("doc_frequency"))
+        token_stats = exploded.groupBy("token").agg(F.count("*").alias("doc_frequency"))
+
+        if max_tokens is not None:
+            token_stats = token_stats.orderBy(F.col("doc_frequency").desc()).limit(max_tokens)
+
+        return token_stats
 
     @staticmethod
     def token_stats_schema():
