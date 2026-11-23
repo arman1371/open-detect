@@ -38,8 +38,8 @@ def _check_expected_type(value: Any, expected_type: type, param_name: str) -> No
     Uses the already-computed origin for runtime type checks to avoid
     TypeError from parameterized generics.
     """
-    from typing import get_args
     from collections.abc import Sequence
+    from typing import get_args
 
     origin = get_origin(expected_type)
 
@@ -73,7 +73,7 @@ def _check_expected_type(value: Any, expected_type: type, param_name: str) -> No
                     raise ValidationError(
                         f"{param_name} must be a sequence, "
                         f"got {type(value).__name__}: {value!r}"
-                    )
+                    ) from None
             elif origin is not None:
                 # For other parameterized generics, we already validated the
                 # container type via the origin check
