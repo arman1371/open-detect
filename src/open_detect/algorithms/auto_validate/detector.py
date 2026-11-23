@@ -463,12 +463,16 @@ def _distinct_value_verdicts_groups(
     Works with the groups representation (list of groups, each a list of ordered
     segments) produced by ``_infer_pattern_to_groups``. The verdict is computed
     once per distinct text representation and broadcast to every cell.
+
+    Empty strings are NOT null - they are valid text values that should be
+    checked against patterns (and will fail to match, getting flagged).
     """
     verdicts: dict[str, bool] = {}
     for value in series:
         text = _value_text(value)
         if text is None:
             continue
+        # Empty strings are non-null and should be included in the verdict cache
         if text in verdicts:
             continue
         verdicts[text] = not _value_matches_groups(groups, text)
@@ -485,14 +489,16 @@ def _non_null_cells(
     score: float,
     evidence: dict[str, Any],
 ) -> list[CellResult]:
-    """Emit one ``CellResult`` per non-null cell of ``series``."""
+    """Emit one ``CellResult`` per non-null cell of ``series``.
+
+    Empty strings are NOT null - they are valid text values that should be
+    included as cells.
+    """
     cells: list[CellResult] = []
     for idx, value in series.items():
         if _is_null(value):
             continue
-        text = value if isinstance(value, str) else str(value)
-        if not text:
-            continue
+        # Empty strings are non-null and should be included
         cells.append(
             CellResult(
                 table_id=table_id,

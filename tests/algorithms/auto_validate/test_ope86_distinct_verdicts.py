@@ -75,9 +75,8 @@ def _per_cell_reference(dirty: pd.DataFrame) -> tuple[CellResult, ...]:
     The only difference from the optimized path is the missing dedup: the
     verdict is recomputed for every row.
 
-    Neither branch treats empty strings specially, so the oracle stays faithful
-    to the detector on ``main``. Blank cells are dropped only in the infeasible
-    path, by :func:`_non_null_cells`.
+    With the OPE-159 fix, empty strings are treated as non-null values in both
+    feasible and infeasible paths.
     """
     detector = _detector()
     cells: list[CellResult] = []
@@ -92,6 +91,7 @@ def _per_cell_reference(dirty: pd.DataFrame) -> tuple[CellResult, ...]:
             for idx, value in series.items():
                 if _is_null(value):
                     continue
+                # Empty strings are non-null and should be included (OPE-159)
                 is_error = not _value_matches(pattern, value)
                 cells.append(
                     CellResult(
@@ -273,16 +273,21 @@ def test_empty_dataframe() -> None:
     assert _detector().detect(pd.DataFrame(), table_id=TABLE_ID).cells == ()
 
 
-def test_infeasible_column_skips_empty_strings() -> None:
+def test_infeasible_column_includes_empty_strings_as_non_null() -> None:
     """With no feasible pattern the column goes through ``_non_null_cells``,
 
-    which drops nulls *and* blanks, so no cell is emitted here at all. This is
-    an infeasible-path test; it says nothing about ``""`` on a feasible column.
+    which now includes empty strings as non-null cells (OPE-159 fix).
+    Empty strings are not flagged as errors (no pattern to match against).
     """
     dirty = pd.DataFrame({"email": ["", "", None, ""]})
     assert _detector().infer_pattern(dirty["email"]) is None, "fixture must be infeasible"
-    assert _detect(dirty) == ()
-    assert _detect(dirty) == _per_cell_reference(dirty)
+    cells = _detect(dirty)
+    # 3 empty strings + 1 None -> 3 cells (empty strings are non-null)
+    # No pattern inferred -> not flagged as errors
+    assert len(cells) == 3
+    assert all(not c.is_error for c in cells)
+    assert all(c.column_name == "email" for c in cells)
+    assert cells == _per_cell_reference(dirty)
 
 
 def _two_distinct_frame(rows: int) -> pd.DataFrame:
