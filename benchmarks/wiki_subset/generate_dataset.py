@@ -780,8 +780,7 @@ def _spelling_fp_variants() -> list[dict]:
             expected_significant=False,
             severity="paper_example",
             description=(
-                "Consecutive amendment numerals: syntactically close by design, not "
-                "misspellings."
+                "Consecutive amendment numerals: syntactically close by design, not misspellings."
             ),
             columns=["title"],
             rows=[

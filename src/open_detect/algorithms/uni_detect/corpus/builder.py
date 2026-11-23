@@ -24,6 +24,9 @@ import math
 import weakref
 from typing import TYPE_CHECKING
 
+import pandas as pd
+from pyspark.sql.types import StructType
+
 from open_detect.algorithms.uni_detect.config import UniDetectConfig
 from open_detect.algorithms.uni_detect.core.enums import ErrorType
 from open_detect.algorithms.uni_detect.corpus.build_metadata import write_build_config
@@ -53,10 +56,52 @@ logger = get_logger(__name__)
 MIN_NUMERIC_FRACTION = 0.8
 
 
-def _stats_schema_without_error_type():
-    from pyspark.sql.types import StructType
-
+# Schema for the output of mapInPandas functions (without error_type, added later).
+# Derived from the canonical CORPUS_STATS_SCHEMA so the builder's mapInPandas
+# output, the persisted Delta table, and the read-side store all agree on the
+# weight column type (LongType). Keeping one source of truth avoids the
+# float-accumulation bug where integer counts were widened to DoubleType by
+# mapInPandas and persisted as doubles despite the LongType declaration.
+def _stats_schema_without_error_type() -> StructType:
     return StructType([f for f in CORPUS_STATS_SCHEMA.fields if f.name != "error_type"])
+
+
+def _aggregate_scored_rows(rows: list[tuple]) -> pd.DataFrame:
+    """Aggregate scored rows by (feature_bucket, theta_before, theta_after, table_id)
+    and compute weight = count (number of original corpus rows in each group).
+
+    In batch_score, we sum weight for matching rows; sum(count) = original row count.
+
+    Returns an empty DataFrame with correct schema if rows is empty.
+    """
+    if not rows:
+        return pd.DataFrame(
+            {
+                "feature_bucket": pd.Series(dtype="string"),
+                "theta_before": pd.Series(dtype="float64"),
+                "theta_after": pd.Series(dtype="float64"),
+                "weight": pd.Series(dtype="int64"),
+                "table_id": pd.Series(dtype="string"),
+            }
+        )
+
+    # Aggregate by (feature_bucket, theta_before, theta_after, table_id)
+    # and compute weight = count (number of original corpus rows in this group).
+    # In batch_score, we sum weight for matching rows; sum(count) = original row count.
+    df = pd.DataFrame(
+        rows,
+        columns=["table_id", "feature_bucket", "theta_before", "theta_after"],
+    )
+    # Group and compute weight = count (as int64 for LongType compatibility)
+    grouped = (
+        df.groupby(["feature_bucket", "theta_before", "theta_after", "table_id"])
+        .size()
+        .reset_index(name="weight")
+    )
+    # Ensure weight is int64 (LongType)
+    grouped["weight"] = grouped["weight"].astype("int64")
+    # Select columns in the correct order
+    return grouped[["feature_bucket", "theta_before", "theta_after", "weight", "table_id"]]
 
 
 class CorpusStatsBuilder:
@@ -93,20 +138,38 @@ class CorpusStatsBuilder:
         )
 
     def build_spelling_stats(self, corpus_columns: DataFrame) -> DataFrame:
+        from pyspark.sql import functions as F
+
+        from open_detect.algorithms.uni_detect.core.enums import ColumnDataType
+
+        # P-14: spelling runs on non-numeric columns
+        numeric_types = {ColumnDataType.INTEGER, ColumnDataType.FLOAT}
+        filtered_columns = corpus_columns.where(
+            F.col("column_data_type").isin(
+                [t.value for t in ColumnDataType if t not in numeric_types]
+            )
+        )
         return self._build_single_column_stats(
-            corpus_columns, error_type=ErrorType.SPELLING, token_document_frequency={}
+            filtered_columns, error_type=ErrorType.SPELLING, token_document_frequency={}
         )
 
     def build_outlier_stats(self, corpus_columns: DataFrame) -> DataFrame:
+        from pyspark.sql import functions as F
+
+        from open_detect.algorithms.uni_detect.core.enums import ColumnDataType
+
+        # P-14: outlier runs on numeric columns only
+        numeric_types = {ColumnDataType.INTEGER, ColumnDataType.FLOAT}
+        filtered_columns = corpus_columns.where(
+            F.col("column_data_type").isin([t.value for t in numeric_types])
+        )
         return self._build_single_column_stats(
-            corpus_columns, error_type=ErrorType.NUMERIC_OUTLIER, token_document_frequency={}
+            filtered_columns, error_type=ErrorType.NUMERIC_OUTLIER, token_document_frequency={}
         )
 
     def build_fd_stats(
         self, corpus_pairs: DataFrame, token_document_frequency: dict[str, int]
     ) -> DataFrame:
-        import pandas as pd
-
         cfg = self.config
         broadcast_tdf = self.spark.sparkContext.broadcast(token_document_frequency)
 
@@ -116,7 +179,8 @@ class CorpusStatsBuilder:
             tdf = broadcast_tdf.value
             for batch in batches:
                 counts = FailureCounts()
-                out_bucket, out_before, out_after, out_table = [], [], [], []
+                # Collect scored results first
+                rows = []
                 for tid, lhs_vals, rhs_vals, n, rhs_idx in zip(
                     batch["table_id"],
                     batch["lhs_values"],
@@ -137,23 +201,20 @@ class CorpusStatsBuilder:
                     if scored is None:
                         continue
                     bucket, outcome = scored
-                    out_table.append(tid)
-                    out_bucket.append(bucket.as_key())
-                    out_before.append(outcome.theta_before)
-                    out_after.append(outcome.theta_after)
+                    rows.append(
+                        (
+                            tid,
+                            bucket.as_key(),
+                            outcome.theta_before,
+                            outcome.theta_after,
+                        )
+                    )
 
                 tracker.flush(counts)
-                yield pd.DataFrame(
-                    {
-                        "feature_bucket": out_bucket,
-                        "theta_before": out_before,
-                        "theta_after": out_after,
-                        "table_id": out_table,
-                    }
-                )
+                # Use shared helper for aggregation and empty DataFrame construction
+                yield _aggregate_scored_rows(rows)
 
         result_schema = _stats_schema_without_error_type()
-        from pyspark.sql import functions as F
         with (
             log_duration(logger, "build_fd_stats"),
             scoped_conf(
@@ -161,6 +222,8 @@ class CorpusStatsBuilder:
                 **{ARROW_MAX_RECORDS_PER_BATCH_KEY: str(ARROW_MAX_RECORDS_PER_BATCH)},
             ),
         ):
+            from pyspark.sql import functions as F
+
             stats = corpus_pairs.select(
                 "table_id", "lhs_values", "rhs_values", "num_rows", "rhs_column_index"
             ).mapInPandas(compute, schema=result_schema)
@@ -176,7 +239,6 @@ class CorpusStatsBuilder:
         error_type: ErrorType,
         token_document_frequency: dict[str, int],
     ) -> DataFrame:
-        import pandas as pd
         from pyspark.sql import functions as F
 
         cfg = self.config
@@ -188,7 +250,8 @@ class CorpusStatsBuilder:
             tdf = broadcast_tdf.value
             for batch in batches:
                 counts = FailureCounts()
-                out_bucket, out_before, out_after, out_table = [], [], [], []
+                # Collect scored results first
+                rows = []
                 for tid, vals, n, idx in zip(
                     batch["table_id"],
                     batch["values"],
@@ -202,20 +265,18 @@ class CorpusStatsBuilder:
                     if scored is None:
                         continue
                     bucket, outcome = scored
-                    out_table.append(tid)
-                    out_bucket.append(bucket.as_key())
-                    out_before.append(outcome.theta_before)
-                    out_after.append(outcome.theta_after)
+                    rows.append(
+                        (
+                            tid,
+                            bucket.as_key(),
+                            outcome.theta_before,
+                            outcome.theta_after,
+                        )
+                    )
 
                 tracker.flush(counts)
-                yield pd.DataFrame(
-                    {
-                        "feature_bucket": out_bucket,
-                        "theta_before": out_before,
-                        "theta_after": out_after,
-                        "table_id": out_table,
-                    }
-                )
+                # Use shared helper for aggregation and empty DataFrame construction
+                yield _aggregate_scored_rows(rows)
 
         result_schema = _stats_schema_without_error_type()
         # Keep Arrow limit active through the ENTIRE pipeline: mapInPandas, cache
@@ -302,6 +363,11 @@ class CorpusStatsBuilder:
                 stats.unpersist()
 
     def _write(self, stats: DataFrame, mode: str, error_types: Sequence[ErrorType] | None) -> None:
+        from pyspark.sql import functions as F
+
+        from open_detect.logging_utils import get_logger
+
+        logger = get_logger(__name__)
         fqn = self.config.corpus_stats_fqn
         table_already_exists = self.spark.catalog.tableExists(fqn)
 
@@ -314,6 +380,33 @@ class CorpusStatsBuilder:
             error_types = [
                 ErrorType(r["error_type"]) for r in stats.select("error_type").distinct().collect()
             ]
+
+        # Write-side migration: if table exists and is missing weight column,
+        # backfill ALL legacy partitions with weight=1 before writing new statistics.
+        # This must happen as a single schema evolution step to avoid leaving
+        # other partitions with null weights (which would break load() fallback).
+        # Use additive schema evolution (overwriteSchema=True) to add the column
+        # to the entire table atomically, ensuring no rows have null weights.
+        if table_already_exists:
+            existing_table = self.spark.table(fqn)
+            if "weight" not in existing_table.columns:
+                logger.warning(
+                    "Corpus statistics table %s is missing 'weight' column (built before OPE-92). "
+                    "Backfilling ALL legacy partitions with weight=1 (LongType) before writing new statistics.",
+                    fqn,
+                )
+                # Add weight column with default 1 explicitly cast to LongType
+                # to match CORPUS_STATS_SCHEMA and builder output
+                weight_default = F.lit(1).cast("long")
+                existing_table = existing_table.withColumn("weight", weight_default)
+                # Use overwriteSchema for additive schema evolution (adding new column)
+                # This is safe here: we're adding a column with a default value to ALL rows
+                existing_table.write.format("delta").mode("overwrite").option(
+                    "overwriteSchema", "true"
+                ).saveAsTable(fqn)
+                # Reload table to get updated schema with weight column
+                existing_table = self.spark.table(fqn)
+
         writer = stats.write.format("delta").mode(mode)
         if table_already_exists:
             # Re-declaring `.partitionBy(...)` (and `overwriteSchema`) against
@@ -324,8 +417,9 @@ class CorpusStatsBuilder:
             # internal catalog-sync assertion. Unity Catalog is unaffected,
             # but omitting the redundant options is correct everywhere.
             if mode == "overwrite" and error_types:
-                predicate = " OR ".join(f"error_type = '{et.value}'" for et in error_types)
-                writer = writer.option("replaceWhere", predicate)
+                # Legacy corpus migration is handled atomically via backfill
+                # (overwriteSchema=true on the entire table). No replaceWhere needed.
+                pass
         else:
             writer = writer.partitionBy("error_type").option("overwriteSchema", "true")
         writer.saveAsTable(fqn)

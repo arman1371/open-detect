@@ -71,7 +71,12 @@ class TestRequireColumns:
 class _NoCandidatesDetector(BaseDetector):
     error_type = ErrorType.UNIQUENESS
 
-    def extract_candidates(self, table_names):
+    def extract_candidates(
+        self,
+        table_names,
+        ingested_columns_df=None,
+        ingested_pairs_df=None,
+    ):
         candidates = MagicMock()
         candidates.count.return_value = 0
         return candidates

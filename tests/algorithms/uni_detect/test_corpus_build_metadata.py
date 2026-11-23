@@ -35,6 +35,7 @@ class FakeSpark:
         self.properties = dict(properties or {})
         self.statements: list[str] = []
         self.conf = FakeConf()
+        self.tables = {}
 
     def sql(self, statement: str):
         self.statements.append(statement)
@@ -50,6 +51,22 @@ class FakeSpark:
                 self.properties[key] = value.rstrip("'")
             return MagicMock()
         raise AssertionError(statement)
+
+    def table(self, fqn: str):
+        if fqn not in self.tables:
+            mock_table = MagicMock()
+            mock_table.columns = ["weight", "error_type"]  # Include weight to skip migration
+            mock_table.where.return_value = MagicMock()
+            mock_table.where.return_value.count.return_value = 0
+            mock_table.where.return_value.withColumn.return_value = MagicMock()
+            mock_table.where.return_value.withColumn.return_value.write.format.return_value.mode.return_value.option.return_value.saveAsTable = (
+                MagicMock()
+            )
+            self.tables[fqn] = mock_table
+        return self.tables[fqn]
+
+    def catalog(self):
+        return MagicMock()
 
 
 class FakeConf:
@@ -202,9 +219,9 @@ class TestWiring:
         CorpusStatsBuilder(spark, config).write(stats, error_types=[ErrorType.SPELLING])
 
         stats.select.assert_not_called()
-        stats.write.format.return_value.mode.return_value.option.assert_called_once_with(
-            "replaceWhere", "error_type = 'spelling'"
-        )
+        # replaceWhere is no longer used — legacy migration is handled atomically
+        # via the backfill with overwriteSchema=true on the entire table
+        stats.write.format.return_value.mode.return_value.option.assert_not_called()
         assert read_build_config(spark, config.corpus_stats_fqn, ErrorType.SPELLING) == (
             config.build_fingerprint()
         )
