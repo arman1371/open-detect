@@ -14,7 +14,6 @@ This is the single entry point most users need:
 from __future__ import annotations
 
 from contextlib import suppress
-from functools import reduce
 from typing import TYPE_CHECKING, Any
 
 from pyspark import StorageLevel
@@ -23,7 +22,10 @@ from open_detect.algorithms.uni_detect.catalog import ensure_schema_exists
 from open_detect.algorithms.uni_detect.config import UniDetectConfig
 from open_detect.algorithms.uni_detect.core.enums import ErrorType
 from open_detect.algorithms.uni_detect.corpus.builder import CorpusStatsBuilder
-from open_detect.algorithms.uni_detect.corpus.ingestion import CorpusIngestor
+from open_detect.algorithms.uni_detect.corpus.ingestion import (
+    INGESTION_REPARTITION_FACTOR,
+    CorpusIngestor,
+)
 from open_detect.algorithms.uni_detect.detectors import (
     FunctionalDependencyDetector,
     NumericOutlierDetector,
@@ -43,6 +45,10 @@ logger = get_logger(__name__)
 
 _SINGLE_COLUMN_TYPES = (ErrorType.UNIQUENESS, ErrorType.NUMERIC_OUTLIER, ErrorType.SPELLING)
 _TOKEN_DEPENDENT_TYPES = (ErrorType.UNIQUENESS, ErrorType.FUNCTIONAL_DEPENDENCY)
+# Types that need numeric columns only (outlier)
+_NUMERIC_ONLY_TYPES = (ErrorType.NUMERIC_OUTLIER,)
+# Types that need non-numeric columns only (spelling)
+_NON_NUMERIC_ONLY_TYPES = (ErrorType.SPELLING,)
 
 
 def _require_columns(columns_df: DataFrame | None) -> DataFrame:
@@ -52,6 +58,23 @@ def _require_columns(columns_df: DataFrame | None) -> DataFrame:
             "The ingested columns DataFrame is missing for a column-based error type; "
             "this indicates an inconsistent error_types selection."
         )
+    return columns_df
+
+
+def _filter_by_column_type(columns_df: DataFrame, error_type: ErrorType) -> DataFrame:
+    """Filter columns by their inferred data type for the given error type."""
+    from pyspark.sql import functions as F
+
+    from open_detect.algorithms.uni_detect.core.enums import ColumnDataType
+
+    numeric_types = {ColumnDataType.INTEGER, ColumnDataType.FLOAT}
+    if error_type in _NUMERIC_ONLY_TYPES:
+        # Numeric outlier: only integer, float columns
+        return columns_df.where(F.col("column_data_type").isin([t.value for t in numeric_types]))
+    elif error_type in _NON_NUMERIC_ONLY_TYPES:
+        # Spelling: only string, mixed_alphanumeric columns (not numeric)
+        return columns_df.where(~F.col("column_data_type").isin([t.value for t in numeric_types]))
+    # Uniqueness and FD: all types
     return columns_df
 
 
@@ -67,8 +90,6 @@ class UniDetect:
             ErrorType.SPELLING: SpellingDetector(self.spark, config),
             ErrorType.FUNCTIONAL_DEPENDENCY: FunctionalDependencyDetector(self.spark, config),
         }
-        self._result_frame: DataFrame | None = None
-        self._persisted: list[DataFrame] = []
 
     def _validate_inputs(
         self,
@@ -122,14 +143,32 @@ class UniDetect:
         )
 
         columns_df = None
+        pairs_df = None
         token_map: dict[str, int] = {}
         needs_columns = any(et in _SINGLE_COLUMN_TYPES for et in error_types)
+        needs_pairs = ErrorType.FUNCTIONAL_DEPENDENCY in error_types
         needs_tokens = any(et in _TOKEN_DEPENDENT_TYPES for et in error_types)
 
-        if needs_columns or needs_tokens:
+        # Use single-scan ingestion with pairs when both columns and pairs are needed
+        if (needs_columns or needs_tokens) and needs_pairs:
+            with log_duration(logger, "ingest_columns_with_pairs"):
+                columns_df, pairs_df = ingestor.ingest_columns_with_pairs(table_names)
+                if columns_df is not None:
+                    columns_df = columns_df.persist(StorageLevel.DISK_ONLY)
+                    columns_df.count()  # materialize the cache deterministically
+                if pairs_df is not None:
+                    pairs_df = pairs_df.persist(StorageLevel.DISK_ONLY)
+                    pairs_df.count()  # materialize the cache deterministically
+        elif needs_columns or needs_tokens:
             with log_duration(logger, "ingest_columns"):
-                columns_df = ingestor.ingest_columns(table_names).cache()
+                columns_df = ingestor.ingest_columns(table_names).persist(StorageLevel.DISK_ONLY)
                 columns_df.count()  # materialize the cache deterministically
+        elif needs_pairs:
+            with log_duration(logger, "ingest_column_pairs"):
+                pairs_df = ingestor.ingest_column_pairs(table_names).persist(
+                    StorageLevel.DISK_ONLY
+                )
+                pairs_df.count()  # materialize the cache deterministically
 
         if needs_tokens:
             with log_duration(logger, "build_token_stats"):
@@ -144,13 +183,17 @@ class UniDetect:
 
         for error_type in error_types:
             if error_type is ErrorType.UNIQUENESS:
-                stats = builder.build_uniqueness_stats(_require_columns(columns_df), token_map)
+                filtered_columns = _filter_by_column_type(_require_columns(columns_df), error_type)
+                stats = builder.build_uniqueness_stats(filtered_columns, token_map)
             elif error_type is ErrorType.NUMERIC_OUTLIER:
-                stats = builder.build_outlier_stats(_require_columns(columns_df))
+                filtered_columns = _filter_by_column_type(_require_columns(columns_df), error_type)
+                stats = builder.build_outlier_stats(filtered_columns)
             elif error_type is ErrorType.SPELLING:
-                stats = builder.build_spelling_stats(_require_columns(columns_df))
+                filtered_columns = _filter_by_column_type(_require_columns(columns_df), error_type)
+                stats = builder.build_spelling_stats(filtered_columns)
             elif error_type is ErrorType.FUNCTIONAL_DEPENDENCY:
-                pairs_df = ingestor.ingest_column_pairs(table_names)
+                # pairs_df is already available from single-scan ingestion
+                assert pairs_df is not None, "pairs_df must be available for FUNCTIONAL_DEPENDENCY"
                 stats = builder.build_fd_stats(pairs_df, token_map)
             else:  # pragma: no cover - exhaustive over ErrorType
                 raise ValidationError(f"Unknown error type: {error_type}")
@@ -158,6 +201,8 @@ class UniDetect:
 
         if columns_df is not None:
             columns_df.unpersist()
+        if pairs_df is not None:
+            pairs_df.unpersist()
 
     # ------------------------------------------------------------------
     # Online: detection phase
@@ -166,6 +211,8 @@ class UniDetect:
         self,
         table_names: Sequence[str],
         error_types: Sequence[ErrorType] | None = None,
+        ingested_columns_df: DataFrame | None = None,
+        ingested_pairs_df: DataFrame | None = None,
         **kwargs: Any,
     ) -> DataFrame:
         """Score ``table_names`` for the requested error types and rank all results together.
@@ -177,6 +224,22 @@ class UniDetect:
         The returned DataFrame is persisted and materialized once.  After
         the caller finishes using the result they should call :meth:`release`
         on the ``UniDetect`` instance to free the cached detector frames.
+
+        Parameters
+        ----------
+        table_names:
+            Tables to scan for errors.
+        error_types:
+            Which error types to detect. Defaults to all four.
+        ingested_columns_df:
+            Pre-ingested columns DataFrame from a shared ingestion call.
+            If provided, detectors will use this instead of re-ingesting.
+            If not provided, ingestion happens ONCE per detect() call and is shared
+            across all detectors (requirement 5).
+        ingested_pairs_df:
+            Pre-ingested column pairs DataFrame for FD detection.
+            If provided, FD detector will use this instead of re-ingesting.
+            If not provided, FD pairs are built from the shared single-scan ingestion.
 
         Raises
         ------
@@ -197,6 +260,9 @@ class UniDetect:
         error_types = tuple(error_types) if error_types else tuple(ErrorType)
         frames = []
         result = None
+        # Ingested DataFrames that we created and need to unpersist at the end
+        _shared_columns_df = None
+        _shared_pairs_df = None
         try:
             # Keep Arrow limit active through ALL detector operations:
             # extract_candidates (mapInPandas), candidate materialization (count),
@@ -205,19 +271,80 @@ class UniDetect:
                 self.spark,
                 **{ARROW_MAX_RECORDS_PER_BATCH_KEY: str(ARROW_MAX_RECORDS_PER_BATCH)},
             ):
+                # Ingest once and share across all detectors (requirement 5).
+                # If caller provided pre-ingested DataFrames, use those.
+                # Otherwise, perform single-scan ingestion and share across detectors.
+                if ingested_columns_df is not None or ingested_pairs_df is not None:
+                    # Backward compatible: caller provided pre-ingested DataFrames
+                    columns_df = ingested_columns_df
+                    pairs_df = ingested_pairs_df
+                else:
+                    # New behavior: ingest once, share across all detectors
+                    ingestor = CorpusIngestor(
+                        self.spark,
+                        max_values_per_column=self.config.max_mpd_block_size * 200,
+                        max_fd_column_pairs_per_table=self.config.max_fd_column_pairs_per_table,
+                    )
+                    # Check if any detector needs column data (uniqueness, outlier, spelling)
+                    needs_columns = any(et in _SINGLE_COLUMN_TYPES for et in error_types)
+                    # Check if FD detector is requested
+                    needs_pairs = ErrorType.FUNCTIONAL_DEPENDENCY in error_types
+
+                    if needs_columns and needs_pairs:
+                        # Both columns and pairs needed - use single-scan ingestion with pairs
+                        columns_df, pairs_df = ingestor.ingest_columns_with_pairs(table_names)
+                    elif needs_columns:
+                        # Only columns needed
+                        columns_df = ingestor.ingest_columns(table_names)
+                        pairs_df = None
+                    elif needs_pairs:
+                        # Only pairs needed - ingest pairs directly
+                        columns_df = None
+                        pairs_df = ingestor.ingest_column_pairs(table_names)
+                    else:
+                        columns_df = None
+                        pairs_df = None
+
+                    # Repartition to spread work across cores (requirement 4) and persist DISK_ONLY
+                    if columns_df is not None:
+                        default_parallelism = self.spark.sparkContext.defaultParallelism
+                        target_partitions = default_parallelism * INGESTION_REPARTITION_FACTOR
+                        columns_df = columns_df.repartition(target_partitions)
+                        columns_df = columns_df.persist(StorageLevel.DISK_ONLY)
+                        columns_df.count()  # materialize cache
+                        _shared_columns_df = columns_df
+
+                    if pairs_df is not None:
+                        default_parallelism = self.spark.sparkContext.defaultParallelism
+                        target_partitions = default_parallelism * INGESTION_REPARTITION_FACTOR
+                        pairs_df = pairs_df.repartition(target_partitions)
+                        pairs_df = pairs_df.persist(StorageLevel.DISK_ONLY)
+                        pairs_df.count()  # materialize cache
+                        _shared_pairs_df = pairs_df
+
                 for et in error_types:
-                    frame = self._detectors[et].detect(table_names)
+                    frame = self._detectors[et].detect(
+                        table_names,
+                        ingested_columns_df=columns_df,
+                        ingested_pairs_df=pairs_df,
+                    )
                     frames.append(frame)
-                result = reduce(lambda a, b: a.unionByName(b), frames)
+                # Balanced union (not left-deep reduce) so the final merge plan is
+                # ceil(log2(N)) deep regardless of how many detectors are enabled.
+                # Using balanced_union from ingestion module for consistency.
+                from open_detect.algorithms.uni_detect.corpus.ingestion import (
+                    balanced_union,
+                )
+
+                result = balanced_union(frames)
                 # Order first, then persist and materialize the *final* frame.  Sorting
                 # after persist() would return an unpersisted frame, so the caller's
                 # count/show/write would re-execute the scoring stage to re-materialize
                 # it -- the very thing this cache lifecycle exists to prevent.
                 # The per-detector caches are released only after the union is cached.
                 result = result.orderBy(F.col("lr_ratio").asc())
-                result = result.persist(StorageLevel.MEMORY_AND_DISK)
+                result = result.persist(StorageLevel.DISK_ONLY)
                 result.count()
-                self._result_frame = self._track(result)
                 return result
         except Exception:
             # Clean up detector results on failure - this includes any frames
@@ -236,28 +363,23 @@ class UniDetect:
             # error to avoid memory leaks from accumulated persisted frames.
             for detector in (self._detectors[et] for et in error_types):
                 detector.release()
+            # Unpersist shared ingestion DataFrames we created
+            if _shared_columns_df is not None:
+                with suppress(Exception):
+                    _shared_columns_df.unpersist()
+            if _shared_pairs_df is not None:
+                with suppress(Exception):
+                    _shared_pairs_df.unpersist()
 
     def release(self) -> None:
         """Release all cached detector resources.
 
         After calling :meth:`detect` the underlying detectors keep persisted
         frames in memory (``_persisted``).  Call this method when the result is
-        no longer needed to avoid memory leaks.  Also releases the unioned
-        result frame returned by the last ``detect()`` call.
+        no longer needed to avoid memory leaks.
         """
-        # Release the unioned result frame if tracked
-        if self._result_frame is not None:
-            with suppress(Exception):
-                self._result_frame.unpersist()
-            self._result_frame = None
-        # Release detector-level caches
         for detector in self._detectors.values():
             detector.release()
-
-    def _track(self, frame: DataFrame) -> DataFrame:
-        """Register a persisted result frame for later release."""
-        self._persisted.append(frame)
-        return frame
 
     def write_detections(self, detections: DataFrame, mode: str = "append") -> None:
         """Append (or overwrite) a detection result set to the configured UC table."""

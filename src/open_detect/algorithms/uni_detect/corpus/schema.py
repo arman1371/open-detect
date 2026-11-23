@@ -20,6 +20,8 @@ from pyspark.sql.types import (
 #: One row per (table, column) in the background corpus T -- the canonical
 #: representation every metric/featurization function in this package
 #: consumes. Produced by :class:`open_detect.algorithms.uni_detect.corpus.ingestion.CorpusIngestor`.
+#: Note: column_data_type is nullable for backward compatibility with existing Delta tables.
+#: Existing tables remain readable without rebuild (additive nullable column).
 CORPUS_COLUMNS_SCHEMA = StructType(
     [
         StructField("table_id", StringType(), nullable=False),
@@ -27,6 +29,7 @@ CORPUS_COLUMNS_SCHEMA = StructType(
         StructField("column_index", IntegerType(), nullable=False),
         StructField("num_rows", IntegerType(), nullable=False),
         StructField("values", ArrayType(StringType()), nullable=False),
+        StructField("column_data_type", StringType(), nullable=True),
     ]
 )
 
@@ -56,12 +59,19 @@ TOKEN_STATS_SCHEMA = StructType(
 #: recording its (feature_bucket, theta_before, theta_after) triple. This is
 #: the "learning" phase's only output, and the only thing the online
 #: detectors read (paper Sec. 2.2.3, "System Architecture").
+#:
+#: OPE-92: Added `weight` column. Each row in the materialized table has
+#: weight=count (the number of original corpus rows in that group). The global
+#: pre-aggregation by (feature_bucket, theta_before, theta_after) summing weights
+#: across table_id happens in batch_score to avoid cross-product explosion.
+#: Weight uses LongType to avoid float accumulation and match support semantics.
 CORPUS_STATS_SCHEMA = StructType(
     [
         StructField("error_type", StringType(), nullable=False),
         StructField("feature_bucket", StringType(), nullable=False),
         StructField("theta_before", DoubleType(), nullable=False),
         StructField("theta_after", DoubleType(), nullable=False),
+        StructField("weight", LongType(), nullable=False),
         StructField("table_id", StringType(), nullable=True),
     ]
 )

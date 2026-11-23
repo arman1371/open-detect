@@ -14,13 +14,18 @@ def _config() -> UniDetectConfig:
 
 
 def test_build_corpus_statistics_calls_ingest_and_unpersist(monkeypatch):
-    """Ensure ingest_columns is called, result is cached, and unpersisted after processing."""
+    """Ensure ingest_columns is called for UNIQUENESS, result is persisted, and unpersisted after processing."""
     # Mock Spark and the ingestor
     mock_spark = MagicMock()
     mock_ingestor = MagicMock()
     mock_columns_df = MagicMock()
-    # cache() returns the same mock, unpersist will be tracked
-    mock_columns_df.cache.return_value = mock_columns_df
+    mock_pairs_df = MagicMock()
+    # persist() returns the same mock, unpersist will be tracked
+    # The new implementation uses persist(StorageLevel.DISK_ONLY) instead of cache()
+    mock_columns_df.persist.return_value = mock_columns_df
+    mock_columns_df.unpersist = MagicMock()
+    mock_pairs_df.persist.return_value = mock_pairs_df
+    mock_pairs_df.unpersist = MagicMock()
     mock_ingestor.ingest_columns.return_value = mock_columns_df
     # Patch CorpusIngestor to return our mock ingestor
     monkeypatch.setattr(
@@ -35,12 +40,13 @@ def test_build_corpus_statistics_calls_ingest_and_unpersist(monkeypatch):
     )
     # Create UniDetect instance with mocked Spark
     ud = UniDetect(_config(), spark=mock_spark)
-    # Run with a single error type that only needs columns
+    # Run with a single error type that only needs columns (uniqueness)
+    # This uses the `elif needs_columns or needs_tokens:` branch (line 159-162)
     ud.build_corpus_statistics(["t1"], error_types=[ErrorType.UNIQUENESS])
 
-    # Verify ingest_columns was called and cache/unpersist flow executed
+    # Verify ingest_columns was called (not ingest_columns_with_pairs)
     mock_ingestor.ingest_columns.assert_called_once_with(["t1"])
-    mock_columns_df.cache.assert_called_once()
+    mock_columns_df.persist.assert_called_once()
     mock_columns_df.unpersist.assert_called_once()
 
 
@@ -49,8 +55,14 @@ def test_build_corpus_statistics_token_path(monkeypatch):
     mock_spark = MagicMock()
     mock_ingestor = MagicMock()
     mock_columns_df = MagicMock()
-    mock_columns_df.cache.return_value = mock_columns_df
-    mock_ingestor.ingest_columns.return_value = mock_columns_df
+    mock_pairs_df = MagicMock()
+    # The new implementation uses persist() instead of cache()
+    mock_columns_df.persist.return_value = mock_columns_df
+    mock_columns_df.unpersist = MagicMock()
+    mock_pairs_df.persist.return_value = mock_pairs_df
+    mock_pairs_df.unpersist = MagicMock()
+    # FD path uses ingest_columns_with_pairs since both needs_columns and needs_pairs are True
+    mock_ingestor.ingest_columns_with_pairs.return_value = (mock_columns_df, mock_pairs_df)
     # token stats path
     mock_token_stats = MagicMock()
     mock_ingestor.build_token_stats.return_value = mock_token_stats
@@ -67,15 +79,19 @@ def test_build_corpus_statistics_token_path(monkeypatch):
     )
     ud = UniDetect(_config(), spark=mock_spark)
     # Use an error type that requires token stats (functional dependency)
+    # Since FD also needs columns (for token stats), ingest_columns_with_pairs is called
     ud.build_corpus_statistics(
         ["t1"],
         error_types=[ErrorType.FUNCTIONAL_DEPENDENCY],
     )
     # Verify token stats building was called
     mock_ingestor.build_token_stats.assert_called_once()
-    # Ensure columns were still cached and unpersisted
-    mock_columns_df.cache.assert_called_once()
+    # Ensure columns were persisted and unpersisted (using persist, not cache)
+    mock_columns_df.persist.assert_called_once()
     mock_columns_df.unpersist.assert_called_once()
+    # Pairs should also be persisted when FD is requested
+    mock_pairs_df.persist.assert_called_once()
+    mock_pairs_df.unpersist.assert_called_once()
 
 
 def test_detect_exception_calls_release(monkeypatch):

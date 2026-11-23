@@ -150,9 +150,13 @@ class TestUniDetectDetect:
             result.persist.assert_called_once()
             result.count.assert_called_once()
 
-            # Verify each detector was called
+            # Verify each detector was called with the new signature including
+            # ingested_columns_df and ingested_pairs_df
             for et in error_types:
-                ud._detectors[et].detect.assert_called_once_with(["t1", "t2"])
+                call_args, call_kwargs = ud._detectors[et].detect.call_args
+                assert call_args == (["t1", "t2"],), f"Expected (['t1', 't2']), got {call_args}"
+                assert "ingested_columns_df" in call_kwargs, "Expected ingested_columns_df kwarg"
+                assert "ingested_pairs_df" in call_kwargs, "Expected ingested_pairs_df kwarg"
 
             # release() IS called automatically in the finally block to free per-detector
             # caches (scored, joined, result frames) after the unioned result is
@@ -175,7 +179,10 @@ class TestUniDetectDetect:
             ud.detect(table_names=["t1"])
 
             for et in ErrorType:
-                ud._detectors[et].detect.assert_called_once_with(["t1"])
+                call_args, call_kwargs = ud._detectors[et].detect.call_args
+                assert call_args == (["t1"],), f"Expected (['t1']), got {call_args}"
+                assert "ingested_columns_df" in call_kwargs, "Expected ingested_columns_df kwarg"
+                assert "ingested_pairs_df" in call_kwargs, "Expected ingested_pairs_df kwarg"
 
     def test_detect_validation_error_propagates(self):
         """ValidationError from _validate_inputs should propagate."""
