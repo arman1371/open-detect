@@ -447,17 +447,17 @@ def _build_token_stats_impl(self, corpus_columns: DataFrame) -> DataFrame:
         self.spark,
         **{ARROW_MAX_RECORDS_PER_BATCH_KEY: str(ARROW_MAX_RECORDS_PER_BATCH)},
     ):
-        from pyspark.sql.types import StringType as string_type
+        from pyspark.sql.types import StringType
 
         # First stage: (token, table_id) pairs per partition
         intermediate = corpus_columns.select("table_id", "values").mapInPandas(
-            lambda batches: (_compute_token_counts_batch(batch, string_type) for batch in batches),
+            lambda batches: (_compute_token_counts_batch(batch, StringType) for batch in batches),
             schema="token string, table_id string",
         )
 
         # Second stage: group by token and count distinct table_ids
         result = intermediate.mapInPandas(
-            lambda batches: (_count_tables_batch(batch, string_type) for batch in batches),
+            lambda batches: (_count_tables_batch(batch, StringType) for batch in batches),
             schema="token string, doc_frequency long",
         )
 
