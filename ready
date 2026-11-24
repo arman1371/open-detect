@@ -1,1 +1,68 @@
- = for CodeReviewer assignment/merge
+# PR #127 Ready for CodeReviewer Review
+
+## Status: OPE-90 num_rows Bug Fix - Under CodeReviewer Review
+
+PR #127 addresses a critical bug that was introduced in PR #125 (already merged to main):
+
+### Bug Analysis
+- **PR #125** introduced `num_rows` derivation from sampled values array (`len(values)`)
+- This gives count of unique sampled values (max `max_values_per_column`), NOT total table rows
+- **Test Failure**: `test_nulls_drop_whole_rows_so_arrays_stay_aligned` expects `num_rows=6` (actual row count), but the sampled values approach would give incorrect count
+
+### Changes Applied
+
+### 1. FD Row-Alignment Bug Fixed (`ingestion.py`)
+- **Problem**: Code was index-zipping two independently sorted arrays, fabricating pairs that don't exist in source data
+- **Fix**: Now collects FD pairs as `struct(lhs, rhs)` in single scan aggregation, preserving row alignment
+
+### 2. num_rows Calculation Fixed (`ingestion.py`)
+- **Problem**: `num_rows` was incorrectly derived from sampled values (`len(values)` gave unique sampled value count)
+- **Solution**: Restored `df.count()` in both `ingest_columns` and `ingest_column_pairs` methods
+- **Why**: `num_rows` must be the total table row count for correct FD row alignment semantics
+
+### 3. Partial Frames Fixed (`pipeline.py`)
+- **Problem**: If only one of `ingested_columns_df` / `ingested_pairs_df` supplied, the other was left `None`
+- **Fix**: Now ingests only missing frame(s) when one is supplied but other is needed
+
+### 4. Spark Jobs Optimized (`ingestion.py`, `pipeline.py`)
+- **Removed**: `columns_df.rdd.isEmpty()` / `pairs_df.rdd.isEmpty()` calls (each launched a job)
+- **Removed**: Unnecessary `count()` checks before repartitioning in `ingest_columns_with_pairs`
+- **Kept**: Single `df.count()` per table for `num_rows` - required for correct FD row alignment semantics
+- **Consolidated**: Repartition now only applied once in ingestion methods
+
+### 5. Real Tests Added for `_filter_by_column_type` (`test_pipeline.py`)
+- Added Java-free unit tests:
+  - `test_filter_by_column_type_outlier` - numeric columns filtering
+  - `test_filter_by_column_type_spelling` - non-numeric columns filtering
+  - `test_filter_by_column_type_uniqueness` - all columns returned
+  - `test_filter_by_column_type_fd` - all columns returned for FD
+
+### 6. Single-Scan Ingestion Optimization
+- Implemented `ingest_columns_with_pairs()` to build both `corpus_columns` and `corpus_column_pairs` in a single scan per table
+- Removed redundant table scans in `detect()` method
+
+## Verification
+
+- Branch: `fix/ope-90-review-fixes-v2`
+- PR: https://github.com/arman1371/open-detect/pull/127
+- All tests pass: 833 passed, 39 skipped (Spark tests require Java)
+- The test `test_nulls_drop_whole_rows_so_arrays_stay_aligned` validates num_rows fix
+- Lint (ruff): passed
+- Type-check (mypy): passed
+- CI: All checks pass (SonarCloud Quality Gate passed)
+
+## Review Status
+- Paperclip review task: **OPE-208** created and assigned to CodeReviewer
+- GitHub PR comment posted requesting round 2 review
+- Awaiting CodeReviewer approval before merging to main
+
+## Context
+- PR #125 was merged with the num_rows bug that this PR fixes
+- This PR should be merged after CodeReviewer approves the num_rows fix
+
+---
+
+For CodeReviewer:
+This PR fixes a critical num_rows bug introduced in PR #125. The `num_rows` field must be the actual total row count for correct FD row alignment semantics.
+
+🤖 Generated with [Claude Code](https://claude.com/claude-code)

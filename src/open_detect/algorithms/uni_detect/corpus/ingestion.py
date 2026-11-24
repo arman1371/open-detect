@@ -182,23 +182,11 @@ class CorpusIngestor:
             pairs_df = balanced_union(per_table_pair_frames)
 
         # Repartition to spread work across cores (requirement 4)
-        # Use count() instead of rdd.isEmpty() to avoid extra Spark job
+        # Repartition unconditionally - empty DataFrame repartition is cheap
         default_parallelism = self.spark.sparkContext.defaultParallelism
         target_partitions = default_parallelism * INGESTION_REPARTITION_FACTOR
-        if columns_df is not None:
-            try:
-                if columns_df.count() > 0:
-                    columns_df = columns_df.repartition(target_partitions)
-            except Exception:
-                # If count fails, skip repartition
-                pass
-        if pairs_df is not None:
-            try:
-                if pairs_df.count() > 0:
-                    pairs_df = pairs_df.repartition(target_partitions)
-            except Exception:
-                # If count fails, skip repartition
-                pass
+        columns_df = columns_df.repartition(target_partitions)
+        pairs_df = pairs_df.repartition(target_partitions)
 
         return columns_df, pairs_df
 
@@ -256,14 +244,10 @@ class CorpusIngestor:
         if all_values_row is None:
             return None, []
 
-        # Get num_rows from the first non-empty values array to avoid extra count() scan
-        # (requirement 1: remove per-table df.count() scan)
-        num_rows = 0
-        for idx in range(len(col_names)):
-            values = all_values_row[f"values_{idx}"] or []
-            if values:
-                num_rows = len(values)
-                break
+        # Get total row count - must be accurate for FD row alignment semantics
+        # Use df.count() directly; sampling-based approaches give wrong count
+        # when columns have different null patterns
+        num_rows = df.count()
         if num_rows == 0:
             return None, []
 
@@ -382,22 +366,9 @@ class CorpusIngestor:
         if len(columns) < 2:
             return []
 
-        # Get num_rows from the first pair's non-null count to avoid extra scan
-        # (requirement 1: remove per-table df.count() scan)
-        num_rows = 0
-        for lhs_idx, rhs_idx in select_fd_column_pairs(fqn, columns, 1):
-            lhs_col, rhs_col = columns[lhs_idx], columns[rhs_idx]
-            sampled = (
-                df.select(
-                    F.col(f"`{lhs_col}`").cast("string").alias("lhs"),
-                    F.col(f"`{rhs_col}`").cast("string").alias("rhs"),
-                )
-                .where(F.col("lhs").isNotNull() & F.col("rhs").isNotNull())
-                .limit(1)
-            )
-            # Get count without full scan - use take(1) which is cheap
-            num_rows = df.count()  # TODO: replace with better approach if needed
-            break
+        # Get total row count (same as original pre-7d8b9ec7 implementation)
+        # Must be actual table row count for correct FD row alignment semantics
+        num_rows = df.count()
         if num_rows == 0:
             return []
 
