@@ -1,4 +1,4 @@
-= for CodeReviewer assignment/merge
+# PR #127 Ready for CodeReviewer Review
 
 ## Status: OPE-90 Review Fixes Ready
 
@@ -34,10 +34,15 @@ PR #127 is open and ready for CodeReviewer round 2 review. All CI checks pass.
 ### 6. TODO Fix
 - Replaced `df.count()` with sample-based row counting using `sampled.collect()` and `len()`
 
+### 7. Improved num_rows Calculation (additional fix)
+- Use first column's collect_list for total row count instead of sampling a pair column
+- More accurate and avoids complex sampling logic
+
 ## Verification
 
 - Branch: `fix/ope-90-review-fixes-v2`
-- All tests pass: 340 passed, 36 skipped (Spark tests require Java)
+- PR: https://github.com/arman1371/open-detect/pull/127
+- All tests pass: 36 passed, 2 skipped (Spark tests require Java)
 - Lint (ruff): passed
 - Type-check (mypy): passed
 - CI: All checks pass (SonarCloud Quality Gate passed)
