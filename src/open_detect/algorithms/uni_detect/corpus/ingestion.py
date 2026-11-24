@@ -393,10 +393,10 @@ class CorpusIngestor:
                     F.col(f"`{rhs_col}`").cast("string").alias("rhs"),
                 )
                 .where(F.col("lhs").isNotNull() & F.col("rhs").isNotNull())
-                .limit(1)
+                .limit(self.max_values_per_column)
             )
-            # Get count without full scan - use take(1) which is cheap
-            num_rows = df.count()  # TODO: replace with better approach if needed
+            paired_rows = sampled.collect()
+            num_rows = len(paired_rows) if paired_rows else 0
             break
         if num_rows == 0:
             return []
