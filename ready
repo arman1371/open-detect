@@ -2,7 +2,7 @@
 
 ## Status: OPE-90 Review Fixes Ready
 
-PR #127 is open and ready for CodeReviewer round 2 review. All CI checks pass.
+PR #127 is ready for CodeReviewer round 2 review. All CI checks pass.
 
 ### Changes Applied
 
@@ -32,7 +32,7 @@ PR #127 is open and ready for CodeReviewer round 2 review. All CI checks pass.
 - Removed redundant table scans in `detect()` method
 
 ### 6. num_rows Calculation Fix
-- **Bug Fix**: `num_rows` in `_per_table_pair_frames` and `_per_table_column_frame_with_pairs` was incorrectly derived from sampled values array
+- **Bug Fix**: `num_rows` in `_per_table_pair_frames` was incorrectly derived from sampled values array
 - **Problem**: `len(values)` gave count of unique sampled values (max `max_values_per_column`), not total table rows
 - **Solution**: Restored `df.count()` in both methods to get accurate total table row count
 - **Why**: `num_rows` must be the total table row count for correct FD row alignment semantics
@@ -42,7 +42,7 @@ PR #127 is open and ready for CodeReviewer round 2 review. All CI checks pass.
 
 - Branch: `fix/ope-90-review-fixes-v2`
 - PR: https://github.com/arman1371/open-detect/pull/127
-- All tests pass: 340 passed, 36 skipped (Spark tests require Java)
+- All tests pass: 833 passed, 39 skipped (Spark tests require Java)
 - Lint (ruff): passed
 - Type-check (mypy): passed
 - CI: All checks pass (SonarCloud Quality Gate passed)
@@ -55,3 +55,5 @@ PR #127 is open and ready for CodeReviewer round 2 review. All CI checks pass.
 
 For CodeReviewer:
 PR #127 is ready for review. All CodeReviewer round 2 feedback has been addressed.
+
+🤖 Generated with [Claude Code](https://claude.com/claude-code)
