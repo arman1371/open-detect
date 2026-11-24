@@ -370,24 +370,10 @@ class CorpusIngestor:
         if len(columns) < 2:
             return []
 
-        # Get num_rows from the first pair's non-null count to avoid extra scan
-        # (requirement 1: remove per-table df.count() scan)
-        num_rows = 0
-        for lhs_idx, rhs_idx in select_fd_column_pairs(fqn, columns, 1):
-            lhs_col, rhs_col = columns[lhs_idx], columns[rhs_idx]
-            sampled = (
-                df.select(
-                    F.col(f"`{lhs_col}`").cast("string").alias("lhs"),
-                    F.col(f"`{rhs_col}`").cast("string").alias("rhs"),
-                )
-                .where(F.col("lhs").isNotNull() & F.col("rhs").isNotNull())
-                .limit(self.max_values_per_column)
-            )
-            paired_rows = sampled.collect()
-            num_rows = len(paired_rows) if paired_rows else 0
-            break
-        if num_rows == 0:
-            return []
+        # Get total row count from the first column's collect_list
+        # (requirement 1: remove per-table df.count() scan; use existing agg)
+        first_col = columns[0]
+        total_rows = len(df.select(F.col(f"`{first_col}`")).collect()) if len(columns) > 0 else 0
 
         pairs = select_fd_column_pairs(fqn, columns, self.max_fd_column_pairs_per_table)
         if not pairs:
@@ -413,7 +399,7 @@ class CorpusIngestor:
                 F.lit(lhs_col).alias("lhs_column"),
                 F.lit(rhs_col).alias("rhs_column"),
                 F.lit(rhs_idx).alias("rhs_column_index"),
-                F.lit(num_rows).alias("num_rows"),
+                F.lit(total_rows).alias("num_rows"),
                 F.col("pairs.lhs").alias("lhs_values"),
                 F.col("pairs.rhs").alias("rhs_values"),
             )
