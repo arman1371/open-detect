@@ -31,18 +31,16 @@ PR #127 is open and ready for CodeReviewer round 2 review. All CI checks pass.
 - Implemented `ingest_columns_with_pairs()` to build both `corpus_columns` and `corpus_column_pairs` in a single scan per table
 - Removed redundant table scans in `detect()` method
 
-### 6. TODO Fix
-- Replaced `df.count()` with sample-based row counting using `sampled.collect()` and `len()`
-
-### 7. Improved num_rows Calculation (additional fix)
-- Use first column's collect_list for total row count instead of sampling a pair column
-- More accurate and avoids complex sampling logic
+### 6. num_rows Calculation Fix
+- **Bug Fix**: `num_rows` in `_per_table_pair_frames` was incorrectly derived from sampled pair data
+- **Solution**: Restored `df.count()` to get actual total table row count
+- **Why**: `num_rows` must be the total table row count for correct FD row alignment semantics
 
 ## Verification
 
 - Branch: `fix/ope-90-review-fixes-v2`
 - PR: https://github.com/arman1371/open-detect/pull/127
-- All tests pass: 36 passed, 2 skipped (Spark tests require Java)
+- All tests pass: 833 passed, 39 skipped (Spark tests require Java)
 - Lint (ruff): passed
 - Type-check (mypy): passed
 - CI: All checks pass (SonarCloud Quality Gate passed)
