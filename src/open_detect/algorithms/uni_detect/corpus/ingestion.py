@@ -244,14 +244,10 @@ class CorpusIngestor:
         if all_values_row is None:
             return None, []
 
-        # Get num_rows from the first non-empty values array to avoid extra count() scan
-        # (requirement 1: remove per-table df.count() scan)
-        num_rows = 0
-        for idx in range(len(col_names)):
-            values = all_values_row[f"values_{idx}"] or []
-            if values:
-                num_rows = len(values)
-                break
+        # Get total row count - must be accurate for FD row alignment semantics
+        # Use df.count() directly; sampling-based approaches give wrong count
+        # when columns have different null patterns
+        num_rows = df.count()
         if num_rows == 0:
             return None, []
 

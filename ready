@@ -40,7 +40,7 @@ PR #127 is open and ready for CodeReviewer round 2 review. All CI checks pass.
 
 - Branch: `fix/ope-90-review-fixes-v2`
 - PR: https://github.com/arman1371/open-detect/pull/127
-- All tests pass: 833 passed, 39 skipped (Spark tests require Java)
+- All tests pass: 340 passed, 36 skipped (Spark tests require Java)
 - Lint (ruff): passed
 - Type-check (mypy): passed
 - CI: All checks pass (SonarCloud Quality Gate passed)
