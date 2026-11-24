@@ -2,22 +2,49 @@
 
 ## Status: OPE-90 Review Fixes Ready
 
-PR #127 is open with CodeReviewer round 2 feedback fixes. All CI checks pass.
+PR #127 is open and ready for CodeReviewer round 2 review. All CI checks pass.
 
-### Summary of Changes:
-- **FD Row-Alignment Bug Fixed** (`ingestion.py`): Now collects FD pairs as `struct(lhs, rhs)` in single scan aggregation, preserving row alignment
-- **Partial Frames Fixed** (`pipeline.py`): Ingests only missing frame(s) when one is supplied but other is needed
-- **Extra Spark Jobs Removed** (`ingestion.py`, `pipeline.py`): Removed `rdd.isEmpty()` calls, per-table `df.count()` scans, consolidated repartition
-- **Real Tests Added** (`test_pipeline.py`): 614 new test cases for outlier, spelling, uniqueness, and FD column filtering
-- **Single-Scan Ingestion Optimization**: Implemented `ingest_columns_with_pairs()` to build both DataFrames in a single scan
-- **TODO Fixed**: Replaced `df.count()` with sample-based row counting using `sampled.collect()` and `len()`
+### Changes Applied
 
-### Verification:
+### 1. FD Row-Alignment Bug Fixed (`ingestion.py`)
+- **Problem**: Code was index-zipping two independently sorted arrays, fabricating pairs that don't exist in source data
+- **Fix**: Now collects FD pairs as `struct(lhs, rhs)` in single scan aggregation, preserving row alignment
+
+### 2. Partial Frames Fixed (`pipeline.py`)
+- **Problem**: If only one of `ingested_columns_df` / `ingested_pairs_df` supplied, the other was left `None`
+- **Fix**: Now ingests only missing frame(s) when one is supplied but other is needed
+
+### 3. Extra Spark Jobs Removed (`ingestion.py`, `pipeline.py`)
+- **Removed**: `columns_df.rdd.isEmpty()` / `pairs_df.rdd.isEmpty()` calls (each launched a job)
+- **Removed**: Per-table `df.count()` scans by deriving `num_rows` from first non-empty values array
+- **Removed**: Unnecessary `count()` checks before repartitioning in `ingest_columns_with_pairs`
+- **Consolidated**: Repartition now only applied once in ingestion methods
+
+### 4. Real Tests Added for `_filter_by_column_type` (`test_pipeline.py`)
+- Added Java-free unit tests:
+  - `test_filter_by_column_type_outlier` - numeric columns filtering
+  - `test_filter_by_column_type_spelling` - non-numeric columns filtering
+  - `test_filter_by_column_type_uniqueness` - all columns returned
+  - `test_filter_by_column_type_fd` - all columns returned for FD
+
+### 5. Single-Scan Ingestion Optimization
+- Implemented `ingest_columns_with_pairs()` to build both `corpus_columns` and `corpus_column_pairs` in a single scan per table
+- Removed redundant table scans in `detect()` method
+
+### 6. TODO Fix
+- Replaced `df.count()` with sample-based row counting using `sampled.collect()` and `len()`
+
+## Verification
+
 - Branch: `fix/ope-90-review-fixes-v2`
 - All tests pass: 340 passed, 36 skipped (Spark tests require Java)
 - Lint (ruff): passed
 - Type-check (mypy): passed
 - CI: All checks pass (SonarCloud Quality Gate passed)
+
+## Next Steps
+- Awaiting CodeReviewer review of [PR #127](https://github.com/arman1371/open-detect/pull/127)
+- After approval, merge to main and mark task complete
 
 ---
 
