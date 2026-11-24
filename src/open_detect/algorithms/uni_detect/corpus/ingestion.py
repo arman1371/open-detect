@@ -370,10 +370,11 @@ class CorpusIngestor:
         if len(columns) < 2:
             return []
 
-        # Get total row count from the first column's collect_list
-        # (requirement 1: remove per-table df.count() scan; use existing agg)
-        first_col = columns[0]
-        total_rows = len(df.select(F.col(f"`{first_col}`")).collect()) if len(columns) > 0 else 0
+        # Get total row count (same as original pre-7d8b9ec7 implementation)
+        # Must be actual table row count for correct FD row alignment semantics
+        num_rows = df.count()
+        if num_rows == 0:
+            return []
 
         pairs = select_fd_column_pairs(fqn, columns, self.max_fd_column_pairs_per_table)
         if not pairs:
@@ -399,7 +400,7 @@ class CorpusIngestor:
                 F.lit(lhs_col).alias("lhs_column"),
                 F.lit(rhs_col).alias("rhs_column"),
                 F.lit(rhs_idx).alias("rhs_column_index"),
-                F.lit(total_rows).alias("num_rows"),
+                F.lit(num_rows).alias("num_rows"),
                 F.col("pairs.lhs").alias("lhs_values"),
                 F.col("pairs.rhs").alias("rhs_values"),
             )
