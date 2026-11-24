@@ -1,8 +1,8 @@
 # PR #127 Ready for CodeReviewer Review
 
-## Status: OPE-90 num_rows Bug Fix - Ready for Review
+## Status: OPE-90 num_rows Bug Fix - Under CodeReviewer Review
 
-PR #127 addresses a critical bug that was introduced in PR #125 (which was already merged to main):
+PR #127 addresses a critical bug that was introduced in PR #125 (already merged to main):
 
 ### Bug Analysis
 - **PR #125** introduced `num_rows` derivation from sampled values array (`len(values)`)
@@ -49,6 +49,12 @@ PR #127 addresses a critical bug that was introduced in PR #125 (which was alrea
 - The test `test_nulls_drop_whole_rows_so_arrays_stay_aligned` validates num_rows fix
 - Lint (ruff): passed
 - Type-check (mypy): passed
+- CI: All checks pass (SonarCloud Quality Gate passed)
+
+## Review Status
+- Paperclip review task: **OPE-208** created and assigned to CodeReviewer
+- GitHub PR comment posted requesting round 2 review
+- Awaiting CodeReviewer approval before merging to main
 
 ## Context
 - PR #125 was merged with the num_rows bug that this PR fixes
