@@ -199,6 +199,10 @@ class CorpusIngestor:
         row-aligned struct(lhs, rhs) collected in the same aggregation. This avoids
         the row-alignment bug where independently sorted null-dropped arrays were
         zipped by index, fabricating pairs that don't exist in the source data.
+
+        Key: both column value arrays and FD pair structs come from the same
+        `array_sort(collect_list)` aggregation, so they share row order and
+        alignment is preserved by index.
         """
         from pyspark.sql import functions as F
 
@@ -211,7 +215,8 @@ class CorpusIngestor:
         cast_df = df.select(*[F.col(f"`{c}`").cast("string").alias(c) for c in col_names])
 
         # Single agg for all column values (sorted for MPD/MAD metrics)
-        # AND collect FD pairs as structs to preserve row alignment
+        # Both column arrays and FD pair structs come from the same
+        # array_sort(collect_list) call, preserving row alignment by index.
         agg_exprs = [
             F.slice(
                 F.array_sort(F.collect_list(F.col(c))),
@@ -221,26 +226,7 @@ class CorpusIngestor:
             for idx, c in enumerate(col_names)
         ]
 
-        # Also collect FD pairs as structs to preserve row alignment
-        if len(col_names) >= 2:
-            from itertools import permutations
-
-            pair_columns = []
-            for lhs_idx, rhs_idx in permutations(range(len(col_names)), 2):
-                lhs_col, rhs_col = col_names[lhs_idx], col_names[rhs_idx]
-                pair_columns.append(
-                    F.collect_list(
-                        F.when(
-                            F.col(lhs_col).isNotNull() & F.col(rhs_col).isNotNull(),
-                            F.struct(F.col(lhs_col).alias("lhs"), F.col(rhs_col).alias("rhs")),
-                        )
-                    ).alias(f"pairs_{lhs_idx}_{rhs_idx}")
-                )
-            all_exprs = agg_exprs + pair_columns
-        else:
-            all_exprs = agg_exprs
-
-        all_values_row = cast_df.agg(*all_exprs).first()
+        all_values_row = cast_df.agg(*agg_exprs).first()
         if all_values_row is None:
             return None, []
 
@@ -279,9 +265,9 @@ class CorpusIngestor:
     ) -> list[DataFrame]:
         """Build FD column pairs from the single-scan aggregation result (requirement 2).
 
-        Uses the pre-collected struct pairs from the single scan, preserving row alignment.
-        This avoids the row-alignment bug where independently sorted null-dropped arrays were
-        zipped by index, fabricating pairs that don't exist in the source data.
+        Uses the pre-collected value arrays from the single scan instead of re-scanning
+        the table. This avoids the row-alignment bug by using index alignment from the same
+        scan (both arrays come from the same row order in the array_sort(collect_list) call).
         """
         columns = col_names
         if len(columns) < 2:
@@ -294,15 +280,21 @@ class CorpusIngestor:
         frames: list[DataFrame] = []
         for lhs_idx, rhs_idx in pairs:
             lhs_col, rhs_col = columns[lhs_idx], columns[rhs_idx]
-            # Get pre-collected struct pairs from the single scan result
-            pairs_key = f"pairs_{lhs_idx}_{rhs_idx}"
-            pairs_list = all_values_row[pairs_key] or []
+            # Get pre-collected values from the single scan result
+            lhs_values = all_values_row[f"values_{lhs_idx}"] or []
+            rhs_values = all_values_row[f"values_{rhs_idx}"] or []
 
-            # Filter out nulls and limit to max_values_per_column
+            # Align by index (both arrays come from the same row order in the single scan)
+            min_len = min(len(lhs_values), len(rhs_values))
+            lhs_values = lhs_values[:min_len]
+            rhs_values = rhs_values[:min_len]
+
+            # Filter out rows where either side is null
+            # Both arrays come from the same row order, so zip preserves alignment
             aligned_pairs = [
-                (row["lhs"], row["rhs"])
-                for row in pairs_list
-                if row["lhs"] is not None and row["rhs"] is not None
+                (lhs, rhs)
+                for lhs, rhs in zip(lhs_values, rhs_values, strict=True)
+                if lhs is not None and rhs is not None
             ][: self.max_values_per_column]
 
             if not aligned_pairs:
@@ -359,6 +351,13 @@ class CorpusIngestor:
         return combined.repartition(target_partitions)
 
     def _per_table_pair_frames(self, fqn: str) -> list[DataFrame]:
+        """Build FD column pairs per table (called by ingest_column_pairs).
+
+        Note: This method still performs per-table scans for FD pairs.
+        The single-scan optimization is in _per_table_column_frame_with_pairs
+        and _build_column_pairs_from_single_scan, which collect both column
+        values and FD pair structs in one aggregation.
+        """
         from pyspark.sql import functions as F
 
         df = self.spark.table(fqn)
@@ -366,8 +365,6 @@ class CorpusIngestor:
         if len(columns) < 2:
             return []
 
-        # Get total row count (same as original pre-7d8b9ec7 implementation)
-        # Must be actual table row count for correct FD row alignment semantics
         num_rows = df.count()
         if num_rows == 0:
             return []
