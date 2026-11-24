@@ -182,23 +182,11 @@ class CorpusIngestor:
             pairs_df = balanced_union(per_table_pair_frames)
 
         # Repartition to spread work across cores (requirement 4)
-        # Use count() instead of rdd.isEmpty() to avoid extra Spark job
+        # Repartition unconditionally - empty DataFrame repartition is cheap
         default_parallelism = self.spark.sparkContext.defaultParallelism
         target_partitions = default_parallelism * INGESTION_REPARTITION_FACTOR
-        if columns_df is not None:
-            try:
-                if columns_df.count() > 0:
-                    columns_df = columns_df.repartition(target_partitions)
-            except Exception:
-                # If count fails, skip repartition
-                pass
-        if pairs_df is not None:
-            try:
-                if pairs_df.count() > 0:
-                    pairs_df = pairs_df.repartition(target_partitions)
-            except Exception:
-                # If count fails, skip repartition
-                pass
+        columns_df = columns_df.repartition(target_partitions)
+        pairs_df = pairs_df.repartition(target_partitions)
 
         return columns_df, pairs_df
 
