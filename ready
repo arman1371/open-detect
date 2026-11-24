@@ -14,10 +14,10 @@ PR #127 is open and ready for CodeReviewer round 2 review. All CI checks pass.
 - **Problem**: If only one of `ingested_columns_df` / `ingested_pairs_df` supplied, the other was left `None`
 - **Fix**: Now ingests only missing frame(s) when one is supplied but other is needed
 
-### 3. Extra Spark Jobs Removed (`ingestion.py`, `pipeline.py`)
+### 3. Spark Jobs Optimized (`ingestion.py`, `pipeline.py`)
 - **Removed**: `columns_df.rdd.isEmpty()` / `pairs_df.rdd.isEmpty()` calls (each launched a job)
-- **Removed**: Per-table `df.count()` scans by deriving `num_rows` from first non-empty values array
 - **Removed**: Unnecessary `count()` checks before repartitioning in `ingest_columns_with_pairs`
+- **Kept**: Single `df.count()` per table for `num_rows` - required for correct FD row alignment semantics
 - **Consolidated**: Repartition now only applied once in ingestion methods
 
 ### 4. Real Tests Added for `_filter_by_column_type` (`test_pipeline.py`)
@@ -32,9 +32,11 @@ PR #127 is open and ready for CodeReviewer round 2 review. All CI checks pass.
 - Removed redundant table scans in `detect()` method
 
 ### 6. num_rows Calculation Fix
-- **Bug Fix**: `num_rows` in `_per_table_pair_frames` was incorrectly derived from sampled pair data
-- **Solution**: Restored `df.count()` to get actual total table row count
+- **Bug Fix**: `num_rows` in `_per_table_pair_frames` and `_per_table_column_frame_with_pairs` was incorrectly derived from sampled values array
+- **Problem**: `len(values)` gave count of unique sampled values (max `max_values_per_column`), not total table rows
+- **Solution**: Restored `df.count()` in both methods to get accurate total table row count
 - **Why**: `num_rows` must be the total table row count for correct FD row alignment semantics
+- **Verified**: Test `test_nulls_drop_whole_rows_so_arrays_stay_aligned` now expects correct value (6 for 6-row table)
 
 ## Verification
 
